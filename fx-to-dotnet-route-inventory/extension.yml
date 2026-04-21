@@ -1,0 +1,15 @@
+schema_version: "1.0"
+extension:
+  id: "fx-to-dotnet-route-inventory"
+  name: "Legacy Web Route Inventory"
+  version: "0.1.2"
+  description: "Extract route and endpoint inventory from legacy ASP.NET web project"
+  author: "Microsoft"
+  repository: "https://github.com/AzureAD/fx-to-dotnet-extensions"
+  license: "MIT"
+requires:
+  speckit_version: ">=0.1.0"
+provides:
+  commands:
+    - name: "speckit.fx-to-dotnet-route-inventory.inventory"
+      file: "commands/inventory.md"

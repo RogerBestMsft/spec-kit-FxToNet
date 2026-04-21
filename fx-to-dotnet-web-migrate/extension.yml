@@ -1,0 +1,15 @@
+schema_version: "1.0"
+extension:
+  id: "fx-to-dotnet-web-migrate"
+  name: "ASP.NET Framework to ASP.NET Core Web Migration"
+  version: "0.1.2"
+  description: "Plan and execute ASP.NET Framework to ASP.NET Core migration; create side-by-side host; port artifacts in slices"
+  author: "Microsoft"
+  repository: "https://github.com/AzureAD/fx-to-dotnet-extensions"
+  license: "MIT"
+requires:
+  speckit_version: ">=0.1.0"
+provides:
+  commands:
+    - name: "speckit.fx-to-dotnet-web-migrate.migrate"
+      file: "commands/migrate.md"

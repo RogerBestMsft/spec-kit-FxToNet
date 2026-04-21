@@ -1,0 +1,15 @@
+schema_version: "1.0"
+extension:
+  id: "fx-to-dotnet-detect-project"
+  name: ".NET Project Type Detector"
+  version: "0.1.2"
+  description: "Read project file; determine SDK-style format, project classification, confidence level, and evidence"
+  author: "Microsoft"
+  repository: "https://github.com/AzureAD/fx-to-dotnet-extensions"
+  license: "MIT"
+requires:
+  speckit_version: ">=0.1.0"
+provides:
+  commands:
+    - name: "speckit.fx-to-dotnet-detect-project.detect"
+      file: "commands/detect.md"

@@ -1,0 +1,12 @@
+tests/
+.github/
+*.pyc
+__pycache__/
+.vs/
+.vscode/
+*.user
+*.suo
+bin/
+obj/
+artifacts/
+node_modules/

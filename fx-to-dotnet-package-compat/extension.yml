@@ -1,0 +1,15 @@
+schema_version: "1.0"
+extension:
+  id: "fx-to-dotnet-package-compat"
+  name: ".NET Package Compatibility Migration"
+  version: "0.1.2"
+  description: "Execute pre-built chunked package update plan; invoke build-fix after each chunk"
+  author: "Microsoft"
+  repository: "https://github.com/AzureAD/fx-to-dotnet-extensions"
+  license: "MIT"
+requires:
+  speckit_version: ">=0.1.0"
+provides:
+  commands:
+    - name: "speckit.fx-to-dotnet-package-compat.update"
+      file: "commands/update.md"
