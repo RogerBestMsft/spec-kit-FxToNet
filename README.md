@@ -1,6 +1,6 @@
-# fx-to-dotnet Extension Family
+# fx-to-dotnet
 
-A family of **11 standalone Spec Kit extensions** that together orchestrate migrating .NET Framework applications to modern .NET (e.g. .NET 10) through a 7-phase workflow.
+A **single Spec Kit extension** that orchestrates migrating .NET Framework applications to modern .NET (e.g. .NET 10) through a 7-phase workflow.
 
 ## Phase Diagram
 
@@ -14,17 +14,17 @@ graph TD
     F --> G[Phase 6: Web Migration]
     G --> H[Phase 7: Completion]
 
-    B -.-> B1[fx-to-dotnet-assess]
-    B1 -.-> B2[fx-to-dotnet-detect-project]
-    C -.-> C1[fx-to-dotnet-plan]
-    D -.-> D1[fx-to-dotnet-sdk-convert]
-    D1 -.-> D2[fx-to-dotnet-build-fix]
-    E -.-> E1[fx-to-dotnet-package-compat]
+    B -.-> B1[assess]
+    B1 -.-> B2[detect]
+    C -.-> C1[plan]
+    D -.-> D1[convert]
+    D1 -.-> D2[fix]
+    E -.-> E1[update-packages]
     E1 -.-> D2
-    F -.-> F1[fx-to-dotnet-multitarget]
+    F -.-> F1[multitarget-migrate]
     F1 -.-> D2
-    G -.-> G1[fx-to-dotnet-web-migrate]
-    G1 -.-> G2[fx-to-dotnet-route-inventory]
+    G -.-> G1[web-migrate]
+    G1 -.-> G2[inventory]
     G1 -.-> D2
 
     style A fill:#4a9eff
@@ -39,51 +39,41 @@ graph TD
     style G2 fill:#9c27b0
 ```
 
-## Extensions
+## Commands
 
-| Extension | Command | Description |
-|-----------|---------|-------------|
-| `fx-to-dotnet` | `speckit.fx-to-dotnet.orchestrate` | Orchestrator — drives 7-phase flow |
-| `fx-to-dotnet-assess` | `speckit.fx-to-dotnet-assess.assess` | Phase 1: Assessment |
-| `fx-to-dotnet-plan` | `speckit.fx-to-dotnet-plan.plan` | Phase 2: Migration planning |
-| `fx-to-dotnet-sdk-convert` | `speckit.fx-to-dotnet-sdk-convert.convert` | Phase 3: SDK-style conversion |
-| `fx-to-dotnet-build-fix` | `speckit.fx-to-dotnet-build-fix.fix` | Cross-cutting: build/fix loop |
-| `fx-to-dotnet-package-compat` | `speckit.fx-to-dotnet-package-compat.update` | Phase 4: Package compatibility |
-| `fx-to-dotnet-multitarget` | `speckit.fx-to-dotnet-multitarget.migrate` | Phase 5: Multitarget migration |
-| `fx-to-dotnet-web-migrate` | `speckit.fx-to-dotnet-web-migrate.migrate` | Phase 6: ASP.NET web migration |
-| `fx-to-dotnet-detect-project` | `speckit.fx-to-dotnet-detect-project.detect` | Utility: project type detection |
-| `fx-to-dotnet-route-inventory` | `speckit.fx-to-dotnet-route-inventory.inventory` | Utility: legacy route extraction |
-| `fx-to-dotnet-policies` | `speckit.fx-to-dotnet-policies.show` | Shared policies + reference docs |
+| Command | Description |
+|---------|-------------|
+| `speckit.fx-to-dotnet.orchestrate` | Orchestrator — drives the 7-phase migration flow |
+| `speckit.fx-to-dotnet.assess` | Phase 1: Assessment |
+| `speckit.fx-to-dotnet.plan` | Phase 2: Migration planning |
+| `speckit.fx-to-dotnet.convert` | Phase 3: SDK-style conversion |
+| `speckit.fx-to-dotnet.fix` | Cross-cutting: build/fix loop |
+| `speckit.fx-to-dotnet.update-packages` | Phase 4: Package compatibility |
+| `speckit.fx-to-dotnet.multitarget-migrate` | Phase 5: Multitarget migration |
+| `speckit.fx-to-dotnet.web-migrate` | Phase 6: ASP.NET web migration |
+| `speckit.fx-to-dotnet.detect` | Utility: project type detection |
+| `speckit.fx-to-dotnet.inventory` | Utility: legacy route extraction |
+| `speckit.fx-to-dotnet.show-policy` | Shared policies + reference docs |
 
-## Install All Extensions
+## Install
 
 ```bash
-for ext in fx-to-dotnet fx-to-dotnet-assess fx-to-dotnet-plan fx-to-dotnet-sdk-convert \
-           fx-to-dotnet-build-fix fx-to-dotnet-package-compat fx-to-dotnet-multitarget \
-           fx-to-dotnet-web-migrate fx-to-dotnet-detect-project fx-to-dotnet-route-inventory \
-           fx-to-dotnet-policies; do
-  specify extension add $ext
-done
+specify extension add fx-to-dotnet
 ```
 
 ### Dev Install (from local checkout)
 
 ```bash
-for ext in fx-to-dotnet fx-to-dotnet-assess fx-to-dotnet-plan fx-to-dotnet-sdk-convert \
-           fx-to-dotnet-build-fix fx-to-dotnet-package-compat fx-to-dotnet-multitarget \
-           fx-to-dotnet-web-migrate fx-to-dotnet-detect-project fx-to-dotnet-route-inventory \
-           fx-to-dotnet-policies; do
-  specify extension add --dev /path/to/$ext
-done
+specify extension add --dev /path/to/fx-to-dotnet
 ```
 
 ## Prerequisites
 
-- **Spec Kit** >= 0.5.0
-- **.NET SDK** (for `dotnet build` via the build-fix extension)
-- **MCP Servers** (required by assessment and SDK conversion extensions):
+- **Spec Kit** >= 0.1.0
+- **.NET SDK** (for `dotnet build` via the fix command)
+- **MCP Servers** (required by assess and convert commands):
   - `Microsoft.GitHubCopilot.AppModernization.Mcp` — project analysis and SDK conversion
-- **Skills** (bundled in the repo, used by assessment and SDK conversion):
+- **Skills** (bundled in the repo, used by assess and convert commands):
   - `dependency-layers` — dependency layer computation algorithm
   - `nuget-package-compat` — NuGet package compatibility analysis scripts
 
@@ -101,36 +91,36 @@ done
 }
 ```
 
-## Dependency Graph
+## Command Dependency Graph
 
 ```
-fx-to-dotnet (orchestrator)
-├── fx-to-dotnet-assess
-│   ├── fx-to-dotnet-detect-project
-│   └── fx-to-dotnet-policies
-├── fx-to-dotnet-plan
-│   └── fx-to-dotnet-policies
-├── fx-to-dotnet-sdk-convert
-│   └── fx-to-dotnet-build-fix
-│       └── fx-to-dotnet-policies
-├── fx-to-dotnet-package-compat
-│   └── fx-to-dotnet-build-fix
-├── fx-to-dotnet-multitarget
-│   ├── fx-to-dotnet-build-fix
-│   └── fx-to-dotnet-policies
-└── fx-to-dotnet-web-migrate
-    ├── fx-to-dotnet-route-inventory
-    ├── fx-to-dotnet-build-fix
-    └── fx-to-dotnet-policies
+orchestrate
+├── assess
+│   ├── detect
+│   └── (policies)
+├── plan
+│   └── (policies)
+├── convert
+│   └── fix
+│       └── (policies)
+├── update-packages
+│   └── fix
+├── multitarget-migrate
+│   ├── fix
+│   └── (policies)
+└── web-migrate
+    ├── inventory
+    ├── fix
+    └── (policies)
 ```
 
 ## Standalone Usage
 
-Some extensions can be used independently outside the full migration suite:
+Some commands can be used independently outside the full migration suite:
 
-- **`fx-to-dotnet-build-fix`** — Useful for any .NET project; iteratively builds and fixes compilation errors
-- **`fx-to-dotnet-detect-project`** — Classifies any .NET project (SDK-style, web host, service, library, etc.)
-- **`fx-to-dotnet-route-inventory`** — Extracts endpoint inventory from any legacy ASP.NET web project
+- **`speckit.fx-to-dotnet.fix`** — Useful for any .NET project; iteratively builds and fixes compilation errors
+- **`speckit.fx-to-dotnet.detect`** — Classifies any .NET project (SDK-style, web host, service, library, etc.)
+- **`speckit.fx-to-dotnet.inventory`** — Extracts endpoint inventory from any legacy ASP.NET web project
 
 ## License
 

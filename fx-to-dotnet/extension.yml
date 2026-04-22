@@ -1,7 +1,7 @@
 schema_version: "1.0"
 extension:
   id: "fx-to-dotnet"
-  name: ".NET Framework to Modern .NET Orchestrator"
+  name: ".NET Framework to Modern .NET Migration"
   version: "0.1.2"
   description: "Orchestrate end-to-end .NET Framework to modern .NET migration across 7 phases"
   author: "Microsoft"
@@ -9,7 +9,32 @@ extension:
   license: "MIT"
 requires:
   speckit_version: ">=0.1.0"
+  tools:
+    - "Microsoft.GitHubCopilot.AppModernization.Mcp"
 provides:
   commands:
     - name: "speckit.fx-to-dotnet.orchestrate"
-      file: "commands/orchestrate.md"
+      file: "commands/orchestrate/orchestrate.md"
+    - name: "speckit.fx-to-dotnet.assess"
+      file: "commands/assess/assess.md"
+    - name: "speckit.fx-to-dotnet.plan"
+      file: "commands/plan/plan.md"
+    - name: "speckit.fx-to-dotnet.convert"
+      file: "commands/sdk-convert/convert.md"
+    - name: "speckit.fx-to-dotnet.fix"
+      file: "commands/build-fix/fix.md"
+      scripts:
+        - "scripts/bash/dotnet-build.sh"
+        - "scripts/powershell/dotnet-build.ps1"
+    - name: "speckit.fx-to-dotnet.update-packages"
+      file: "commands/package-compat/update.md"
+    - name: "speckit.fx-to-dotnet.multitarget-migrate"
+      file: "commands/multitarget/migrate.md"
+    - name: "speckit.fx-to-dotnet.web-migrate"
+      file: "commands/web-migrate/migrate.md"
+    - name: "speckit.fx-to-dotnet.detect"
+      file: "commands/detect-project/detect.md"
+    - name: "speckit.fx-to-dotnet.inventory"
+      file: "commands/route-inventory/inventory.md"
+    - name: "speckit.fx-to-dotnet.show-policy"
+      file: "commands/policies/show.md"

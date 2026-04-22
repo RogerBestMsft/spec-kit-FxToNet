@@ -1,8 +1,10 @@
-# Plan: Deployment & Updates for the fx-to-dotnet Spec Kit Extension Family
+# Plan: Deployment & Updates for the fx-to-dotnet Spec Kit Extension
 
 ## TL;DR
 
-This plan describes how the 11 `fx-to-dotnet-*` Spec Kit extensions are packaged, distributed, installed, updated, and version-coordinated. The deployment model uses the **Spec Kit community catalog** for public discovery, **GitHub Releases** for artifact hosting, and **GitHub Actions CI/CD** for automated validation and publishing. All 11 extensions share one version number and are released atomically.
+This plan describes how the single `fx-to-dotnet` Spec Kit extension is packaged, distributed, installed, updated, and version-coordinated. The deployment model uses the **Spec Kit community catalog** for public discovery, **GitHub Releases** for artifact hosting, and **GitHub Actions CI/CD** for automated validation and publishing.
+
+> **Note**: This plan was originally written for 11 separate extensions. The project has since been consolidated into a single extension with 11 commands. The deployment and packaging sections below have been updated to reflect the single-extension model.
 
 ---
 
@@ -16,38 +18,25 @@ Users discover and install extensions via the Spec Kit CLI:
 # Search
 specify extension search fx-to-dotnet
 
-# Install the full suite
+# Install
 specify extension add fx-to-dotnet
-specify extension add fx-to-dotnet-assess
-specify extension add fx-to-dotnet-plan
-specify extension add fx-to-dotnet-sdk-convert
-specify extension add fx-to-dotnet-build-fix
-specify extension add fx-to-dotnet-package-compat
-specify extension add fx-to-dotnet-multitarget
-specify extension add fx-to-dotnet-web-migrate
-specify extension add fx-to-dotnet-detect-project
-specify extension add fx-to-dotnet-route-inventory
-specify extension add fx-to-dotnet-policies
 ```
 
-**Catalog registration**: Submit entries to the Spec Kit community catalog (`extensions/catalog.community.json` in the spec-kit repo). Each of the 11 extensions gets its own catalog entry pointing to its GitHub Release archive URL.
+**Catalog registration**: Submit an entry to the Spec Kit community catalog (`extensions/catalog.community.json` in the spec-kit repo) pointing to the GitHub Release archive URL.
 
-**Catalog entry format** (per extension):
+**Catalog entry format**:
 ```json
 {
-  "id": "fx-to-dotnet-assess",
-  "name": ".NET Migration Assessment",
+  "id": "fx-to-dotnet",
+  "name": ".NET Framework to Modern .NET Migration",
   "version": "0.1.0",
-  "description": "Gather solution info, classify projects, audit package compatibility for .NET Framework to modern .NET migration",
+  "description": "Orchestrate end-to-end .NET Framework to modern .NET migration across 7 phases with 11 commands",
   "author": "{org}",
-  "url": "https://github.com/{org}/fx-to-dotnet-extensions/releases/download/v0.1.0/fx-to-dotnet-assess-0.1.0.zip",
+  "url": "https://github.com/{org}/fx-to-dotnet-extensions/releases/download/v0.1.0/fx-to-dotnet-0.1.0.zip",
   "repository": "https://github.com/{org}/fx-to-dotnet-extensions",
-  "tags": ["dotnet", "migration", "modernization", "assessment"],
-  "family": "fx-to-dotnet"
+  "tags": ["dotnet", "migration", "modernization", "assessment"]
 }
 ```
-
-The `family` field (or a `tags` grouping) enables `specify extension search` to surface the full suite when a user searches for any member.
 
 ### 2. Direct URL Install (alternative)
 
@@ -65,13 +54,8 @@ For contributors or users who clone the monorepo:
 git clone https://github.com/{org}/fx-to-dotnet-extensions.git
 cd fx-to-dotnet-extensions
 
-# Install all extensions in dev mode
-for ext in fx-to-dotnet fx-to-dotnet-assess fx-to-dotnet-plan fx-to-dotnet-sdk-convert \
-           fx-to-dotnet-build-fix fx-to-dotnet-package-compat fx-to-dotnet-multitarget \
-           fx-to-dotnet-web-migrate fx-to-dotnet-detect-project fx-to-dotnet-route-inventory \
-           fx-to-dotnet-policies; do
-  specify extension add --dev "$(pwd)/spec-kit/$ext"
-done
+# Install in dev mode
+specify extension add --dev "$(pwd)/fx-to-dotnet"
 ```
 
 Dev mode symlinks the extension directory so edits are reflected immediately without reinstalling.
@@ -82,31 +66,28 @@ Dev mode symlinks the extension directory so edits are reflected immediately wit
 
 ### Archive Format
 
-Each extension is packaged as a `.zip` archive containing the extension directory contents (after applying `.extensionignore` exclusions). The archive name follows `{extension-id}-{version}.zip`.
+The extension is packaged as a `.zip` archive containing the extension directory contents (after applying `.extensionignore` exclusions). The archive name follows `fx-to-dotnet-{version}.zip`.
 
 ### Packaging Script
 
-A `scripts/package-extensions.sh` (and `.ps1` variant) in the monorepo root automates packaging all 11 extensions:
+A `scripts/package-extensions.sh` (and `.ps1` variant) in the monorepo root automates packaging:
 
 ```
 scripts/package-extensions.sh
-  For each extension directory:
-    1. Read version from extension.yml
-    2. Apply .extensionignore exclusions
-    3. Create {ext-id}-{version}.zip in releases/ directory
+  1. Read version from fx-to-dotnet/extension.yml
+  2. Apply .extensionignore exclusions
+  3. Create fx-to-dotnet-{version}.zip in releases/ directory
   Output: releases/fx-to-dotnet-0.1.0.zip
-          releases/fx-to-dotnet-assess-0.1.0.zip
-          ... (11 archives total)
 ```
 
-### What Gets Packaged (per extension)
+### What Gets Packaged
 
 | Included | Excluded |
 |---|---|
 | `extension.yml` | `tests/` |
-| `commands/*.md` | `.github/` |
-| `policies/*.md` (policies extension only) | `*.pyc` |
-| `scripts/` (build-fix extension only) | `.extensionignore` itself |
+| `commands/**/*.md` | `.github/` |
+| `policies/*.md` | `*.pyc` |
+| `scripts/` | `.extensionignore` itself |
 | `README.md` | Dev-only files |
 
 ---
@@ -135,37 +116,22 @@ jobs:
       - name: Install Spec Kit CLI
         run: pip install speckit
 
-      - name: Validate all extension manifests
+      - name: Validate extension manifest
         run: |
-          for ext in fx-to-dotnet fx-to-dotnet-assess fx-to-dotnet-plan \
-                     fx-to-dotnet-sdk-convert fx-to-dotnet-build-fix \
-                     fx-to-dotnet-package-compat fx-to-dotnet-multitarget \
-                     fx-to-dotnet-web-migrate fx-to-dotnet-detect-project \
-                     fx-to-dotnet-route-inventory fx-to-dotnet-policies; do
-            echo "Validating $ext..."
-            specify extension validate "spec-kit/$ext"
-          done
+          echo "Validating fx-to-dotnet..."
+          specify extension validate fx-to-dotnet
 
       - name: Cross-reference audit
         run: |
-          # Grep all commands for speckit.fx-to-dotnet-* references
-          # Verify each referenced command exists in a sibling extension.yml
+          # Verify all speckit.fx-to-dotnet.* invoke references resolve to commands in extension.yml
           python scripts/cross-reference-audit.py
 
       - name: Version consistency check
-        run: |
-          # Verify all 11 extension.yml files declare the same version
-          python scripts/version-check.py
+        run: python scripts/version-check.py
 
       - name: Dev install smoke test
         run: |
-          for ext in fx-to-dotnet fx-to-dotnet-assess fx-to-dotnet-plan \
-                     fx-to-dotnet-sdk-convert fx-to-dotnet-build-fix \
-                     fx-to-dotnet-package-compat fx-to-dotnet-multitarget \
-                     fx-to-dotnet-web-migrate fx-to-dotnet-detect-project \
-                     fx-to-dotnet-route-inventory fx-to-dotnet-policies; do
-            specify extension add --dev "$(pwd)/spec-kit/$ext"
-          done
+          specify extension add --dev "$(pwd)/fx-to-dotnet"
           specify extension list | grep -c "fx-to-dotnet" | xargs test 11 -eq
 ```
 
@@ -189,47 +155,28 @@ jobs:
       - name: Install Spec Kit CLI
         run: pip install speckit
 
-      - name: Validate all extensions
-        run: |
-          for ext in fx-to-dotnet fx-to-dotnet-assess fx-to-dotnet-plan \
-                     fx-to-dotnet-sdk-convert fx-to-dotnet-build-fix \
-                     fx-to-dotnet-package-compat fx-to-dotnet-multitarget \
-                     fx-to-dotnet-web-migrate fx-to-dotnet-detect-project \
-                     fx-to-dotnet-route-inventory fx-to-dotnet-policies; do
-            specify extension validate "spec-kit/$ext"
-          done
+      - name: Validate extension
+        run: specify extension validate fx-to-dotnet
 
       - name: Extract version from tag
         id: version
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Verify tag matches extension versions
+      - name: Verify tag matches extension version
         run: |
-          for ext in fx-to-dotnet fx-to-dotnet-assess fx-to-dotnet-plan \
-                     fx-to-dotnet-sdk-convert fx-to-dotnet-build-fix \
-                     fx-to-dotnet-package-compat fx-to-dotnet-multitarget \
-                     fx-to-dotnet-web-migrate fx-to-dotnet-detect-project \
-                     fx-to-dotnet-route-inventory fx-to-dotnet-policies; do
-            EXT_VERSION=$(grep 'version:' "spec-kit/$ext/extension.yml" | head -1 | awk '{print $2}' | tr -d '"')
-            if [ "$EXT_VERSION" != "${{ steps.version.outputs.VERSION }}" ]; then
-              echo "ERROR: $ext version ($EXT_VERSION) does not match tag (${{ steps.version.outputs.VERSION }})"
-              exit 1
-            fi
-          done
+          EXT_VERSION=$(grep 'version:' fx-to-dotnet/extension.yml | head -1 | awk '{print $2}' | tr -d '"')
+          if [ "$EXT_VERSION" != "${{ steps.version.outputs.VERSION }}" ]; then
+            echo "ERROR: fx-to-dotnet version ($EXT_VERSION) does not match tag (${{ steps.version.outputs.VERSION }})"
+            exit 1
+          fi
 
-      - name: Package extensions
+      - name: Package extension
         run: |
           mkdir -p releases
-          for ext in fx-to-dotnet fx-to-dotnet-assess fx-to-dotnet-plan \
-                     fx-to-dotnet-sdk-convert fx-to-dotnet-build-fix \
-                     fx-to-dotnet-package-compat fx-to-dotnet-multitarget \
-                     fx-to-dotnet-web-migrate fx-to-dotnet-detect-project \
-                     fx-to-dotnet-route-inventory fx-to-dotnet-policies; do
-            cd "spec-kit/$ext"
-            zip -r "../../releases/${ext}-${{ steps.version.outputs.VERSION }}.zip" . \
-              -x "tests/*" ".github/*" "*.pyc" ".extensionignore"
-            cd ../..
-          done
+          cd fx-to-dotnet
+          zip -r "../releases/fx-to-dotnet-${{ steps.version.outputs.VERSION }}.zip" . \
+            -x "tests/*" ".github/*" "*.pyc" ".extensionignore"
+          cd ..
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -253,7 +200,7 @@ jobs:
 
 ### Single Coordinated Version
 
-All 11 extensions share the same version number. When any extension changes, all are released together at the new version. This prevents compatibility drift between sibling extensions that invoke each other's commands.
+The extension uses a single version number declared in `extension.yml`. All 11 commands are released together as part of the same extension.
 
 **Version is declared in three places** (must stay in sync):
 1. Each `extension.yml` → `extension.version` field
@@ -264,7 +211,7 @@ All 11 extensions share the same version number. When any extension changes, all
 
 SemVer (`MAJOR.MINOR.PATCH`):
 - **MAJOR**: Breaking changes to command interfaces, state file format changes requiring migration, renamed/removed commands
-- **MINOR**: New commands, new policy docs, new features in existing commands, new extension added to the family
+- **MINOR**: New commands, new policy docs, new features in existing commands
 - **PATCH**: Bug fixes in command instructions, policy doc corrections, build script fixes
 
 ### Pre-releases
@@ -278,34 +225,28 @@ Pre-release versions use SemVer pre-release suffix: `0.2.0-beta.1`, `1.0.0-rc.1`
 ### Step-by-Step
 
 1. **Branch**: Create a release branch from `main` (e.g., `release/0.2.0`)
-2. **Bump versions**: Update `version:` in all 11 `extension.yml` files to the new version
-3. **Update CHANGELOGs**: Update root CHANGELOG.md and per-extension READMEs if needed
+2. **Bump version**: Update `version:` in `fx-to-dotnet/extension.yml` to the new version
+3. **Update CHANGELOGs**: Update root CHANGELOG.md and `fx-to-dotnet/README.md` if needed
 4. **PR & merge**: Open PR, CI validates, merge to `main`
 5. **Tag**: Create annotated tag: `git tag -a v0.2.0 -m "Release 0.2.0"`
 6. **Push tag**: `git push origin v0.2.0` → triggers `release.yml` workflow
 7. **Automated**:
    - CI validates all extensions
-   - CI verifies tag matches all `extension.yml` versions
-   - CI packages 11 zip archives
-   - CI creates GitHub Release with all 11 archives + auto-generated release notes
+   - CI verifies tag matches `extension.yml` version
+   - CI packages the extension as a zip archive
+   - CI creates GitHub Release with the archive + auto-generated release notes
    - CI generates catalog entry JSON for community catalog PR
-8. **Catalog PR**: Take the generated `catalog-entries.json` and submit a PR to the Spec Kit community catalog repo updating all 11 entries
+8. **Catalog PR**: Take the generated `catalog-entries.json` and submit a PR to the Spec Kit community catalog repo updating the entry
 
 ### Version Bump Automation
 
-A helper script bumps all 11 `extension.yml` files at once:
+A helper script bumps `extension.yml`:
 
 ```bash
 # scripts/bump-version.sh 0.2.0
 VERSION=$1
-for ext in fx-to-dotnet fx-to-dotnet-assess fx-to-dotnet-plan \
-           fx-to-dotnet-sdk-convert fx-to-dotnet-build-fix \
-           fx-to-dotnet-package-compat fx-to-dotnet-multitarget \
-           fx-to-dotnet-web-migrate fx-to-dotnet-detect-project \
-           fx-to-dotnet-route-inventory fx-to-dotnet-policies; do
-  sed -i "s/version: .*/version: \"$VERSION\"/" "$ext/extension.yml"
-done
-echo "Bumped all extensions to $VERSION"
+sed -i "s/version: .*/version: \"$VERSION\"/" fx-to-dotnet/extension.yml
+echo "Bumped fx-to-dotnet to $VERSION"
 ```
 
 ---
@@ -322,16 +263,7 @@ specify extension search fx-to-dotnet  # Shows latest catalog versions
 ### Updating
 
 ```bash
-# Update a single extension
-specify extension update fx-to-dotnet-build-fix
-
-# Update all fx-to-dotnet extensions
-for ext in fx-to-dotnet fx-to-dotnet-assess fx-to-dotnet-plan fx-to-dotnet-sdk-convert \
-           fx-to-dotnet-build-fix fx-to-dotnet-package-compat fx-to-dotnet-multitarget \
-           fx-to-dotnet-web-migrate fx-to-dotnet-detect-project fx-to-dotnet-route-inventory \
-           fx-to-dotnet-policies; do
-  specify extension update "$ext"
-done
+specify extension update fx-to-dotnet
 ```
 
 ### Update Safety
@@ -340,14 +272,14 @@ done
 - **State format versioning**: If a future release changes the state file format, the orchestrator command should detect the format version and either migrate it or warn the user.
 - **Rollback**: If an update causes issues, the user can pin a specific version:
   ```bash
-  specify extension add fx-to-dotnet-build-fix --from https://github.com/{org}/fx-to-dotnet-extensions/releases/download/v0.1.0/fx-to-dotnet-build-fix-0.1.0.zip
+  specify extension add fx-to-dotnet --from https://github.com/{org}/fx-to-dotnet-extensions/releases/download/v0.1.0/fx-to-dotnet-0.1.0.zip
   ```
 
 ---
 
 ## MCP Server Dependencies
 
-The extensions themselves are markdown-only, but two extensions (`fx-to-dotnet-assess` and `fx-to-dotnet-sdk-convert`) require an external MCP server. This is NOT distributed as part of the extension family — it is a separate tool the user must configure. NuGet package compatibility analysis is handled by bundled skill scripts (`nuget-package-compat`) and does not require an MCP server.
+The extension is markdown-only, but two commands (`assess` and `convert`) require an external MCP server. This is NOT distributed as part of the extension — it is a separate tool the user must configure. NuGet package compatibility analysis is handled by bundled skill scripts (`nuget-package-compat`) and does not require an MCP server.
 
 ### Required MCP Servers
 
@@ -357,7 +289,7 @@ The extensions themselves are markdown-only, but two extensions (`fx-to-dotnet-a
 
 ### User Setup
 
-Users must configure `.mcp.json` in their project or workspace with the MCP server entry. The root README and relevant extension READMEs include the required `.mcp.json` configuration:
+Users must configure `.mcp.json` in their project or workspace with the MCP server entry. The root README and extension README include the required `.mcp.json` configuration:
 
 ```json
 {
@@ -372,7 +304,7 @@ Users must configure `.mcp.json` in their project or workspace with the MCP serv
 }
 ```
 
-The `extension.yml` for `fx-to-dotnet-assess` and `fx-to-dotnet-sdk-convert` declare `Microsoft.GitHubCopilot.AppModernization.Mcp` as a `requires.tools` entry — Spec Kit will warn the user if the tool is not available.
+The `extension.yml` declares `Microsoft.GitHubCopilot.AppModernization.Mcp` as a `requires.tools` entry — Spec Kit will warn the user if the tool is not available.
 
 ---
 
@@ -382,14 +314,14 @@ The `extension.yml` for `fx-to-dotnet-assess` and `fx-to-dotnet-sdk-convert` dec
 |---|---|
 | `.github/workflows/ci.yml` | Validate all extensions on every push/PR |
 | `.github/workflows/release.yml` | Package + publish to GitHub Releases on tag |
-| `scripts/package-extensions.sh` | Package all 11 extensions into zip archives |
+| `scripts/package-extensions.sh` | Package the extension into a zip archive |
 | `scripts/package-extensions.ps1` | Windows variant of packaging script |
-| `scripts/bump-version.sh` | Bump version in all 11 extension.yml files |
+| `scripts/bump-version.sh` | Bump version in extension.yml |
 | `scripts/bump-version.ps1` | Windows variant of version bump script |
-| `scripts/cross-reference-audit.py` | Verify all cross-extension command references resolve |
-| `scripts/version-check.py` | Verify all extensions declare the same version |
+| `scripts/cross-reference-audit.py` | Verify all cross-command invoke references resolve |
+| `scripts/version-check.py` | Verify extension version is valid SemVer |
 | `scripts/generate-catalog.py` | Generate community catalog JSON entries from extension.yml files |
-| `CHANGELOG.md` | Root changelog for the extension family |
+| `CHANGELOG.md` | Root changelog for the extension |
 
 ---
 
@@ -399,7 +331,7 @@ The `extension.yml` for `fx-to-dotnet-assess` and `fx-to-dotnet-sdk-convert` dec
 |---|---|
 | **GitHub Releases for hosting** | Free, reliable, supports direct URL install; no need for custom infrastructure |
 | **Community catalog for discovery** | Standard Spec Kit distribution path; users find extensions via `specify extension search` |
-| **Atomic versioning** | All 11 extensions share one version; prevents cross-extension compatibility drift |
+| **Single extension** | All 11 commands in one extension; simplifies install, update, and versioning |
 | **Tag-triggered release** | Pushing a `v*` tag triggers packaging + publishing; no manual artifact creation |
 | **MCP server not bundled** | `Microsoft.GitHubCopilot.AppModernization.Mcp` is a separate NuGet tool package with its own release cadence; NuGet compat analysis uses bundled skill scripts |
 | **No auto-update hook** | Users explicitly update; avoids breaking in-progress migrations |
@@ -408,8 +340,15 @@ The `extension.yml` for `fx-to-dotnet-assess` and `fx-to-dotnet-sdk-convert` dec
 
 ## Future Enhancements
 
-1. **Meta-extension / bundle install**: Create a `fx-to-dotnet-suite` meta-extension whose sole purpose is to declare all 11 extensions as dependencies, enabling one-command install: `specify extension add fx-to-dotnet-suite`.
+1. **Extension discovery improvements**: Enhance catalog tags and search to help users find the extension for their specific migration scenario.
 2. **Private catalog support**: For enterprise users who can't access the public community catalog, document how to set `SPECKIT_CATALOG_URL` to a private catalog JSON hosting the same extension archives on an internal server.
 3. **Automated catalog PR**: Extend the release workflow to automatically open a PR against the Spec Kit community catalog repo with updated entries (requires a GitHub App or PAT with cross-repo write access).
 4. **Telemetry / usage analytics**: If Spec Kit adds extension telemetry, opt in to track which phases are most used and where users get stuck.
 5. **State format migration**: If a future version changes state file format, add a `speckit.fx-to-dotnet.migrate-state` command that upgrades `.fx-to-dotnet/` files from the old format.
+
+
+
+
+
+
+
