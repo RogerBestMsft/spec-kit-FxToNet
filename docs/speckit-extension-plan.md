@@ -141,7 +141,7 @@ extension:
 requires:
   speckit_version: ">=0.1.0"
   tools:
-    - "Microsoft.GitHubCopilot.AppModernization.Mcp"
+    - "Microsoft.GitHubCopilot.Modernization.Mcp"
 provides:
   commands:
     - name: "speckit.fx-to-dotnet.orchestrate"
@@ -173,7 +173,7 @@ provides:
 
 #### 3. `fx-to-dotnet/extension.yml` — Single Extension
    - `id: fx-to-dotnet`
-   - `requires.tools`: `Microsoft.GitHubCopilot.AppModernization.Mcp`
+   - `requires.tools`: `Microsoft.GitHubCopilot.Modernization.Mcp`
    - `provides.commands`: all 11 commands listed above
    - **README.md**: Describes 7-phase flow, lists all commands
 
@@ -449,7 +449,7 @@ Each policy doc is created by copying the corresponding fx2dotnet skill SKILL.md
 | **Monorepo layout** | Extension and repo scripts live in one repo for coordinated development |
 | **Bundled policies** | Policy docs live in `fx-to-dotnet/policies/` with a `show-policy` command; avoids duplication |
 | **Bundled build scripts** | Scripts live in `fx-to-dotnet/scripts/`, used by the `fix` command |
-| **No built-in MCP server** | Only `Microsoft.GitHubCopilot.AppModernization.Mcp` is an external MCP dependency; NuGet compat analysis uses bundled skill scripts instead of an MCP server |
+| **No built-in MCP server** | Only `Microsoft.GitHubCopilot.Modernization.Mcp` is an external MCP dependency; NuGet compat analysis uses bundled skill scripts instead of an MCP server |
 | **Command naming** | `speckit.fx-to-dotnet.{verb}` — each command uses a short verb (`fix`, `assess`, `plan`, `convert`, `update-packages`, `multitarget-migrate`, `web-migrate`, `detect`, `inventory`, `show-policy`) |
 | **Shared state directory `.fx-to-dotnet/`** | All commands read/write the same state files under the solution directory; state format is consistent |
 | **Copy-and-adapt from fx2dotnet** | Markdown bodies copied from existing agent/skill files then adapted per checklist |
@@ -462,4 +462,4 @@ Each policy doc is created by copying the corresponding fx2dotnet skill SKILL.md
 2. **Version coordination**: The single extension version applies to all commands; release atomically.
 3. **Preset layering**: Teams wanting to customize policies could install a Spec Kit preset that overrides specific policy docs in `fx-to-dotnet` (policies). Out of scope for v0.1.0.
 4. **Partial adoption**: Document in the root README which commands can be used standalone (e.g., `speckit.fx-to-dotnet.fix` is useful for any .NET project, not just migrations) vs. which require the full migration flow.
-5. **MCP config template**: Include a sample `.mcp.json` in the root README showing the expected `Microsoft.GitHubCopilot.AppModernization.Mcp` server configuration.
+5. **MCP config template**: Include a sample `.mcp.json` in the root README showing the expected `Microsoft.GitHubCopilot.Modernization.Mcp` server configuration.

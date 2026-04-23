@@ -10,7 +10,7 @@ extension:
 requires:
   speckit_version: ">=0.1.0"
   tools:
-    - "Microsoft.GitHubCopilot.AppModernization.Mcp"
+    - "Microsoft.GitHubCopilot.Modernization.Mcp"
 provides:
   commands:
     - name: "speckit.fx-to-dotnet.orchestrate"

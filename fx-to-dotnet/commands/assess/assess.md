@@ -1,5 +1,5 @@
 description: "Gather solution info, identify frameworks, dependencies, blockers; classify projects; audit package compatibility"
-tools: [microsoft.githubcopilot.appmodernization.mcp/*, read, search, edit, ask-questions, invoke-command]
+tools: [microsoft.githubcopilot.modernization.mcp/*, read, search, edit, ask-questions, invoke-command]
 commands:
    - "speckit.fx-to-dotnet.detect"
 
@@ -43,7 +43,7 @@ You are a .NET migration assessment specialist. Your job is to gather informatio
 Before any MCP tool calls, verify the workspace has the required MCP server configured:
 
 1. Use the `read` tool to read `.mcp.json` from the workspace root (same directory as the solution file, or its parent)
-2. If the read fails (file does not exist) or the JSON does not contain a `Microsoft.GitHubCopilot.AppModernization.Mcp` key under `mcpServers`:
+2. If the read fails (file does not exist) or the JSON does not contain a `Microsoft.GitHubCopilot.Modernization.Mcp` key under `mcpServers`:
    - Reference `policies/mcp-setup.md` for the canonical configuration
    - Ask the user:
      - **"Configure automatically"** — create or patch `.mcp.json`

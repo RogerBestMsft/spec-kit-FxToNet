@@ -8,7 +8,7 @@ You are a policy document viewer. Your job is to display a named migration polic
 ## Available Policies
 
 - `ef6-retention` — EF6 to EF Core migration policy for .NET Framework to modern .NET upgrades
-- `mcp-setup` — MCP server detection and auto-configuration for AppModernization tools
+- `mcp-setup` — MCP server detection and auto-configuration for Modernization tools
 - `owin-identity` — Addressing ASP.NET Identity dependency while upgrading to ASP.NET Core
 - `systemweb-adapters` — System.Web adapters migration policy for ASP.NET Framework to ASP.NET Core
 - `windows-service` — Windows Service migration from ServiceBase to BackgroundService

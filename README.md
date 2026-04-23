@@ -72,7 +72,7 @@ specify extension add --dev /path/to/fx-to-dotnet
 - **Spec Kit** >= 0.1.0
 - **.NET SDK** (for `dotnet build` via the fix command)
 - **MCP Servers** (required by assess and convert commands):
-  - `Microsoft.GitHubCopilot.AppModernization.Mcp` — project analysis and SDK conversion
+  - `Microsoft.GitHubCopilot.Modernization.Mcp` — project analysis and SDK conversion
 - **Skills** (bundled in the repo, used by assess and convert commands):
   - `dependency-layers` — dependency layer computation algorithm
   - `nuget-package-compat` — NuGet package compatibility analysis scripts
@@ -82,7 +82,7 @@ specify extension add --dev /path/to/fx-to-dotnet
 ```json
 {
   "servers": {
-    "Microsoft.GitHubCopilot.AppModernization.Mcp": {
+    "Microsoft.GitHubCopilot.Modernization.Mcp": {
       "type": "stdio",
       "command": "dotnet",
       "args": ["run", "--project", "<path-to-appmod-mcp-server>"]

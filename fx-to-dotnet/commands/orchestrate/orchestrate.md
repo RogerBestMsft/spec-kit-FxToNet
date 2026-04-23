@@ -49,6 +49,38 @@ Project classifications live in `.fx-to-dotnet/analysis.md` (written by Assessme
 
 </state-file-conventions>
 
+<continuation-preferences>
+
+### Layer Continuation
+
+After completing each dependency layer, the orchestrator pauses and asks the user whether to proceed to the next layer. This gives the user an opportunity to review changes, run tests, or abort before more code is modified.
+
+The prompt is **skipped** when continuation is enabled. Continuation is enabled when:
+- The user answered **"Yes, and don't ask again"** at a previous layer checkpoint during this run, OR
+- `.fx-to-dotnet/preferences.md` contains `alwaysContinue: true`
+
+### Layer Checkpoint Prompt
+
+When pausing between layers, present this question:
+
+Header: "Layer {N} Complete"
+Question: "Layer {N} finished successfully ({summary}). Continue to Layer {N+1}?"
+Options:
+- "Yes, continue" — proceed to the next layer
+- "Yes, and don't ask again" — proceed and skip all future layer checkpoints (persists `alwaysContinue: true` to `.fx-to-dotnet/preferences.md`)
+- "Stop here" — halt orchestration; progress is saved and can be resumed later
+
+### Preferences File
+
+`.fx-to-dotnet/preferences.md` stores user continuation preferences:
+```markdown
+alwaysContinue: true
+```
+
+When resuming a migration, read this file (if it exists) to restore the user's continuation preference.
+
+</continuation-preferences>
+
 <rules>
 - Enforce phase order strictly; do not skip or reorder phases
 - Run assessment and planning before any migration work
@@ -146,6 +178,7 @@ For each layer:
 - Wait for ALL projects in the current layer to complete before moving to the next layer
 - If conversion fails for a project, stop and ask user how to proceed
 - Each completed layer is a natural checkpoint — record progress in `.fx-to-dotnet/plan.md`
+- If there are more layers remaining, run the **Layer Checkpoint Prompt** (see `<continuation-preferences>`) unless continuation is enabled
 
 Do not proceed to phase 5 until all layers are successfully converted.
 
@@ -180,6 +213,7 @@ For each layer:
 - Wait for ALL projects in the current layer to complete before moving to the next layer
 - If a project fails or stops with unresolved blockers, ask user whether to continue, retry, or stop
 - Each completed layer is a natural checkpoint — record progress in `.fx-to-dotnet/plan.md`
+- If there are more layers remaining, run the **Layer Checkpoint Prompt** (see `<continuation-preferences>`) unless continuation is enabled
 
 Update `multitargetStatus` and `lastCompletedPhase: "multitarget"` in `.fx-to-dotnet/plan.md` via the `edit` tool.
 

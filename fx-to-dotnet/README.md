@@ -40,7 +40,7 @@ speckit.fx-to-dotnet.orchestrate <solutionPath> [targetFramework]
 
 - **Spec Kit** >= 0.1.0
 - **.NET SDK** (for `dotnet build` via the fix command)
-- **MCP Server**: `Microsoft.GitHubCopilot.AppModernization.Mcp` (required by assess and convert commands)
+- **MCP Server**: `Microsoft.GitHubCopilot.Modernization.Mcp` (required by assess and convert commands)
 
 ## State Files
 

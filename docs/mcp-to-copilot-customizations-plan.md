@@ -227,11 +227,11 @@ user-invocable: false
 **Frontmatter changes:**
 ```yaml
 # Before
-tools: [microsoft.githubcopilot.appmodernization.mcp/*, Swick.Mcp.Fx2dotnet/*, read, search, agent, edit, vscode/askQuestions]
+tools: [microsoft.githubcopilot.modernization.mcp/*, Swick.Mcp.Fx2dotnet/*, read, search, agent, edit, vscode/askQuestions]
 agents: ['Explore', 'Project Type Detector']
 
 # After
-tools: [microsoft.githubcopilot.appmodernization.mcp/*, read, search, agent, edit, vscode/askQuestions]
+tools: [microsoft.githubcopilot.modernization.mcp/*, read, search, agent, edit, vscode/askQuestions]
 agents: ['Explore', 'Project Type Detector', 'NuGet Analysis']
 ```
 
@@ -268,12 +268,13 @@ Remove the `Swick.Mcp.Fx2dotnet` server entry entirely:
 ```json
 {
   "mcpServers": {
-    "Microsoft.GitHubCopilot.AppModernization.Mcp": {
+    "Microsoft.GitHubCopilot.Modernization.Mcp": {
       "type": "stdio",
       "command": "dnx",
       "args": [
-        "Microsoft.GitHubCopilot.AppModernization.Mcp@1.0.903-preview1",
+        "Microsoft.GitHubCopilot.Modernization.Mcp",
         "--yes",
+        "--prerelease",
         "--source",
         "https://api.nuget.org/v3/index.json"
       ],
@@ -396,7 +397,7 @@ Phase 5 (Remove) ← BLOCKED until manual review of Phases 1-4 is approved
 | 6 | Test `Find-RecommendedPackageUpgrades` script | Pipe sample JSON → valid output schema with real NuGet data |
 | 7 | Test `Get-MinimalPackageSet` script | Pipe known transitive pair (e.g., `Microsoft.Extensions.Hosting` → `Microsoft.Extensions.DependencyInjection`) → correct keep/removed |
 | 8 | Test `dependency-layers` skill instructions | Agent produces correct layers for sample graph with cycles |
-| 9 | Validate `.mcp.json` | Valid JSON, only `Microsoft.GitHubCopilot.AppModernization.Mcp` remaining |
+| 9 | Validate `.mcp.json` | Valid JSON, only `Microsoft.GitHubCopilot.Modernization.Mcp` remaining |
 | 10 | No orphan build files | `fx2dotnet.slnx` removed, no dangling references |
 
 ---

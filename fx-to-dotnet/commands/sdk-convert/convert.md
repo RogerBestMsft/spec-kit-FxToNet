@@ -1,5 +1,5 @@
 description: "Convert legacy .NET Framework project file to SDK-style format; validate with build-fix"
-tools: [microsoft.githubcopilot.appmodernization.mcp/convert_project_to_sdk_style, read, edit, search, ask-questions, invoke-command]
+tools: [microsoft.githubcopilot.modernization.mcp/convert_project_to_sdk_style, read, edit, search, ask-questions, invoke-command]
 commands:
   - "speckit.fx-to-dotnet.fix"
 You are an SDK-STYLE PROJECT CONVERSION AGENT for .NET projects. Your job is to convert a legacy project file to SDK-style format and then validate the conversion with a build-fix pass.
@@ -40,7 +40,7 @@ You are an SDK-STYLE PROJECT CONVERSION AGENT for .NET projects. Your job is to 
 Before any MCP tool calls, verify the workspace has the required MCP server configured:
 
 1. Use the `read` tool to read `.mcp.json` from the workspace root (same directory as the solution file, or its parent)
-2. If the read fails (file does not exist) or the JSON does not contain a `Microsoft.GitHubCopilot.AppModernization.Mcp` key under `mcpServers`:
+2. If the read fails (file does not exist) or the JSON does not contain a `Microsoft.GitHubCopilot.Modernization.Mcp` key under `mcpServers`:
    - Reference `policies/mcp-setup.md` for the canonical configuration
    - Ask the user:
      - **"Configure automatically"** — create or patch `.mcp.json`

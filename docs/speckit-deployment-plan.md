@@ -285,7 +285,7 @@ The extension is markdown-only, but two commands (`assess` and `convert`) requir
 
 | MCP Server | Used by | Distribution |
 |---|---|---|
-| `Microsoft.GitHubCopilot.AppModernization.Mcp` | assess, sdk-convert | NuGet tool package (`dnx` runner) |
+| `Microsoft.GitHubCopilot.Modernization.Mcp` | assess, sdk-convert | NuGet tool package (`dnx` runner) |
 
 ### User Setup
 
@@ -294,17 +294,17 @@ Users must configure `.mcp.json` in their project or workspace with the MCP serv
 ```json
 {
   "mcpServers": {
-    "Microsoft.GitHubCopilot.AppModernization.Mcp": {
+    "Microsoft.GitHubCopilot.Modernization.Mcp": {
       "type": "stdio",
       "command": "dnx",
-      "args": ["Microsoft.GitHubCopilot.AppModernization.Mcp@1.0.903-preview1", "--yes"],
+      "args": ["Microsoft.GitHubCopilot.Modernization.Mcp", "--yes", "--prerelease"],
       "tools": ["*"]
     }
   }
 }
 ```
 
-The `extension.yml` declares `Microsoft.GitHubCopilot.AppModernization.Mcp` as a `requires.tools` entry — Spec Kit will warn the user if the tool is not available.
+The `extension.yml` declares `Microsoft.GitHubCopilot.Modernization.Mcp` as a `requires.tools` entry — Spec Kit will warn the user if the tool is not available.
 
 ---
 
@@ -333,7 +333,7 @@ The `extension.yml` declares `Microsoft.GitHubCopilot.AppModernization.Mcp` as a
 | **Community catalog for discovery** | Standard Spec Kit distribution path; users find extensions via `specify extension search` |
 | **Single extension** | All 11 commands in one extension; simplifies install, update, and versioning |
 | **Tag-triggered release** | Pushing a `v*` tag triggers packaging + publishing; no manual artifact creation |
-| **MCP server not bundled** | `Microsoft.GitHubCopilot.AppModernization.Mcp` is a separate NuGet tool package with its own release cadence; NuGet compat analysis uses bundled skill scripts |
+| **MCP server not bundled** | `Microsoft.GitHubCopilot.Modernization.Mcp` is a separate NuGet tool package with its own release cadence; NuGet compat analysis uses bundled skill scripts |
 | **No auto-update hook** | Users explicitly update; avoids breaking in-progress migrations |
 
 ---
