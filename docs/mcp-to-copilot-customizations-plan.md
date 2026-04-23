@@ -227,11 +227,11 @@ user-invocable: false
 **Frontmatter changes:**
 ```yaml
 # Before
-tools: [microsoft.githubcopilot.appmodernization.mcp/*, Swick.Mcp.Fx2dotnet/*, read, search, agent, edit, vscode/askQuestions]
+tools: [microsoft.githubcopilot.modernization.mcp/*, Swick.Mcp.Fx2dotnet/*, read, search, agent, edit, vscode/askQuestions]
 agents: ['Explore', 'Project Type Detector']
 
 # After
-tools: [microsoft.githubcopilot.appmodernization.mcp/*, read, search, agent, edit, vscode/askQuestions]
+tools: [microsoft.githubcopilot.modernization.mcp/*, read, search, agent, edit, vscode/askQuestions]
 agents: ['Explore', 'Project Type Detector', 'NuGet Analysis']
 ```
 
@@ -268,12 +268,13 @@ Remove the `Swick.Mcp.Fx2dotnet` server entry entirely:
 ```json
 {
   "mcpServers": {
-    "Microsoft.GitHubCopilot.AppModernization.Mcp": {
+    "Microsoft.GitHubCopilot.Modernization.Mcp": {
       "type": "stdio",
       "command": "dnx",
       "args": [
-        "Microsoft.GitHubCopilot.AppModernization.Mcp@1.0.903-preview1",
+        "Microsoft.GitHubCopilot.Modernization.Mcp",
         "--yes",
+        "--prerelease",
         "--source",
         "https://api.nuget.org/v3/index.json"
       ],
@@ -309,13 +310,13 @@ Remove the `Swick.Mcp.Fx2dotnet` server entry entirely:
 | `spec-kit/README.md` | Remove `Swick.Mcp.Fx2dotnet` references |
 | `spec-kit/docs/speckit-extension-plan.md` | Update tool references for assess and sdk-convert extensions |
 | `spec-kit/docs/speckit-deployment-plan.md` | Remove MCP server packaging/deployment references |
-| `spec-kit/fx-to-dotnet-assess/README.md` | Remove MCP dependency |
-| `spec-kit/fx-to-dotnet-assess/extension.yml` | Remove MCP dependency from `requires` |
-| `spec-kit/fx-to-dotnet-assess/commands/assess.md` | Replace `Swick.Mcp.Fx2dotnet/*` tools with skill/agent references |
-| `spec-kit/fx-to-dotnet-plan/commands/plan.md` | Update `ComputeDependencyLayers` reference |
-| `spec-kit/fx-to-dotnet-sdk-convert/README.md` | Remove MCP dependency |
-| `spec-kit/fx-to-dotnet-sdk-convert/extension.yml` | Remove MCP dependency from `requires` |
-| `spec-kit/fx-to-dotnet-sdk-convert/commands/convert.md` | Replace `Swick.Mcp.Fx2dotnet/GetMinimalPackageSet` with skill/agent references |
+| `fx-to-dotnet/README.md` | Remove MCP dependency |
+| `fx-to-dotnet/extension.yml` | Remove MCP dependency from `requires` |
+| `fx-to-dotnet/commands/assess/assess.md` | Replace `Swick.Mcp.Fx2dotnet/*` tools with skill/agent references |
+| `fx-to-dotnet/commands/plan/plan.md` | Update `ComputeDependencyLayers` reference |
+| `fx-to-dotnet/README.md` | Remove MCP dependency |
+| `fx-to-dotnet/extension.yml` | Remove MCP dependency from `requires` |
+| `fx-to-dotnet/commands/sdk-convert/convert.md` | Replace `Swick.Mcp.Fx2dotnet/GetMinimalPackageSet` with skill/agent references |
 
 ---
 
@@ -396,7 +397,7 @@ Phase 5 (Remove) ← BLOCKED until manual review of Phases 1-4 is approved
 | 6 | Test `Find-RecommendedPackageUpgrades` script | Pipe sample JSON → valid output schema with real NuGet data |
 | 7 | Test `Get-MinimalPackageSet` script | Pipe known transitive pair (e.g., `Microsoft.Extensions.Hosting` → `Microsoft.Extensions.DependencyInjection`) → correct keep/removed |
 | 8 | Test `dependency-layers` skill instructions | Agent produces correct layers for sample graph with cycles |
-| 9 | Validate `.mcp.json` | Valid JSON, only `Microsoft.GitHubCopilot.AppModernization.Mcp` remaining |
+| 9 | Validate `.mcp.json` | Valid JSON, only `Microsoft.GitHubCopilot.Modernization.Mcp` remaining |
 | 10 | No orphan build files | `fx2dotnet.slnx` removed, no dangling references |
 
 ---
@@ -451,13 +452,13 @@ Phase 5 (Remove) ← BLOCKED until manual review of Phases 1-4 is approved
 | `spec-kit/README.md` | Remove MCP refs |
 | `spec-kit/docs/speckit-extension-plan.md` | Update tool references |
 | `spec-kit/docs/speckit-deployment-plan.md` | Remove MCP packaging refs |
-| `spec-kit/fx-to-dotnet-assess/README.md` | Remove MCP dependency |
-| `spec-kit/fx-to-dotnet-assess/extension.yml` | Remove MCP from requires |
-| `spec-kit/fx-to-dotnet-assess/commands/assess.md` | Replace MCP tool refs |
-| `spec-kit/fx-to-dotnet-plan/commands/plan.md` | Update layer computation ref |
-| `spec-kit/fx-to-dotnet-sdk-convert/README.md` | Remove MCP dependency |
-| `spec-kit/fx-to-dotnet-sdk-convert/extension.yml` | Remove MCP from requires |
-| `spec-kit/fx-to-dotnet-sdk-convert/commands/convert.md` | Replace MCP tool refs |
+| `fx-to-dotnet/README.md` | Remove MCP dependency |
+| `fx-to-dotnet/extension.yml` | Remove MCP from requires |
+| `fx-to-dotnet/commands/assess/assess.md` | Replace MCP tool refs |
+| `fx-to-dotnet/commands/plan/plan.md` | Update layer computation ref |
+| `fx-to-dotnet/README.md` | Remove MCP dependency |
+| `fx-to-dotnet/extension.yml` | Remove MCP from requires |
+| `fx-to-dotnet/commands/sdk-convert/convert.md` | Replace MCP tool refs |
 
 ### Deleted Files (8+)
 

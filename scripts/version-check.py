@@ -7,16 +7,6 @@ from pathlib import Path
 
 EXTENSIONS = [
     "fx-to-dotnet",
-    "fx-to-dotnet-assess",
-    "fx-to-dotnet-plan",
-    "fx-to-dotnet-sdk-convert",
-    "fx-to-dotnet-build-fix",
-    "fx-to-dotnet-package-compat",
-    "fx-to-dotnet-multitarget",
-    "fx-to-dotnet-web-migrate",
-    "fx-to-dotnet-detect-project",
-    "fx-to-dotnet-route-inventory",
-    "fx-to-dotnet-policies",
 ]
 
 VERSION_RE = re.compile(r'^\s+version:\s*"?([^"\s]+)"?\s*$', re.MULTILINE)
