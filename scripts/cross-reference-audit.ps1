@@ -17,7 +17,7 @@ function Get-DeclaredCommands {
 
     $commands = [System.Collections.Generic.HashSet[string]]::new()
     foreach ($ext in $Extensions) {
-        $ymlPath = Join-Path $RootPath $ext "extension.yml"
+        $ymlPath = Join-Path (Join-Path $RootPath $ext) "extension.yml"
         if (-not (Test-Path $ymlPath)) { continue }
 
         $text = Get-Content -Path $ymlPath -Raw -Encoding UTF8
@@ -39,7 +39,7 @@ function Get-AuditErrors {
     $crossRefPattern = 'speckit\.fx-to-dotnet[\w-]*\.[\w-]+'
 
     foreach ($ext in $Extensions) {
-        $commandsDir = Join-Path $RootPath $ext "commands"
+        $commandsDir = Join-Path (Join-Path $RootPath $ext) "commands"
         if (-not (Test-Path $commandsDir)) { continue }
 
         foreach ($md in Get-ChildItem -Path $commandsDir -Recurse -Filter "*.md") {

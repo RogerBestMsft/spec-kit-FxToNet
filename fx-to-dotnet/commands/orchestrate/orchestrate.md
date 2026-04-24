@@ -67,8 +67,21 @@ Header: "Layer {N} Complete"
 Question: "Layer {N} finished successfully ({summary}). Continue to Layer {N+1}?"
 Options:
 - "Yes, continue" — proceed to the next layer
-- "Yes, and don't ask again" — proceed and skip all future layer checkpoints (persists `alwaysContinue: true` to `.fx-to-dotnet/preferences.md`)
+- "Yes, and don't ask again" — proceed and skip all future layer and phase checkpoints (persists `alwaysContinue: true` to `.fx-to-dotnet/preferences.md`)
 - "Stop here" — halt orchestration; progress is saved and can be resumed later
+
+### Phase Checkpoint Prompt
+
+When transitioning between major phases, present this question:
+
+Header: "{phaseName} Complete"
+Question: "{phaseName} finished successfully. Review the results above and choose how to proceed."
+Options:
+- "Continue to next phase" — proceed to the next phase
+- "Continue and don't ask again" — proceed and skip all future phase and layer checkpoints (persists `alwaysContinue: true` to `.fx-to-dotnet/preferences.md`)
+- "Stop here" — halt orchestration; progress is saved and can be resumed later
+
+The prompt is **skipped** when continuation is enabled (same conditions as Layer Checkpoint Prompt).
 
 ### Preferences File
 
@@ -165,6 +178,8 @@ The command returns a structured migration plan containing:
 
 Append the migration plan to `.fx-to-dotnet/plan.md` via the `edit` tool. If the plan contains uncertain classifications or open questions that require user input, present them to the user and wait for confirmation before proceeding.
 
+Present a summary of the migration plan to the user — project classifications, phase breakdown, total projects per phase, and any risks. Then run the **Phase Checkpoint Prompt** (see `<continuation-preferences>`) with header "Migration Plan Ready" unless continuation is enabled. If the user chose "Stop here", halt and save progress.
+
 Use the plan's project classifications to drive all subsequent phases — do not re-classify projects.
 
 ## 4. Normalize to SDK-Style (Layer by Layer)
@@ -184,6 +199,8 @@ Do not proceed to phase 5 until all layers are successfully converted.
 
 Update `lastCompletedPhase: "sdk-normalization"` in `.fx-to-dotnet/plan.md` via the `edit` tool.
 
+Run the **Phase Checkpoint Prompt** (see `<continuation-preferences>`) with header "SDK Normalization Complete" unless continuation is enabled. If the user chose "Stop here", halt and save progress.
+
 ## 5. Run Package Compatibility Migration
 
 If the packageCompatFindings (from `.fx-to-dotnet/package-updates.md`) contains low-confidence items, present them to the user and wait for approval before proceeding.
@@ -199,6 +216,8 @@ Wait for completion.
 If it fails or stops with unresolved blockers, ask user whether to continue, retry, or stop.
 
 Update `packageCompatStatus` and `lastCompletedPhase: "package-compat"` in `.fx-to-dotnet/plan.md` via the `edit` tool.
+
+Run the **Phase Checkpoint Prompt** (see `<continuation-preferences>`) with header "Package Compatibility Complete" unless continuation is enabled. If the user chose "Stop here", halt and save progress.
 
 ## 6. Run Multitarget Migration (Layer by Layer)
 
@@ -216,6 +235,8 @@ For each layer:
 - If there are more layers remaining, run the **Layer Checkpoint Prompt** (see `<continuation-preferences>`) unless continuation is enabled
 
 Update `multitargetStatus` and `lastCompletedPhase: "multitarget"` in `.fx-to-dotnet/plan.md` via the `edit` tool.
+
+Run the **Phase Checkpoint Prompt** (see `<continuation-preferences>`) with header "Multitarget Migration Complete" unless continuation is enabled. If the user chose "Stop here", halt and save progress.
 
 ## 7. Run ASP.NET Framework to ASP.NET Core Web Migration
 
