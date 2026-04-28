@@ -1,6 +1,15 @@
 ---
 description: "Synthesize assessment findings into actionable, layered migration plan with chunked package updates"
 tools: [read, search, invoke-command]
+handoffs:
+  - label: "Normalize to SDK-Style"
+    agent: speckit.fx-to-dotnet.sdk-normalize
+    prompt: "Convert all legacy project files to SDK-style format using the plan in .fx-to-dotnet/plan.md"
+    send: false
+  - label: "Start SDK Conversion"
+    agent: speckit.fx-to-dotnet.convert
+    prompt: "Convert a legacy project file to SDK-style format"
+    send: false
 ---
 
 # Migration Planner

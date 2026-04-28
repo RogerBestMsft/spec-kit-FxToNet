@@ -1,0 +1,46 @@
+schema_version: "1.0"
+
+workflow:
+  id: "assess-and-plan"
+  name: "Assess and Plan"
+  version: "0.3.0"
+  author: "Microsoft"
+  description: "Evaluate migration scope and effort — assessment and planning only, no code changes"
+
+requires:
+  speckit_version: ">=0.7.2"
+
+inputs:
+  solution:
+    type: string
+    required: true
+    prompt: "Path to the .sln or .slnx solution file to assess"
+  integration:
+    type: string
+    default: "copilot"
+    prompt: "Integration to use (e.g. copilot, claude, gemini)"
+
+steps:
+  - id: detect
+    command: speckit.fx-to-dotnet.detect
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "{{ inputs.solution }}"
+
+  - id: assess
+    command: speckit.fx-to-dotnet.assess
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "{{ inputs.solution }}"
+
+  - id: plan
+    command: speckit.fx-to-dotnet.plan
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "{{ inputs.solution }}"
+
+  - id: review-plan
+    type: gate
+    message: "Review the migration plan in .fx-to-dotnet/plan.md before proceeding to SDK normalization."
+    options: [approve, reject]
+    on_reject: abort

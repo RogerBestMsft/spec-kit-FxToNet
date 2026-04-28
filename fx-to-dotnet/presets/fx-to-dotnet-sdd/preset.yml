@@ -1,0 +1,57 @@
+schema_version: "1.0"
+
+preset:
+  id: "fx-to-dotnet-sdd"
+  name: ".NET Framework Migration — SDD Integration"
+  version: "0.3.0"
+  description: "Overrides core SDD commands to integrate .NET Framework migration assessment, planning, task generation, execution, and verification into the specify → plan → tasks → implement lifecycle"
+  author: "Microsoft"
+  repository: "https://github.com/AzureAD/fx-to-dotnet-extensions"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=0.3.0"
+
+provides:
+  templates:
+    # --- Core command overrides ---
+    # These replace the standard SDD commands with migration-aware versions
+    # that invoke fx-to-dotnet commands at the appropriate lifecycle points
+    # instead of relying on the hook dispatch mechanism in .specify/extensions.yml.
+    #
+    # The overrides:
+    #   speckit.specify  → core specify + speckit.fx-to-dotnet.specify-hook
+    #   speckit.plan     → core plan    + speckit.fx-to-dotnet.plan-hook
+    #   speckit.tasks    → core tasks   + speckit.fx-to-dotnet.tasks-hook
+    #   speckit.implement → speckit.fx-to-dotnet.implement-hook + core implement
+    #                     + speckit.fx-to-dotnet.verify-hook
+
+    - type: "command"
+      name: "speckit.specify"
+      file: "commands/speckit.specify.md"
+      description: "Core specify command with automatic .NET Framework migration detection and early project analysis"
+      replaces: "speckit.specify"
+
+    - type: "command"
+      name: "speckit.plan"
+      file: "commands/speckit.plan.md"
+      description: "Core plan command with automatic .NET Framework migration assessment and plan generation"
+      replaces: "speckit.plan"
+
+    - type: "command"
+      name: "speckit.tasks"
+      file: "commands/speckit.tasks.md"
+      description: "Core tasks command with automatic [MIG]-tagged migration task generation"
+      replaces: "speckit.tasks"
+
+    - type: "command"
+      name: "speckit.implement"
+      file: "commands/speckit.implement.md"
+      description: "Core implement command with automatic migration execution before user-story tasks and post-migration verification"
+      replaces: "speckit.implement"
+
+tags:
+  - "dotnet"
+  - "migration"
+  - "modernization"
+  - "sdd-integration"

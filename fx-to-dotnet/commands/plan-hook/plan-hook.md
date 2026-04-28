@@ -38,6 +38,7 @@ If no .NET Framework migration context is detected, you exit silently so non-mig
 - Do NOT re-run the migration planner if `.fx-to-dotnet/plan.md` already contains a migration plan unless the user explicitly requests it
 - Do NOT proceed into task generation or execution — this hook covers assessment and planning only
 - Keep summaries appended to spec.md and plan.md concise — full details belong in the .fx-to-dotnet/ state files
+- All migration phases are a strict prerequisite for user-story implementation — ensure the SDD plan.md clearly communicates that all `[MIG]` tasks must complete before any `[US*]` tasks begin
 </rules>
 
 <workflow>
@@ -138,7 +139,9 @@ Adapt the template above to the actual data — omit sections that have no relev
 From `.fx-to-dotnet/analysis.md`, extract:
 - `topologicalProjects` — ordered list of project paths
 - `dependencyLayers` — projects grouped by dependency layer
-- `assessmentContent` — the full text of the assessment report
+
+From `.fx-to-dotnet/analysis.md` and `.fx-to-dotnet/package-updates.md`, combine:
+- `assessmentContent` — the full text of both files concatenated (the planner expects a single input containing project classifications, compatibility cards, unsupported libraries, and out-of-scope items)
 
 From `spec.md` or prior context:
 - `solutionPath` — path to the .sln/.slnx file
@@ -160,19 +163,24 @@ Attempt to read `.fx-to-dotnet/plan.md` using the `read` tool:
 ## 8. Run Migration Planner
 
 Invoke `speckit.fx-to-dotnet.plan` with:
-- `assessmentContent` — full text of `.fx-to-dotnet/analysis.md`
+- `assessmentContent` — combined full text of `.fx-to-dotnet/analysis.md` and `.fx-to-dotnet/package-updates.md`
 - `topologicalProjects` — from the assessment's topological order
 - `dependencyLayers` — from the assessment's Dependency Layers section
 - `solutionPath`
 - `targetFramework`
 
 The planner writes its output to `.fx-to-dotnet/plan.md`, containing:
-- Project classifications (SDK-style status, web host status, required action per project)
-- Phase 1: SDK-style conversion list organized by dependency layer
-- Phase 2: Chunked package update plan
-- Unsupported library resolutions and out-of-scope item decisions
-- Phase 3: Multitarget migration scope
-- Phase 4: Web host migration candidate(s)
+- Summary (solution, target, project counts)
+- Project classifications (SDK-style status, classification, required action per project)
+- Phase 1: SDK-style conversion list organized by dependency layer (with skipped projects)
+- Phase 2: Package Compatibility
+  - Unsupported Libraries — Decisions (resolution per package: replace, remove-rewrite, wrap-isolate, drop, or block)
+  - Out-of-Scope Items — Decisions (rationale and post-migration actions)
+  - Packages Already Compatible (no update needed)
+  - Chunked Update Plan (minor before major, ordered by dependency depth)
+  - Legacy Packaging Warnings (packages with `content/` folder or `install.ps1`)
+- Phase 3: Multitarget migration scope by dependency layer (including Windows Service projects with BackgroundService migration approach)
+- Phase 4: ASP.NET Core Web Migration candidate(s)
 - Risks and open questions
 
 After the command completes, read `.fx-to-dotnet/plan.md` to confirm the plan was written. If incomplete, report the error and stop.
@@ -210,9 +218,9 @@ Append a `## .NET Migration Plan` section to the SDD `plan.md` using the `edit` 
 
 ### Project Classifications
 
-| Project | Classification | Action |
-|---------|---------------|--------|
-| {relative path} | {type} | {skip-already-sdk / needs-sdk-conversion / web-app-host / windows-service} |
+| # | Project | SDK-Style | Classification | Action |
+|---|---------|-----------|---------------|--------|
+| {n} | {relative path} | {yes/no} | {type} | {skip-already-sdk / needs-sdk-conversion / web-app-host / uncertain-web / windows-service} |
 
 ### Layer Processing Order
 
@@ -233,20 +241,40 @@ Append a `## .NET Migration Plan` section to the SDD `plan.md` using the `edit` 
 - **Already compatible**: {count} packages
 - **Update chunks**: {count} ({minor count} minor, {major count} major)
 - **Unsupported**: {count} packages with resolutions established
+- **Legacy packaging warnings**: {count} packages with `content/` folder or `install.ps1` requiring manual review
 
 ### Web Host Migration
 - **Candidate(s)**: {project name(s)}
 - **Strategy**: Side-by-side ASP.NET Core project with incremental vertical-slice porting
+
+### Windows Service Projects
+{If any projects classified as windows-service:}
+- **Projects**: {project name(s)} — ServiceBase/TopShelf detected
+- **Migration approach**: BackgroundService (via `policies/windows-service.md`)
+- **Note**: Both hosting packages (`Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Hosting.WindowsServices`) support .NET Framework 4.6.2+ — migration safe during multitargeting
+{Omit this section if no Windows Service projects}
 
 ### Risks and Open Questions
 {Bullet list — max 5 items from the migration plan's risk section}
 
 ### Migration Dependencies
 
+> **⛔ Hard prerequisite** — All `[MIG]` migration tasks MUST be completed before
+> any `[US*]` user-story tasks begin. User-story code targets the migrated
+> framework ({targetFramework}) and cannot be implemented against the legacy
+> .NET Framework project structure.
+
+> **Note**: The `after_tasks` hook will scan Setup and Foundational phases for
+> tasks that are prerequisites for the migration work (build setup, NuGet feed
+> configuration, branching, etc.) and re-tag them as `[MIG]`. These tasks retain
+> their original phase position but become part of the enforced migration
+> prerequisite chain.
+
 All user-story implementation tasks depend on completion of the migration phases above.
 The `[MIG]`-tagged tasks generated by the `after_tasks` hook must complete before
 user-story `[US*]` tasks begin. The `before_implement` hook enforces this ordering
-by executing all `[MIG]` tasks first.
+by executing all `[MIG]` tasks first. Any attempt to start `[US*]` work while
+`[MIG]` tasks remain incomplete must be blocked.
 ```
 
 Adapt the template to the actual data — omit sections with no content.

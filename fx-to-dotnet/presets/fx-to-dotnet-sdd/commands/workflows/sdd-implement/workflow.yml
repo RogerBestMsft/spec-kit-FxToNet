@@ -1,0 +1,36 @@
+schema_version: "1.0"
+
+workflow:
+  id: "sdd-implement"
+  name: "SDD Implement"
+  version: "0.3.0"
+  author: "Microsoft"
+  description: "Execute implementation using SDD lifecycle command — includes automatic [MIG] task execution and post-migration verification"
+
+requires:
+  speckit_version: ">=0.7.2"
+  commands:
+    - "speckit.implement"
+
+inputs:
+  args:
+    type: string
+    required: false
+    prompt: "Additional context for implementation (optional)"
+  integration:
+    type: string
+    default: "copilot"
+    prompt: "Integration to use (e.g. copilot, claude, gemini)"
+
+steps:
+  - id: implement
+    command: speckit.implement
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "{{ inputs.args }}"
+
+  - id: review-complete
+    type: gate
+    message: "Implementation complete. Review results including any migration verification in .fx-to-dotnet/completion.md."
+    options: [approve, reject]
+    on_reject: abort

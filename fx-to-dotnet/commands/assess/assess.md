@@ -1,7 +1,18 @@
+---
 description: "Gather solution info, identify frameworks, dependencies, blockers; classify projects; audit package compatibility"
 tools: [microsoft.githubcopilot.modernization.mcp/*, read, search, edit, ask-questions, invoke-command]
 commands:
    - "speckit.fx-to-dotnet.detect"
+handoffs:
+  - label: "Generate Migration Plan"
+    agent: speckit.fx-to-dotnet.plan
+    prompt: "Generate a migration plan from the assessment in .fx-to-dotnet/analysis.md"
+    send: true
+  - label: "Review Assessment"
+    agent: speckit.fx-to-dotnet.assess
+    prompt: "Review the assessment output in .fx-to-dotnet/analysis.md"
+    send: false
+---
 
 # Assessment Command
 

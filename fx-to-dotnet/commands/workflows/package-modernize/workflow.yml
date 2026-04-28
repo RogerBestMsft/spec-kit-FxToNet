@@ -1,0 +1,40 @@
+schema_version: "1.0"
+
+workflow:
+  id: "package-modernize"
+  name: "Package Modernize"
+  version: "0.3.0"
+  author: "Microsoft"
+  description: "Audit NuGet package compatibility and generate a chunked update plan — no code changes"
+
+requires:
+  speckit_version: ">=0.7.2"
+
+inputs:
+  solution:
+    type: string
+    required: true
+    prompt: "Path to the .sln or .slnx solution file"
+  integration:
+    type: string
+    default: "copilot"
+    prompt: "Integration to use (e.g. copilot, claude, gemini)"
+
+steps:
+  - id: audit-packages
+    command: speckit.fx-to-dotnet.assess
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "{{ inputs.solution }}"
+
+  - id: plan-updates
+    command: speckit.fx-to-dotnet.plan
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "{{ inputs.solution }}"
+
+  - id: review-package-plan
+    type: gate
+    message: "Review the chunked package update plan in .fx-to-dotnet/package-updates.md before applying updates."
+    options: [approve, reject]
+    on_reject: abort

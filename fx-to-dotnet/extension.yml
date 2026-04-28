@@ -44,6 +44,34 @@ provides:
       file: "commands/route-inventory/inventory.md"
     - name: "speckit.fx-to-dotnet.show-policy"
       file: "commands/policies/show.md"
+    # --- Workflow commands ---
+    - name: "speckit.fx-to-dotnet.migrate-all"
+      file: "commands/workflows/migrate-all/workflow.yml"
+    - name: "speckit.fx-to-dotnet.assess-and-plan"
+      file: "commands/workflows/assess-and-plan/workflow.yml"
+    - name: "speckit.fx-to-dotnet.sdk-normalize"
+      file: "commands/workflows/sdk-normalize/workflow.yml"
+    - name: "speckit.fx-to-dotnet.package-modernize"
+      file: "commands/workflows/package-modernize/workflow.yml"
+    - name: "speckit.fx-to-dotnet.package-update"
+      file: "commands/workflows/package-update/workflow.yml"
+    - name: "speckit.fx-to-dotnet.library-plan"
+      file: "commands/workflows/library-plan/workflow.yml"
+    - name: "speckit.fx-to-dotnet.library-update"
+      file: "commands/workflows/library-update/workflow.yml"
+    - name: "speckit.fx-to-dotnet.web-app-migration"
+      file: "commands/workflows/web-app-migration/workflow.yml"
+    # --- SDD preset workflow commands ---
+    - name: "speckit.fx-to-dotnet.sdd-specify-and-plan"
+      file: "presets/fx-to-dotnet-sdd/commands/workflows/sdd-specify-and-plan/workflow.yml"
+    - name: "speckit.fx-to-dotnet.sdd-plan-to-tasks"
+      file: "presets/fx-to-dotnet-sdd/commands/workflows/sdd-plan-to-tasks/workflow.yml"
+    - name: "speckit.fx-to-dotnet.sdd-tasks-to-implement"
+      file: "presets/fx-to-dotnet-sdd/commands/workflows/sdd-tasks-to-implement/workflow.yml"
+    - name: "speckit.fx-to-dotnet.sdd-full-lifecycle"
+      file: "presets/fx-to-dotnet-sdd/commands/workflows/sdd-full-lifecycle/workflow.yml"
+    - name: "speckit.fx-to-dotnet.sdd-implement"
+      file: "presets/fx-to-dotnet-sdd/commands/workflows/sdd-implement/workflow.yml"
     # --- SDD lifecycle bridge commands ---
     - name: "speckit.fx-to-dotnet.specify-hook"
       file: "commands/specify-hook/specify-hook.md"
@@ -58,32 +86,54 @@ provides:
       scripts:
         - "scripts/bash/dotnet-build.sh"
         - "scripts/powershell/dotnet-build.ps1"
-hooks:
-  after_specify:
-    command: "speckit.fx-to-dotnet.specify-hook"
-    optional: false
-    prompt: "Detect .NET Framework migration context and run early project detection?"
-    description: "Scans spec.md for .NET Framework migration indicators, runs project detection to identify solution structure and dependency layers, and enriches the spec with migration context"
-  after_plan:
-    command: "speckit.fx-to-dotnet.plan-hook"
-    optional: false
-    prompt: "Run .NET Framework migration assessment and generate a migration plan?"
-    description: "Detects .NET Framework migration context, runs assessment to enrich the spec, then generates a structured migration plan and appends it to the implementation plan"
-  after_tasks:
-    command: "speckit.fx-to-dotnet.tasks-hook"
-    optional: false
-    prompt: "Generate layer-by-layer .NET migration tasks?"
-    description: "Produces dependency-layer-scoped migration tasks for SDK conversion, package updates, multitargeting, and web migration"
-  before_implement:
-    command: "speckit.fx-to-dotnet.implement-hook"
-    optional: false
-    prompt: "Execute .NET migration tasks before general implementation?"
-    description: "Runs FxToNet migration commands for each [MIG] task in tasks.md, marking them complete as work finishes"
-  after_implement:
-    command: "speckit.fx-to-dotnet.verify-hook"
-    optional: false
-    prompt: "Verify migration completion and run solution build?"
-    description: "Checks migration task completion status, runs a solution build to verify compilation, and generates a completion report in .fx-to-dotnet/completion.md"
+
+  # Preset for SDD lifecycle integration (alternative to hooks)
+  presets:
+    - id: "fx-to-dotnet-sdd"
+      path: "presets/fx-to-dotnet-sdd"
+      description: "Overrides core SDD commands (specify, plan, tasks, implement) to integrate migration automatically — use this instead of hooks"
+
+# --- SDD Lifecycle Integration ---
+#
+# Two integration paths are available for wiring migration into the
+# specify → plan → tasks → implement lifecycle:
+#
+# PATH A: Preset (recommended)
+#   Install the bundled preset to override core SDD commands with
+#   migration-aware versions. No hook configuration needed.
+#     specify preset add --dev presets/fx-to-dotnet-sdd
+#
+# PATH B: Hooks (requires .specify/extensions.yml registration)
+#   Uncomment the hooks block below and install the extension via
+#   `specify extension add` to register hooks in .specify/extensions.yml.
+#   The core SDD commands will dispatch to hooks at runtime.
+#
+  hooks:
+    after_specify:
+      command: "speckit.fx-to-dotnet.specify-hook"
+      optional: false
+      prompt: "Detect .NET Framework migration context and run early project detection?"
+      description: "Scans spec.md for .NET Framework migration indicators, runs project detection to identify solution structure and dependency layers, and enriches the spec with migration context"
+    after_plan:
+      command: "speckit.fx-to-dotnet.plan-hook"
+      optional: false
+      prompt: "Run .NET Framework migration assessment and generate a migration plan?"
+      description: "Detects .NET Framework migration context, runs assessment to enrich the spec, then generates a structured migration plan and appends it to the implementation plan"
+    after_tasks:
+      command: "speckit.fx-to-dotnet.tasks-hook"
+      optional: false
+      prompt: "Generate layer-by-layer .NET migration tasks?"
+      description: "Produces dependency-layer-scoped migration tasks for SDK conversion, package updates, multitargeting, and web migration"
+    before_implement:
+      command: "speckit.fx-to-dotnet.implement-hook"
+      optional: false
+      prompt: "Execute .NET migration tasks before general implementation?"
+      description: "Runs FxToNet migration commands for each [MIG] task in tasks.md, marking them complete as work finishes"
+    after_implement:
+      command: "speckit.fx-to-dotnet.verify-hook"
+      optional: false
+      prompt: "Verify migration completion and run solution build?"
+      description: "Checks migration task completion status, runs a solution build to verify compilation, and generates a completion report in .fx-to-dotnet/completion.md"
 tags:
   - "dotnet"
   - "migration"

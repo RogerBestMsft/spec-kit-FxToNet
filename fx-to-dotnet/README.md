@@ -66,7 +66,7 @@ Some commands can be used independently outside the full migration suite:
 
 ## SDD Workflow Integration
 
-Starting in v0.2.0, the extension hooks into Spec Kit's core Spec-Driven Development workflow (`speckit.specify` → `speckit.plan` → `speckit.tasks` → `speckit.implement`). Both the standalone orchestrator and the SDD integration paths remain fully functional.
+Starting in v0.2.0, the extension integrates with Spec Kit's core Spec-Driven Development workflow (`speckit.specify` → `speckit.plan` → `speckit.tasks` → `speckit.implement`). Both the standalone orchestrator and the SDD integration paths remain fully functional.
 
 ### Two Usage Paths
 
@@ -75,16 +75,63 @@ Starting in v0.2.0, the extension hooks into Spec Kit's core Spec-Driven Develop
 | **Standalone** | `speckit.fx-to-dotnet.orchestrate <solutionPath>` | Dedicated migration sessions with full orchestrator control |
 | **SDD Integrated** | `speckit.specify "Migrate MyApp from .NET Framework to .NET 10"` | Migration as part of a broader feature spec, or when using the standard SDD workflow |
 
-### How SDD Hooks Work
+### SDD Integration Options
 
-When the extension is installed, it registers four lifecycle hooks that activate during the core SDD commands. All hooks are **optional** — you're prompted before each one runs, and non-migration projects are unaffected (hooks detect migration context and bail out silently).
+Two mechanisms are available for wiring migration into the SDD lifecycle. Choose one — they are functionally equivalent.
+
+#### Option A: Preset (Recommended)
+
+Install the bundled preset to override core SDD commands with migration-aware versions. No hook configuration or `.specify/extensions.yml` registration required.
+
+```bash
+# Install from the extension directory
+specify preset add --dev fx-to-dotnet/presets/fx-to-dotnet-sdd
+
+# With explicit priority (lower = higher precedence)
+specify preset add --dev fx-to-dotnet/presets/fx-to-dotnet-sdd --priority 5
+
+# Verify the override is active
+specify preset resolve speckit.specify
+
+# Remove when no longer needed
+specify preset remove fx-to-dotnet-sdd
+```
+
+The preset overrides 4 core commands to include migration behavior directly:
+
+| Core Command | Migration Integration |
+|-------------|----------------------|
+| `speckit.specify` | After specification → invokes `speckit.fx-to-dotnet.specify-hook` for early migration detection |
+| `speckit.plan` | After planning → invokes `speckit.fx-to-dotnet.plan-hook` for assessment & migration plan generation |
+| `speckit.tasks` | After task generation → invokes `speckit.fx-to-dotnet.tasks-hook` for `[MIG]` task creation |
+| `speckit.implement` | Before implementation → invokes `speckit.fx-to-dotnet.implement-hook` for migration execution; after implementation → invokes `speckit.fx-to-dotnet.verify-hook` for verification |
+
+**Advantages over hooks:**
+- Self-contained — no dependency on `.specify/extensions.yml` or hook dispatcher
+- Stackable — works alongside other presets with priority ordering
+- Opt-in — install the preset to activate, remove to deactivate
+- Works without `specify extension add`
+
+#### Option B: Hooks
+
+Register lifecycle hooks in `.specify/extensions.yml` via `specify extension add`. The core SDD commands dispatch to hooks at runtime.
+
+```bash
+# Install the extension (registers hooks in .specify/extensions.yml)
+specify extension add fx-to-dotnet
+```
 
 | SDD Command | Hook Event | Bridge Command | What It Does |
 |-------------|------------|----------------|--------------|
-| `speckit.specify` | `after_specify` | `speckit.fx-to-dotnet.specify-hook` | Detects .NET Framework migration context in the spec, runs `assess`, appends `## Migration Assessment Summary` to `spec.md` |
-| `speckit.plan` | `after_plan` | `speckit.fx-to-dotnet.plan-hook` | Generates a structured migration plan via `plan`, appends `## .NET Migration Plan` to the SDD `plan.md` |
-| `speckit.tasks` | `after_tasks` | `speckit.fx-to-dotnet.tasks-hook` | Produces `[MIG]`-tagged layer-level tasks for SDK conversion, package updates, multitargeting, and web migration |
-| `speckit.implement` | `before_implement` | `speckit.fx-to-dotnet.implement-hook` | Executes `[MIG]` tasks by dispatching to FxToNet commands (convert, update-packages, multitarget-migrate, web-migrate) with layer checkpoints |
+| `speckit.specify` | `after_specify` | `speckit.fx-to-dotnet.specify-hook` | Detects .NET Framework migration context in the spec, runs early project detection |
+| `speckit.plan` | `after_plan` | `speckit.fx-to-dotnet.plan-hook` | Runs assessment, generates structured migration plan, enriches SDD plan.md |
+| `speckit.tasks` | `after_tasks` | `speckit.fx-to-dotnet.tasks-hook` | Produces `[MIG]`-tagged layer-level tasks for all migration phases |
+| `speckit.implement` | `before_implement` | `speckit.fx-to-dotnet.implement-hook` | Executes `[MIG]` tasks by dispatching to FxToNet commands with layer checkpoints |
+| `speckit.implement` | `after_implement` | `speckit.fx-to-dotnet.verify-hook` | Verifies migration completion, runs solution build, generates completion report |
+
+> **Note:** To enable hooks, uncomment the `hooks:` block in `extension.yml` before installing.
+
+All hooks are context-aware — they detect .NET Framework migration indicators and skip silently for non-migration projects.
 
 ### Artifact Mapping
 

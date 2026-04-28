@@ -1,0 +1,51 @@
+schema_version: "1.0"
+
+workflow:
+  id: "sdd-specify-and-plan"
+  name: "SDD Specify and Plan"
+  version: "0.3.0"
+  author: "Microsoft"
+  description: "Create a feature spec and implementation plan using SDD lifecycle commands — includes automatic .NET Framework migration detection and assessment"
+
+requires:
+  speckit_version: ">=0.7.2"
+  commands:
+    - "speckit.specify"
+    - "speckit.plan"
+
+inputs:
+  feature_description:
+    type: string
+    required: true
+    prompt: "Describe the feature to specify and plan (include solution path for migration context)"
+  integration:
+    type: string
+    default: "copilot"
+    prompt: "Integration to use (e.g. copilot, claude, gemini)"
+
+steps:
+  # Phase 1: Specify (+ migration detection via specify-hook)
+  - id: specify
+    command: speckit.specify
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "{{ inputs.feature_description }}"
+
+  - id: review-spec
+    type: gate
+    message: "Feature specification complete. Review spec.md and any migration context detected before proceeding to planning."
+    options: [approve, reject]
+    on_reject: abort
+
+  # Phase 2: Plan (+ migration assessment via plan-hook)
+  - id: plan
+    command: speckit.plan
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "{{ inputs.feature_description }}"
+
+  - id: review-plan
+    type: gate
+    message: "Implementation plan complete. Review plan.md and any .NET migration plan in .fx-to-dotnet/ before proceeding to task generation."
+    options: [approve, reject]
+    on_reject: abort
