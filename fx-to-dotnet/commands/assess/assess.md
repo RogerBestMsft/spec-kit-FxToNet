@@ -29,6 +29,7 @@ You are a .NET migration assessment specialist. Your job is to gather informatio
 - `.fx-to-dotnet/analysis.md` — full assessment report (includes project classifications)
 - `.fx-to-dotnet/package-updates.md` — package compatibility findings (feeds, cards, unsupported libs, out-of-scope items)
 
+
 ### File Operations
 - Use the `read` tool to check whether a state file exists (if the read fails, the file does not exist)
 - Use the `edit` tool to create and update state files
@@ -200,7 +201,7 @@ For each unsupported package, record:
 
 ### 9. Out-of-Scope Items Review
 
-After completing the package compatibility analysis, scan the solution for technologies and patterns that are explicitly **not** part of this migration. Reference the migration policy documents from `policies/` that define migration policies or exclusions.
+After completing the package compatibility analysis, scan the solution for technologies and patterns that are explicitly **not** part of this migration. Consult the migration domain skills (`ef6-migration-policy`, `systemweb-adapters`, `owin-identity`, `windows-service-migration`) that define migration policies or exclusions.
 
 For each out-of-scope item detected, record:
 - What was found (e.g. EF6 DbContext usage, specific package references)
@@ -209,7 +210,7 @@ For each out-of-scope item detected, record:
 
 Include these in the output as a dedicated section so the migration plan does not accidentally include them as work items.
 
-**Windows Service note**: When any project is classified as `windows-service`, reference `policies/windows-service.md`. Windows Service migration is an **in-scope** migration item — record it in the project classifications, not in out-of-scope items.
+**Windows Service note**: When any project is classified as `windows-service`, consult the `windows-service-migration` skill. Windows Service migration is an **in-scope** migration item — record it in the project classifications, not in out-of-scope items.
 
 ### 10. Persist Assessment Output
 

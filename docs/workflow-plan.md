@@ -2,7 +2,7 @@
 
 ## Summary
 
-Create 8 scenario-based workflow commands and enhance 8 existing phase commands with spec-kit `handoffs:` to provide multiple migration entry points — from assessment-only to targeted migration scenarios. Register all in `extension.yml`. The 5 existing SDD bridge commands remain available as standalone extension commands (not hooks).
+Create 7 scenario-based workflow commands and enhance 8 existing phase commands with spec-kit `handoffs:` to provide multiple migration entry points — from assessment-only to targeted migration scenarios. Register all in `extension.yml`. The 5 existing SDD bridge commands remain available as standalone extension commands (not hooks).
 
 ### Problem
 
@@ -10,7 +10,7 @@ The extension currently has 16 commands (8 core phases + 5 SDD bridge commands +
 
 ### Solution
 
-Introduce 8 composite workflow commands that chain existing phase commands using spec-kit's `handoffs:` mechanism. The recommended path is `assess-and-plan` → `sdk-normalize` → `package-modernize` → `package-update` → `library-plan` → then `web-app-migration` for web projects. A single `migrate-all` orchestration workflow runs the full sequence end-to-end. Add `handoffs:` to all 8 phase/utility commands so they form a navigable graph. The 5 existing SDD bridge commands (`specify-hook`, `plan-hook`, `tasks-hook`, `implement-hook`, `verify-hook`) remain registered as extension commands and can be invoked directly via `invoke-command` — they are not registered as hooks.
+Introduce 7 composite workflow commands that chain existing phase commands using spec-kit's `handoffs:` mechanism. The recommended path is `assess-and-plan` → `sdk-normalize` → `package-modernize` → `package-update` → `library-plan` → then `web-app-migration` for web projects. Add `handoffs:` to all 8 phase/utility commands so they form a navigable graph. The 5 existing SDD bridge commands (`specify-hook`, `plan-hook`, `tasks-hook`, `implement-hook`, `verify-hook`) remain registered as extension commands and can be invoked directly via `invoke-command` — they are not registered as hooks.
 
 ---
 
@@ -19,20 +19,17 @@ Introduce 8 composite workflow commands that chain existing phase commands using
 ### Workflow Graph
 
 ```
-  ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-  │                                                              migrate-all                                                                                      │
-  │  ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌────────────────┐ │
-  │  │ assess-and-plan │───→│ sdk-normalize    │───→│ package-        │───→│ package-update  │───→│ library-plan    │───→│ library-update  │───→│ web-app-       │ │
-  │  │ (detect→assess  │    │ (detect→convert  │    │ modernize       │    │ (update-pkgs    │    │ (document libs  │    │ (multitarget    │    │ migration      │ │
-  │  │  →plan)         │    │  →fix)           │    │ (assess→plan)   │    │  →fix per chunk)│    │  →iterate)      │    │  single lib)    │    │ (multitarget→  │ │
-  │  └─────────────────┘    └──────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘    │  inventory→    │ │
-  │                                                                                                                                            │  web-migrate→  │ │
-  │                                                                                                                                            │  verify)       │ │
-  │                                                                                                                                            └────────────────┘ │
-  └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+  ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌────────────────┐
+  │ assess-and-plan │───→│ sdk-normalize    │───→│ package-        │───→│ package-update  │───→│ library-plan    │───→│ library-update  │───→│ web-app-       │
+  │ (detect→assess  │    │ (detect→convert  │    │ modernize       │    │ (update-pkgs    │    │ (document libs  │    │ (multitarget    │    │ migration      │
+  │  →plan)         │    │  →fix)           │    │ (assess→plan)   │    │  →fix per chunk)│    │  →iterate)      │    │  single lib)    │    │ (multitarget→  │
+  └─────────────────┘    └──────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘    │  inventory→    │
+                                                                                                                                            │  web-migrate→  │
+                                                                                                                                            │  verify)       │
+                                                                                                                                            └────────────────┘
 ```
 
-The `migrate-all` workflow runs the full sequence end-to-end: `assess-and-plan` → `sdk-normalize` → `package-modernize` → `package-update` → `library-plan` → `web-app-migration`. Each step builds on the previous: assessment produces the plan, SDK normalization converts project files, package modernization audits and plans NuGet updates, package update executes those updates, library plan documents all non-web projects and orchestrates `library-update` for each one, then web-app-migration handles web host migration. Each sub-workflow can also be invoked independently for targeted scenarios.
+The full sequence runs end-to-end: `assess-and-plan` → `sdk-normalize` → `package-modernize` → `package-update` → `library-plan` → `web-app-migration`. Each step builds on the previous: assessment produces the plan, SDK normalization converts project files, package modernization audits and plans NuGet updates, package update executes those updates, library plan documents all non-web projects and orchestrates `library-update` for each one, then web-app-migration handles web host migration. Each sub-workflow can be invoked independently for targeted scenarios; the existing monolithic `orchestrate` command remains the single-call full-chain entry point.
 
 ### Phase Command Handoff Chain
 
@@ -82,36 +79,9 @@ Read-only workflows (`assess-and-plan`, `package-modernize`) have no review poin
 
 ## Phase 1: New Workflow Commands
 
-8 new files in `fx-to-dotnet/commands/workflows/{name}/workflow.yaml`.
+7 new files in `fx-to-dotnet/commands/workflows/{name}/workflow.yaml`.
 
-### 1. migrate-all
-
-| Field | Value |
-|-------|-------|
-| **Command** | `speckit.fx-to-dotnet.migrate-all` |
-| **File** | `commands/workflows/migrate-all/workflow.yaml` |
-| **Purpose** | Run the full migration sequence end-to-end — from assessment through web app migration |
-| **Flow** | assess-and-plan → sdk-normalize → package-modernize → package-update → library-plan → web-app-migration |
-| **Outputs** | All `.fx-to-dotnet/` state files produced by each sub-workflow |
-| **Use case** | "Migrate my entire solution from .NET Framework to modern .NET" |
-| **Handoffs** | (none — this is the top-level entry point) |
-
-**Workflow steps:**
-1. Resolve solution path and target framework (default: net10.0)
-2. Invoke `speckit.fx-to-dotnet.assess-and-plan` — detect, assess, and plan the migration
-3. **Phase checkpoint:** present plan summary; wait for approval before making code changes
-4. Invoke `speckit.fx-to-dotnet.sdk-normalize` — convert legacy projects to SDK-style (layer-by-layer with review points)
-5. **Phase checkpoint:** report SDK normalization results
-6. Invoke `speckit.fx-to-dotnet.package-modernize` — audit package compatibility and generate chunked plan
-7. **Phase checkpoint:** present package update plan summary
-8. Invoke `speckit.fx-to-dotnet.package-update` — execute chunked package updates (with review points per chunk)
-9. **Phase checkpoint:** report package update results
-10. Invoke `speckit.fx-to-dotnet.library-plan` — plan and migrate all non-web libraries (with review points per library/layer)
-11. **Phase checkpoint:** report library migration results
-12. If web-app-host projects exist: invoke `speckit.fx-to-dotnet.web-app-migration` — multitarget, inventory, web-migrate, verify
-13. Present final migration summary with completion report
-
-### 2. assess-and-plan
+### 1. assess-and-plan
 
 | Field | Value |
 |-------|-------|
@@ -131,7 +101,7 @@ Read-only workflows (`assess-and-plan`, `package-modernize`) have no review poin
 5. Present summary: project count, classifications, layer count, estimated phases, risks
 6. Offer handoff to `sdk-normalize` (recommended next step)
 
-### 3. sdk-normalize
+### 2. sdk-normalize
 
 | Field | Value |
 |-------|-------|
@@ -155,7 +125,7 @@ Read-only workflows (`assess-and-plan`, `package-modernize`) have no review poin
 5. Summary: report converted vs already-SDK-style vs skipped projects
 6. Offer handoff to `package-modernize` (recommended next step)
 
-### 4. package-modernize
+### 3. package-modernize
 
 | Field | Value |
 |-------|-------|
@@ -176,7 +146,7 @@ Read-only workflows (`assess-and-plan`, `package-modernize`) have no review poin
 5. Present summary: package count, chunks, risk levels, unsupported libraries and their resolutions
 6. Offer handoff to `package-update` (recommended next step)
 
-### 5. package-update
+### 4. package-update
 
 | Field | Value |
 |-------|-------|
@@ -201,7 +171,7 @@ Read-only workflows (`assess-and-plan`, `package-modernize`) have no review poin
 5. Summary: report total updated packages, remaining incompatibilities, build status
 6. Offer handoff to `library-plan` (recommended next step)
 
-### 6. library-plan
+### 5. library-plan
 
 | Field | Value |
 |-------|-------|
@@ -231,7 +201,7 @@ Read-only workflows (`assess-and-plan`, `package-modernize`) have no review poin
 7. Summary: report migrated vs skipped vs remaining libraries, build status
 8. Offer handoff to `web-app-migration` if web-app-host projects exist
 
-### 7. library-update
+### 6. library-update
 
 | Field | Value |
 |-------|-------|
@@ -252,7 +222,7 @@ Read-only workflows (`assess-and-plan`, `package-modernize`) have no review poin
 5. Record result in `.fx-to-dotnet/{ProjectName}.md`
 6. **Review point:** report project migration status, build result, files changed; wait for approval (skipped if `autoApprove` and build passed, or if called from `library-plan` which manages its own review points)
 
-### 8. web-app-migration
+### 7. web-app-migration
 
 | Field | Value |
 |-------|-------|
@@ -325,8 +295,6 @@ handoffs:
 provides:
   commands:
     # --- Workflow commands ---
-    - name: "speckit.fx-to-dotnet.migrate-all"
-      file: "commands/workflows/migrate-all/workflow.yaml"
     - name: "speckit.fx-to-dotnet.assess-and-plan"
       file: "commands/workflows/assess-and-plan/workflow.yaml"
     - name: "speckit.fx-to-dotnet.sdk-normalize"
@@ -352,8 +320,8 @@ No `hooks:` section — the 5 SDD bridge commands are already registered as exte
 | Core migration | 8 | orchestrate, assess, plan, convert, fix, update-packages, multitarget-migrate, web-migrate |
 | Utilities | 3 | detect, inventory, show-policy |
 | SDD bridge commands | 5 | specify-hook, plan-hook, tasks-hook, implement-hook, verify-hook |
-| **Workflows** | **8** | **migrate-all, assess-and-plan, sdk-normalize, package-modernize, package-update, library-plan, library-update, web-app-migration** |
-| **Total** | **24** | |
+| **Workflows** | **7** | **assess-and-plan, sdk-normalize, package-modernize, package-update, library-plan, library-update, web-app-migration** |
+| **Total** | **23** | |
 
 ---
 
@@ -383,7 +351,7 @@ All workflows share the `.fx-to-dotnet/` state directory. Running `assess-and-pl
 | Workflows in `commands/workflows/{name}/` | Separates composite workflows from atomic phase commands |
 | `package-modernize` is assessment + planning only | Keeps package audit/planning read-only (no code changes); users review the chunked update plan before committing to package updates |
 | `package-update` is a separate execution workflow | Package updates modify project files and can break builds; separating execution from planning gives a clear checkpoint and allows partial execution (1–N chunks) |
-| `orchestrate` retained as-is | Monolithic orchestrator still useful for standalone (non-spec-kit) usage; `migrate-all` is the workflow-based equivalent that delegates to sub-workflows with review points between phases |
+| `orchestrate` retained as-is | Monolithic orchestrator remains the single-call full-chain entry point for standalone (non-spec-kit) usage; the new sub-workflows can be composed manually or driven via spec-kit handoffs when finer-grained review points between phases are needed |
 | `send: false` default for inter-phase handoffs | Preserves user checkpoint control; `send: true` only for natural continuations |
 | Review points after every mutation step | Ensures user can inspect changes before continuing; `autoApprove` override enables CI/automation without removing safety |
 | Build failures always pause (even with `autoApprove`) | Prevents cascading failures in automated runs; broken builds require human decision |

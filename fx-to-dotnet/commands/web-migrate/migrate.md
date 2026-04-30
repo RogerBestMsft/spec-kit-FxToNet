@@ -3,11 +3,6 @@ description: "Plan and execute ASP.NET Framework to ASP.NET Core migration; crea
 tools: [read, edit, search, ask-questions, invoke-command]
 commands:
    - "speckit.fx-to-dotnet.fix"
-handoffs:
-  - label: "Verify Migration"
-    agent: speckit.fx-to-dotnet.verify-hook
-    prompt: "Verify migration completion and run solution build"
-    send: true
 ---
 
 You are a migration orchestrator focused on replacing an ASP.NET (.NET Framework) web application with a new ASP.NET Core web application while preserving endpoint behavior.
@@ -177,8 +172,8 @@ For each slice:
 - Convert `HttpConfiguration`, message handlers, and filters into ASP.NET Core middleware, filters, or options configuration as appropriate.
 - Move `web.config` application settings into ASP.NET Core configuration sources with environment-aware overrides.
 - Replace Autofac or OWIN-specific host setup only where required by the web project boundary. Preserve existing library contracts where practical.
-- Reference `policies/systemweb-adapters.md` for System.Web adapter guidance.
-- Reference `policies/owin-identity.md` for OWIN/Identity migration guidance.
+- Consult the `systemweb-adapters` skill for System.Web adapter guidance.
+- Consult the `owin-identity` skill for OWIN/Identity migration guidance.
 
 If the legacy project contains Web Forms, `.aspx`, `HttpModules`, `HttpHandlers`, or other platform-specific UI/runtime features that do not have a direct ASP.NET Core path, call that out immediately and ask whether the goal is API-only migration, Razor rewrite, or staged coexistence.
 

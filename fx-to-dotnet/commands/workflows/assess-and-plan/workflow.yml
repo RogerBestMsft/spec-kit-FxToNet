@@ -21,6 +21,12 @@ inputs:
     prompt: "Integration to use (e.g. copilot, claude, gemini)"
 
 steps:
+  - id: initialize
+    command: speckit.fx-to-dotnet.initialize
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "{{ inputs.solution }}"
+
   - id: detect
     command: speckit.fx-to-dotnet.detect
     integration: "{{ inputs.integration }}"
