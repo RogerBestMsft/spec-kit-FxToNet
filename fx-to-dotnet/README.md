@@ -1,6 +1,101 @@
 # fx-to-dotnet — .NET Framework to Modern .NET Migration
 
-A single Spec Kit extension that orchestrates migrating .NET Framework applications to modern .NET (e.g. .NET 10) through a 7-phase workflow.
+A single Spec Kit extension that orchestrates migrating .NET Framework applications to modern .NET (e.g. .NET 10) through a 7-phase workflow, optionally driven end-to-end by Spec Kit lifecycle hooks.
+
+- **Version**: `0.7.0`
+- **License**: MIT
+- **Repository**: https://github.com/AzureAD/fx-to-dotnet-extensions
+- **Default target framework**: `net10.0`
+
+## Architecture at a Glance
+
+```mermaid
+graph TB
+    subgraph SpecKit[Spec Kit Core Lifecycle]
+        S[/speckit.specify/]
+        P[/speckit.plan/]
+        T[/speckit.tasks/]
+        I[/speckit.implement/]
+    end
+
+    subgraph Hooks[fx-to-dotnet hooks]
+        H1[specify-hook]
+        H2[plan-hook]
+        H3[tasks-hook]
+        H4[implement-hook<br/>THE GATE]
+        H5[verify-hook]
+    end
+
+    subgraph Core[Core Migration Commands]
+        Orch[orchestrate]
+        Init[initialize]
+        Assess[assess]
+        Plan[plan]
+        Convert[convert]
+        UpdPkg[update-packages]
+        Multi[multitarget-migrate]
+        Web[web-migrate]
+        Fix[fix]
+    end
+
+    subgraph Util[Utilities]
+        Detect[detect]
+        Inv[inventory]
+        Show[show-policy]
+    end
+
+    subgraph Workflows[Workflows]
+        AP[assess-and-plan]
+        SN[sdk-normalize]
+        PM[package-modernize]
+        PU[package-update]
+        LP[library-plan]
+        LU[library-update]
+        WAM[web-app-migration]
+    end
+
+    subgraph Pol[Policies]
+        DL[dependency-layers]
+        EF6[ef6-migration-policy]
+        NPC[nuget-package-compat]
+        OWIN[owin-identity]
+        SWA[systemweb-adapters]
+        WSM[windows-service-migration]
+    end
+
+    S --> H1
+    P --> H2
+    T --> H3
+    I --> H4
+    I --> H5
+
+    H2 --> Assess
+    H2 --> Plan
+    H4 --> Workflows
+    H5 --> Fix
+
+    Orch --> Assess
+    Orch --> Plan
+    Orch --> Convert
+    Orch --> UpdPkg
+    Orch --> Multi
+    Orch --> Web
+
+    Convert --> Fix
+    UpdPkg --> Fix
+    Multi --> Fix
+    Web --> Fix
+    Web --> Inv
+    Assess --> Detect
+
+    Convert -.-> Pol
+    Multi -.-> Pol
+    Web -.-> Pol
+
+    style H4 fill:#d32f2f,color:#fff
+    style Fix fill:#f9a825
+    style Orch fill:#4a9eff,color:#fff
+```
 
 ## Commands
 
@@ -92,6 +187,84 @@ speckit.fx-to-dotnet.orchestrate <solutionPath> [targetFramework]
 6. **Web Migration** → `speckit.fx-to-dotnet.web-migrate`
 7. Completion / Deferred Work
 
+### Phase Flow
+
+```mermaid
+graph LR
+    A[Phase 1<br/>Assessment] --> B[Phase 2<br/>Planning]
+    B --> C[Phase 3<br/>SDK Conversion<br/>per-layer]
+    C --> D[Phase 4<br/>Package Compat]
+    D --> E[Phase 5<br/>Multitarget<br/>per-layer]
+    E --> F[Phase 6<br/>Web Migration]
+    F --> G[Phase 7<br/>Completion]
+
+    C -.checkpoint.-> CP1[Layer<br/>checkpoint]
+    E -.checkpoint.-> CP2[Layer<br/>checkpoint]
+
+    style A fill:#1976d2,color:#fff
+    style B fill:#1976d2,color:#fff
+    style C fill:#1976d2,color:#fff
+    style D fill:#1976d2,color:#fff
+    style E fill:#1976d2,color:#fff
+    style F fill:#1976d2,color:#fff
+    style G fill:#388e3c,color:#fff
+    style CP1 fill:#f9a825
+    style CP2 fill:#f9a825
+```
+
+Phases 3 and 5 process projects layer-by-layer using the dependency layers computed by `assess`. After each layer the orchestrator presents a **layer checkpoint** prompt (continue / skip remaining checkpoints / stop) unless `alwaysContinue: true` is recorded in `preferences.md`. Phase transitions also pause via a **phase checkpoint** prompt.
+
+### Hook Lifecycle Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant Core as Spec Kit Core
+    participant SH as specify-hook
+    participant PH as plan-hook
+    participant TH as tasks-hook
+    participant IH as implement-hook
+    participant VH as verify-hook
+    participant Cmd as fx-to-dotnet commands
+
+    U->>Core: /speckit.specify "..."
+    Core->>SH: after_specify
+    SH->>SH: detect → write detection.md
+    SH-->>Core: annotate spec.md (## Migration Context Detected)
+
+    U->>Core: /speckit.plan
+    Core->>PH: after_plan
+    PH->>Cmd: assess
+    Cmd-->>PH: analysis.md, package-updates.md
+    PH->>Cmd: plan
+    Cmd-->>PH: plan.md
+    PH-->>Core: annotate plan.md (## .NET Migration Plan)
+
+    U->>Core: /speckit.tasks
+    Core->>TH: after_tasks
+    TH->>TH: dedupe + insert ## Phase N: Migration
+    TH-->>Core: emit [MIG-*] rows w/ dispatch: trailers
+
+    U->>Core: /speckit.implement
+    Core->>IH: before_implement (mandatory)
+    IH->>IH: precondition check (analysis + plan + MIG rows)
+    alt missing preconditions
+        IH-->>Core: exit non-zero — block speckit.implement
+    else OK
+        loop each unchecked [MIG-*]
+            IH->>U: preview + (approve/skip/abort/autoApprove-rest)
+            IH->>IH: validate ^speckit\.fx-to-dotnet\.
+            IH->>Cmd: dispatch target
+            Cmd-->>IH: result + build status
+        end
+        IH-->>Core: ✓ Migration Complete — proceed with [US*]
+    end
+    Core->>VH: after_implement (optional)
+    VH->>Cmd: solution build
+    VH-->>U: completion.md + verification annotations
+```
+
 ## Prerequisites
 
 - **Spec Kit** >= 0.1.0
@@ -113,6 +286,159 @@ Private (extension state):
 - `detection.md` — framework-detection cache
 - `implement-state.md` — per-task state for the `before_implement` gate
 - `{ProjectName}.md` — per-project migration state
+
+### State File Producers and Consumers
+
+```mermaid
+graph TD
+    subgraph SK[Spec Kit Core]
+        SP[spec.md]
+        PL[plan.md]
+        TK[tasks.md]
+    end
+
+    subgraph Mig[specs/&lt;branch&gt;/migration/]
+        AN[analysis.md]
+        MP[plan.md]
+        ORC[orchestration.md]
+        PKG[package-updates.md]
+        PRF[preferences.md]
+        DET[detection.md]
+        IST[implement-state.md]
+        COMP[completion.md]
+        PROJ[&#123;ProjectName&#125;.md]
+    end
+
+    SH[specify-hook] --> DET
+    SH --> SP
+    PH[plan-hook] --> AN
+    PH --> MP
+    PH --> PL
+    TH[tasks-hook] --> TK
+    IH[implement-hook] --> IST
+    VH[verify-hook] --> COMP
+
+    Assess[assess] --> AN
+    Assess --> PKG
+    Plan[plan] --> MP
+    Orch[orchestrate] --> ORC
+    Conv[convert] --> PROJ
+    UPP[update-packages] --> PKG
+    Multi[multitarget-migrate] --> PROJ
+    Web[web-migrate] --> PROJ
+    AnyPause[any phase pause] --> PRF
+
+    AN -. read by .-> Plan
+    AN -. read by .-> IH
+    MP -. read by .-> Orch
+    MP -. read by .-> IH
+    ORC -. resume .-> Orch
+    PKG -. read by .-> UPP
+    DET -. read by .-> IH
+
+    style AN fill:#6cc644,color:#fff
+    style MP fill:#6cc644,color:#fff
+    style ORC fill:#6cc644,color:#fff
+    style IH fill:#d32f2f,color:#fff
+```
+
+Per-project `{ProjectName}.md` contains four sections written by different commands:
+
+| Section | Producer |
+|---------|----------|
+| `## SDK Conversion` | `convert` |
+| `## Build Fix` | `fix` (transient — reset each invocation) |
+| `## Multitarget` | `multitarget-migrate` |
+| `## Web Migration` | `web-migrate` |
+
+## Workflows
+
+The extension ships seven YAML workflows under `commands/workflows/` that compose the core commands into common scenarios:
+
+| Workflow | Purpose |
+|----------|---------|
+| `assess-and-plan` | Read-only: `initialize` → `detect` → `assess` → `plan`, then gate for review |
+| `sdk-normalize` | Convert all needs-sdk-conversion projects in dependency-layer order |
+| `package-modernize` | Apply the chunked package compatibility plan solution-wide |
+| `package-update` | Bump a single package across the solution and verify |
+| `library-plan` | Plan multitarget migration for one library project |
+| `library-update` | Execute multitarget migration for one library project |
+| `web-app-migration` | Phase 6 web migration in slices (bootstrap, controllers, etc.) |
+
+```mermaid
+graph LR
+    AP[assess-and-plan] -.feeds.-> SN[sdk-normalize]
+    SN --> PM[package-modernize]
+    PM --> LU[library-update]
+    LU --> WAM[web-app-migration]
+
+    LP[library-plan] -.feeds.-> LU
+    PU[package-update] -.standalone.-> PU
+
+    style AP fill:#1976d2,color:#fff
+    style SN fill:#1976d2,color:#fff
+    style PM fill:#1976d2,color:#fff
+    style LU fill:#1976d2,color:#fff
+    style WAM fill:#1976d2,color:#fff
+```
+
+## Policies
+
+Domain policies under `policies/<name>/POLICY.md` encode migration rules that commands consult via `get_instructions(kind='policy', query='<name>')`:
+
+| Policy | Rule (summary) |
+|--------|----------------|
+| `dependency-layers` | Algorithm for computing project dependency layers (used by `assess`) |
+| `ef6-migration-policy` | Keep EF6 during framework migration; defer EF Core upgrade as a post-migration effort |
+| `nuget-package-compat` | NuGet package compatibility analysis (find minimum supported version, flag legacy package shapes) |
+| `owin-identity` | Migration guidance for OWIN/Identity stacks |
+| `systemweb-adapters` | Use `Microsoft.AspNetCore.SystemWebAdapters` to minimize code change during web migration |
+| `windows-service-migration` | Replace `System.ServiceProcess.ServiceBase` with `BackgroundService` + Generic Host |
+
+The `mcp-setup.md` document at `policies/mcp-setup.md` describes how to configure the required MCP servers.
+
+## Scripts
+
+PowerShell and Bash variants are provided for every helper. Scripts live under `scripts/`.
+
+| Script | Used by |
+|--------|---------|
+| `dotnet-build.{ps1,sh}` | `fix` |
+| `find-recommended-package-upgrades.{ps1,sh}` | `assess`, `convert` |
+| `get-minimal-package-set.{ps1,sh}` | `assess`, `convert` |
+
+## Build Fix Loop
+
+`fix` is the cross-cutting build-and-fix loop invoked by `convert`, `update-packages`, `multitarget-migrate`, and `web-migrate`.
+
+```mermaid
+flowchart TD
+    Start([fix invoked]) --> Resume{Resume from<br/>## Build Fix section?}
+    Resume -- yes --> Build[dotnet build]
+    Resume -- no --> Reset[reset Build Fix section]
+    Reset --> Build
+    Build --> Result{exit code}
+    Result -- 0 --> Done([report success])
+    Result -- non-zero --> Group[parse + group errors]
+    Group --> Loop{next group}
+    Loop -- none --> Final{all groups<br/>resolved?}
+    Final -- yes --> Done
+    Final -- no --> Stop([stop — surface unresolved])
+    Loop -- yes --> Substantial{substantial?<br/>&gt;3 files / new pkg /<br/>API change / &gt;20 lines}
+    Substantial -- yes --> Approve[ask user approval]
+    Approve --> Apply
+    Substantial -- no --> Apply[apply smallest fix]
+    Apply --> Rebuild[dotnet build]
+    Rebuild --> Resolved{group resolved?}
+    Resolved -- yes --> Loop
+    Resolved -- no --> Retry{retry &lt; 3?}
+    Retry -- yes --> Apply
+    Retry -- no --> Ask[ask user:<br/>different approach / skip / stop]
+    Ask --> Loop
+
+    style Done fill:#388e3c,color:#fff
+    style Stop fill:#d32f2f,color:#fff
+```
 
 ## Standalone Usage
 

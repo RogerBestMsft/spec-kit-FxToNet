@@ -1,83 +1,254 @@
-# fx-to-dotnet
+# spec-kit-FxToNet
 
-A **single Spec Kit extension** that orchestrates migrating .NET Framework applications to modern .NET (e.g. .NET 10) through a 7-phase workflow.
+This repository packages [`fx-to-dotnet`](fx-to-dotnet/README.md) — a single Spec Kit extension that orchestrates migrating .NET Framework applications to modern .NET (default `net10.0`) — together with a companion preset and supporting tooling.
 
-## Phase Diagram
+The extension integrates tightly with the Spec Kit lifecycle (`/speckit.specify` → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement`) via five lifecycle hooks. Migration content is owned end-to-end by the extension; user-story implementation is gated behind completion of all migration tasks.
+
+- Extension version: `0.7.0` (see [fx-to-dotnet/extension.yml](fx-to-dotnet/extension.yml))
+- Preset version: `0.4.0` (see [presets/fx-to-dotnet-sdd/preset.yml](presets/fx-to-dotnet-sdd/preset.yml))
+- License: MIT
+- Author: Microsoft
+
+## Repository Layout
+
+```mermaid
+graph LR
+    Root[spec-kit-FxToNet]
+    Root --> Ext[fx-to-dotnet/<br/>extension]
+    Root --> Pre[presets/<br/>fx-to-dotnet-sdd]
+    Root --> Docs[docs/<br/>plans + integration]
+    Root --> Sup[support_scripts/<br/>build + release tooling]
+
+    Ext --> Cmds[commands/<br/>11 core + 5 hooks + 7 workflows]
+    Ext --> Pol[policies/<br/>migration guidance]
+    Ext --> Scr[scripts/<br/>bash + powershell]
+    Ext --> Manifest[extension.yml]
+
+    Pre --> Tpl[templates/<br/>tasks + implement + plan-template]
+    Pre --> PreManifest[preset.yml]
+
+    style Root fill:#4a9eff,color:#fff
+    style Ext fill:#6cc644,color:#fff
+    style Pre fill:#9c27b0,color:#fff
+```
+
+| Path | Purpose |
+|------|---------|
+| [fx-to-dotnet/](fx-to-dotnet/README.md) | The Spec Kit extension itself — commands, hooks, workflows, policies, scripts |
+| [presets/fx-to-dotnet-sdd/](presets/fx-to-dotnet-sdd/README.md) | Optional companion preset that overrides core `speckit.tasks`, `speckit.implement`, and `plan-template` so the core agent never emits competing migration content |
+| [docs/](docs/) | Design plans: workflow, publish, release pipeline, automated tests, tight-integration plan + tasks |
+| [support_scripts/](support_scripts/) | Cross-platform helpers for version bumping, packaging, deploying, catalog generation, and cross-reference auditing |
+
+## Quick Start
+
+```bash
+# 1. Install the extension into your Spec Kit project
+specify extension add fx-to-dotnet
+
+# 2. (Optional) Install the companion preset for deterministic core overrides
+specify preset add fx-to-dotnet-sdd
+
+# 3. Drive a full migration via the standard Spec Kit lifecycle
+/speckit.specify  "Migrate MySolution.sln to net10.0"
+/speckit.plan                # after_plan hook runs assess + plan
+/speckit.tasks               # after_tasks hook emits [MIG-*] rows
+/speckit.implement           # before_implement gate executes [MIG-*] tasks first
+```
+
+Or invoke the orchestrator directly (no lifecycle hooks):
+
+```bash
+speckit.fx-to-dotnet.orchestrate path/to/MySolution.sln net10.0
+```
+
+## End-to-End Lifecycle (with Hooks)
+
+The extension defines five hooks. The `before_implement` hook is the **gate**: it refuses to let `speckit.implement` run user-story tasks until every `[MIG-*]` task has been executed, skipped, or aborted.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant Core as Spec Kit Core
+    participant Hooks as fx-to-dotnet hooks
+    participant Cmds as fx-to-dotnet commands
+
+    U->>Core: /speckit.specify
+    Core->>Hooks: after_specify → specify-hook
+    Hooks->>Hooks: detect Framework projects
+    Hooks-->>Core: annotate spec.md (## Migration Context Detected)
+
+    U->>Core: /speckit.plan
+    Core->>Hooks: after_plan → plan-hook
+    Hooks->>Cmds: assess + plan
+    Cmds-->>Hooks: analysis.md, plan.md (in {featureDir}/migration/)
+    Hooks-->>Core: annotate plan.md (## .NET Migration Plan)
+
+    U->>Core: /speckit.tasks
+    Core->>Hooks: after_tasks → tasks-hook
+    Hooks-->>Core: emit [MIG-*] rows with dispatch: trailers
+
+    U->>Core: /speckit.implement
+    Core->>Hooks: before_implement → implement-hook (THE GATE)
+    Hooks->>Hooks: verify preconditions (analysis.md, plan.md, MIG rows)
+    loop per [MIG-*] task
+        Hooks->>U: preview + (approve | skip | abort | autoApprove-rest)
+        Hooks->>Cmds: dispatch speckit.fx-to-dotnet.<cmd>(args)
+        Cmds-->>Hooks: result + build status
+    end
+    Hooks-->>Core: ✓ Migration Complete — proceed with [US*] tasks
+    Core->>Hooks: after_implement → verify-hook (optional)
+    Hooks-->>U: solution build verification + completion.md
+```
+
+### Hook Summary
+
+| Event | Hook | Optional? | Role |
+|-------|------|-----------|------|
+| `after_specify` | `specify-hook` | no | Detect Framework projects; annotate `spec.md` |
+| `after_plan` | `plan-hook` | no | Run `assess` + `plan`; produce `analysis.md` + `plan.md`; annotate `plan.md` |
+| `after_tasks` | `tasks-hook` | no | Insert `## Phase N: .NET Framework Migration`; emit `[MIG-*]` rows with `dispatch:` trailers |
+| `before_implement` | `implement-hook` | **no — THE GATE** | Verify preconditions; per-task review of every `[MIG-*]`; validate `^speckit\.fx-to-dotnet\.` namespace |
+| `after_implement` | `verify-hook` | yes | Solution build verification; write `completion.md` |
+
+All mandatory hooks **silent-exit success** on non-Framework workspaces, so they never block ordinary (non-migration) Spec Kit usage.
+
+## 7-Phase Migration Flow
+
+Whether driven by the lifecycle hooks or by `speckit.fx-to-dotnet.orchestrate` directly, the migration always follows the same seven phases:
 
 ```mermaid
 graph TD
-    A[speckit.fx-to-dotnet.orchestrate] --> B[Phase 1: Assessment]
-    B --> C[Phase 2: Planning]
-    C --> D[Phase 3: SDK Conversion]
-    D --> E[Phase 4: Package Compatibility]
-    E --> F[Phase 5: Multitarget Migration]
-    F --> G[Phase 6: Web Migration]
-    G --> H[Phase 7: Completion]
+    A[orchestrate / implement-hook] --> P1[Phase 1: Assessment]
+    P1 --> P2[Phase 2: Planning]
+    P2 --> P3[Phase 3: SDK Conversion<br/>layer-by-layer]
+    P3 --> P4[Phase 4: Package Compatibility]
+    P4 --> P5[Phase 5: Multitarget Migration<br/>layer-by-layer]
+    P5 --> P6[Phase 6: ASP.NET Web Migration]
+    P6 --> P7[Phase 7: Completion / Deferred]
 
-    B -.-> B1[assess]
-    B1 -.-> B2[detect]
-    C -.-> C1[plan]
-    D -.-> D1[convert]
-    D1 -.-> D2[fix]
-    E -.-> E1[update-packages]
-    E1 -.-> D2
-    F -.-> F1[multitarget-migrate]
-    F1 -.-> D2
-    G -.-> G1[web-migrate]
-    G1 -.-> G2[inventory]
-    G1 -.-> D2
+    P1 -.runs.-> CAssess[assess]
+    CAssess -.uses.-> CDetect[detect]
+    P2 -.runs.-> CPlan[plan]
+    P3 -.runs.-> CConv[convert]
+    CConv -.delegates.-> CFix[fix]
+    P4 -.runs.-> CPkg[update-packages]
+    CPkg -.delegates.-> CFix
+    P5 -.runs.-> CMulti[multitarget-migrate]
+    CMulti -.delegates.-> CFix
+    P6 -.runs.-> CWeb[web-migrate]
+    CWeb -.uses.-> CInv[inventory]
+    CWeb -.delegates.-> CFix
 
-    style A fill:#4a9eff
-    style B1 fill:#6cc644
-    style C1 fill:#6cc644
-    style D1 fill:#6cc644
-    style D2 fill:#f9a825
-    style E1 fill:#6cc644
-    style F1 fill:#6cc644
-    style G1 fill:#6cc644
-    style B2 fill:#9c27b0
-    style G2 fill:#9c27b0
+    style A fill:#4a9eff,color:#fff
+    style P1 fill:#1976d2,color:#fff
+    style P2 fill:#1976d2,color:#fff
+    style P3 fill:#1976d2,color:#fff
+    style P4 fill:#1976d2,color:#fff
+    style P5 fill:#1976d2,color:#fff
+    style P6 fill:#1976d2,color:#fff
+    style P7 fill:#388e3c,color:#fff
+    style CFix fill:#f9a825
+    style CDetect fill:#9c27b0,color:#fff
+    style CInv fill:#9c27b0,color:#fff
 ```
 
-## Commands
+Layer-by-layer phases (3 and 5) process projects in dependency order: Layer 1 (leaves) first, then Layer 2, etc. Projects within a layer are independent and may run in parallel. Each layer ends in a checkpoint prompt unless `alwaysContinue: true` is recorded in `preferences.md`.
 
-| Command | Description |
-|---------|-------------|
-| `speckit.fx-to-dotnet.orchestrate` | Orchestrator — drives the 7-phase migration flow |
-| `speckit.fx-to-dotnet.assess` | Phase 1: Assessment |
-| `speckit.fx-to-dotnet.plan` | Phase 2: Migration planning |
-| `speckit.fx-to-dotnet.convert` | Phase 3: SDK-style conversion |
-| `speckit.fx-to-dotnet.fix` | Cross-cutting: build/fix loop |
-| `speckit.fx-to-dotnet.update-packages` | Phase 4: Package compatibility |
-| `speckit.fx-to-dotnet.multitarget-migrate` | Phase 5: Multitarget migration |
-| `speckit.fx-to-dotnet.web-migrate` | Phase 6: ASP.NET web migration |
-| `speckit.fx-to-dotnet.detect` | Utility: project type detection |
-| `speckit.fx-to-dotnet.inventory` | Utility: legacy route extraction |
-| `speckit.fx-to-dotnet.show-policy` | Shared policies + reference docs |
+## State Files (per feature)
 
-## Install
+As of `v0.7.0`, **all** migration artifacts live under the active Spec Kit feature folder at `specs/<branch>/migration/`. Each feature branch gets its own isolated migration state, and core Spec Kit (`/speckit.analyze`, `/speckit.verify`) discovers shared artifacts by convention.
 
-```bash
-specify extension add fx-to-dotnet
+```mermaid
+graph TD
+    F[specs/&lt;branch&gt;/]
+    F --> Spec[spec.md]
+    F --> Plan[plan.md]
+    F --> Tasks[tasks.md]
+    F --> Mig[migration/]
+
+    Mig --> Shared[Shared artifacts]
+    Mig --> Priv[Private extension state]
+
+    Shared --> A[analysis.md<br/>assess output]
+    Shared --> PL[plan.md<br/>plan output]
+    Shared --> O[orchestration.md<br/>phase tracking]
+
+    Priv --> PU[package-updates.md]
+    Priv --> Pref[preferences.md]
+    Priv --> Det[detection.md]
+    Priv --> IS[implement-state.md]
+    Priv --> Comp[completion.md]
+    Priv --> Proj[&#123;ProjectName&#125;.md<br/>per-project sections]
+
+    style Shared fill:#6cc644,color:#fff
+    style Priv fill:#f9a825
 ```
 
-### Dev Install (from local checkout)
+Per-project state files (`{ProjectName}.md`) contain four sections written by different commands:
+`## SDK Conversion` (convert) · `## Build Fix` (fix, transient) · `## Multitarget` (multitarget-migrate) · `## Web Migration` (web-migrate).
 
-```bash
-specify extension add --dev /path/to/fx-to-dotnet
+## Commands Catalog
+
+The extension provides 11 core commands, 7 workflows, and 5 lifecycle hooks. See [fx-to-dotnet/README.md](fx-to-dotnet/README.md) for full details.
+
+| Group | Command(s) |
+|-------|------------|
+| Orchestration | `orchestrate`, `initialize` |
+| Phase commands | `assess`, `plan`, `convert`, `update-packages`, `multitarget-migrate`, `web-migrate` |
+| Cross-cutting | `fix` (build/fix loop) |
+| Utilities | `detect`, `inventory`, `show-policy` |
+| Workflows | `assess-and-plan`, `sdk-normalize`, `package-modernize`, `package-update`, `library-plan`, `library-update`, `web-app-migration` |
+| Hooks | `specify-hook`, `plan-hook`, `tasks-hook`, `implement-hook`, `verify-hook` |
+
+## `[MIG-*]` Dispatch Format and Validation
+
+The `after_tasks` hook emits one row per granular dispatch unit. Each row carries a machine-readable `dispatch:` trailer that the `before_implement` hook parses and validates.
+
 ```
+- [ ] [MIG-001] [P0] Convert ProjectA.csproj to SDK-style — dispatch: speckit.fx-to-dotnet.convert(ProjectA.csproj)
+- [ ] [MIG-002] [P0] Apply package chunk 1 (minor updates) — dispatch: speckit.fx-to-dotnet.update-packages(chunk=1)
+- [ ] [MIG-003] [P0] Multitarget LibraryA to net10.0       — dispatch: speckit.fx-to-dotnet.library-update(LibraryA.csproj)
+- [ ] [MIG-004] [P0] Web migrate WebApp slice=bootstrap    — dispatch: speckit.fx-to-dotnet.web-app-migration(WebApp.csproj, slice=bootstrap)
+```
+
+```mermaid
+flowchart TD
+    Start([before_implement hook starts]) --> Pre{Preconditions met?<br/>analysis.md + plan.md + MIG rows}
+    Pre -- no --> Fail[Exit non-zero<br/>print remediation]
+    Pre -- yes --> Loop{Next unchecked<br/>&#91;MIG-*&#93;?}
+    Loop -- none --> Done[Append ## Migration Execution Summary<br/>insert ✓ Migration Complete<br/>allow speckit.implement]
+    Loop -- yes --> Validate{dispatch: matches<br/>^speckit\.fx-to-dotnet\.?}
+    Validate -- no --> Reject[Mark &#91;~&#93;<br/>audit: dispatch-rejected]
+    Reject --> Loop
+    Validate -- yes --> Ask{User choice}
+    Ask -- approve --> Run[Invoke dispatch target]
+    Ask -- skip --> Skip[Mark &#91;~&#93;]
+    Ask -- abort --> Halt([Halt — leave rows unchecked])
+    Ask -- autoApprove-rest --> Run
+    Run --> Build{Build OK?}
+    Build -- yes --> Mark[Mark &#91;X&#93;]
+    Build -- no --> PauseReview[ALWAYS pause for review<br/>even under autoApprove-rest]
+    PauseReview --> Ask
+    Mark --> Loop
+    Skip --> Loop
+
+    style Fail fill:#d32f2f,color:#fff
+    style Reject fill:#d32f2f,color:#fff
+    style Done fill:#388e3c,color:#fff
+    style PauseReview fill:#f9a825
+```
+
+The `^speckit\.fx-to-dotnet\.` prefix check is the **technical enforcement that migrations only run extension-owned commands**. Targets that fail this check are rejected with a `dispatch-rejected` audit-log entry.
 
 ## Prerequisites
 
-- **Spec Kit** >= 0.1.0
-- **.NET SDK** (for `dotnet build` via the fix command)
-- **MCP Servers** (required by assess and convert commands):
-  - `Microsoft.GitHubCopilot.Modernization.Mcp` — project analysis and SDK conversion
-- **Policies** (bundled in the extension under `fx-to-dotnet/policies/`, used by assess and convert commands):
-  - `dependency-layers` — dependency layer computation algorithm
-  - `nuget-package-compat` — NuGet package compatibility analysis scripts
+- **Spec Kit** ≥ 0.1.0 (extension); ≥ 0.7.2 (preset and workflows)
+- **.NET SDK** (for `dotnet build` via the `fix` command)
+- **MCP Servers**:
+  - `Microsoft.GitHubCopilot.Modernization.Mcp` — project analysis and SDK-style conversion (required by `assess` and `convert`)
 
-### Sample MCP Configuration (`.mcp.json`)
+Sample `.mcp.json`:
 
 ```json
 {
@@ -91,37 +262,25 @@ specify extension add --dev /path/to/fx-to-dotnet
 }
 ```
 
-## Command Dependency Graph
-
-```
-orchestrate
-├── assess
-│   ├── detect
-│   └── (policies)
-├── plan
-│   └── (policies)
-├── convert
-│   └── fix
-│       └── (policies)
-├── update-packages
-│   └── fix
-├── multitarget-migrate
-│   ├── fix
-│   └── (policies)
-└── web-migrate
-    ├── inventory
-    ├── fix
-    └── (policies)
-```
-
 ## Standalone Usage
 
-Some commands can be used independently outside the full migration suite:
+Several commands work independently of the full migration suite:
 
-- **`speckit.fx-to-dotnet.fix`** — Useful for any .NET project; iteratively builds and fixes compilation errors
-- **`speckit.fx-to-dotnet.detect`** — Classifies any .NET project (SDK-style, web host, service, library, etc.)
-- **`speckit.fx-to-dotnet.inventory`** — Extracts endpoint inventory from any legacy ASP.NET web project
+- `speckit.fx-to-dotnet.fix` — iteratively build and fix compilation errors in any .NET project
+- `speckit.fx-to-dotnet.detect` — classify any .NET project (SDK-style, web host, service, library, etc.)
+- `speckit.fx-to-dotnet.inventory` — extract endpoint inventory from any legacy ASP.NET web project
+- `speckit.fx-to-dotnet.show-policy` — view a named migration policy document
+
+## Documentation
+
+- [fx-to-dotnet extension README](fx-to-dotnet/README.md) — extension-level details, commands, hooks, state files
+- [presets/fx-to-dotnet-sdd README](presets/fx-to-dotnet-sdd/README.md) — companion preset
+- [docs/speckit-tight-integration-plan.md](docs/speckit-tight-integration-plan.md) — the integration design plan
+- [docs/workflow-plan.md](docs/workflow-plan.md) — workflow command design
+- [docs/release-pipeline-plan.md](docs/release-pipeline-plan.md) — release pipeline
+- [docs/publish-plan.md](docs/publish-plan.md) — publishing plan
+- [docs/automated-test-plan.md](docs/automated-test-plan.md) — automated test plan
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
