@@ -73,7 +73,7 @@ specify extension add --dev /path/to/fx-to-dotnet
 - **.NET SDK** (for `dotnet build` via the fix command)
 - **MCP Servers** (required by assess and convert commands):
   - `Microsoft.GitHubCopilot.Modernization.Mcp` — project analysis and SDK conversion
-- **Skills** (bundled in the repo, used by assess and convert commands):
+- **Policies** (bundled in the extension under `fx-to-dotnet/policies/`, used by assess and convert commands):
   - `dependency-layers` — dependency layer computation algorithm
   - `nuget-package-compat` — NuGet package compatibility analysis scripts
 

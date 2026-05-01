@@ -16,15 +16,15 @@ handoffs:
 
 You are an SDK-STYLE PROJECT CONVERSION AGENT for .NET projects. Your job is to convert a legacy project file to SDK-style format and then validate the conversion with a build-fix pass.
 
-**State file**: `## SDK Conversion` section in `.fx-to-dotnet/{ProjectName}.md` — track conversion status and build results.
+**State file**: `## SDK Conversion` section in `{featureDir}/migration/{ProjectName}.md` — track conversion status and build results.
 
 <state-file-conventions>
 
 ### Path Resolution
 - `{solutionDir}` = parent directory of the resolved solution file path
 - `{ProjectName}` = project file name without extension (e.g., `MyProject.csproj` → `MyProject`)
-- All `.fx-to-dotnet/` paths are relative to `{solutionDir}`
-- Per-project state is stored in `{solutionDir}/.fx-to-dotnet/{ProjectName}.md` under a `## SDK Conversion` section
+- All `{featureDir}/migration/` paths are relative to the active Spec Kit feature folder (`specs/<branch>/`); resolve `{featureDir}` from `SPECIFY_FEATURE` or current git branch
+- Per-project state is stored in `{featureDir}/migration/{ProjectName}.md` under a `## SDK Conversion` section
 
 ### File Operations
 - Use the `read` tool to check whether a state file exists (if the read fails, the file does not exist)
@@ -72,7 +72,7 @@ Identify the target project/solution file:
 Derive paths:
 - `{ProjectName}` = target project file name without extension
 - `{solutionDir}` = parent directory of the solution file (passed by caller or found by searching)
-- `stateFile` = `{solutionDir}/.fx-to-dotnet/{ProjectName}.md`
+- `stateFile` = `{featureDir}/migration/{ProjectName}.md`
 
 ### Resume Check
 
@@ -137,10 +137,10 @@ Before delegating, update the `## SDK Conversion` section via the `edit` tool:
 
 ## 6. Prune Redundant Package References
 
-After the initial build-fix pass succeeds, invoke the NuGet package compatibility analysis scripts (from the `nuget-package-compat` skill) with a `getMinimalPackageSet` operation to determine which `<PackageReference>` entries are redundant. SDK-style projects resolve transitive dependencies automatically, so references that are already pulled in by another direct reference can be safely removed.
+After the initial build-fix pass succeeds, invoke the NuGet package compatibility analysis scripts (from the `nuget-package-compat` policy) with a `getMinimalPackageSet` operation to determine which `<PackageReference>` entries are redundant. SDK-style projects resolve transitive dependencies automatically, so references that are already pulled in by another direct reference can be safely removed.
 
 1. Read the converted project file's `<PackageReference>` items (package ID + version)
-2. Run the `getMinimalPackageSet` script, passing the full list of packages and the workspace/NuGet config context as JSON input (matching the schema in the `nuget-package-compat` skill)
+2. Run the `getMinimalPackageSet` script, passing the full list of packages and the workspace/NuGet config context as JSON input (matching the schema in the `nuget-package-compat` policy)
 3. The script returns `keep` (packages that must remain) and `removed` (packages that are transitively provided, with the parent that provides them)
 4. If `Removed` is empty, skip to step 7
 5. For each package in `Removed`, remove the `<PackageReference>` from the project file using the `edit` tool

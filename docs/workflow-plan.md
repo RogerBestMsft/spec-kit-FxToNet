@@ -1,3 +1,5 @@
+> **⚠ Partially superseded** — The `library-update` workflow described below is now delivered per Layer 5 of [docs/speckit-tight-integration-plan.md](speckit-tight-integration-plan.md) and lives at [fx-to-dotnet/commands/workflows/library-update/workflow.yml](../fx-to-dotnet/commands/workflows/library-update/workflow.yml). The five SDD bridge commands referenced as standalone are now registered as lifecycle hooks (see the `hooks:` section in [fx-to-dotnet/extension.yml](../fx-to-dotnet/extension.yml)). The rest of this document remains current.
+
 # FxToNet Spec-Kit Workflow Plan
 
 ## Summary
@@ -59,7 +61,7 @@ Every workflow step that **mutates code** (converts projects, updates packages, 
 
 **Review point behavior:**
 - **Default (interactive):** Pause after each mutation step. Report: files changed, build status, issues found. Offer: approve & continue / reject & rollback / stop.
-- **Override (automation):** Set `autoApprove: true` in `.fx-to-dotnet/preferences.md` to skip all review points and continue automatically. Workflows also accept an `autoApprove` parameter to override per-run without modifying the preferences file.
+- **Override (automation):** Set `autoApprove: true` in `.specify/migration/preferences.md` to skip all review points and continue automatically. Workflows also accept an `autoApprove` parameter to override per-run without modifying the preferences file.
 - **Granularity:** Review points occur at the natural checkpoint level for each workflow — per-layer, per-chunk, per-library, or per-phase depending on the workflow.
 
 **Review point logic (pseudocode):**
@@ -71,7 +73,7 @@ after mutation step:
   else → present review summary, wait for user approval
 ```
 
-**Override precedence:** per-run parameter > `.fx-to-dotnet/preferences.md` > default (pause).
+**Override precedence:** per-run parameter > `.specify/migration/preferences.md` > default (pause).
 
 Read-only workflows (`assess-and-plan`, `package-modernize`) have no review points since they produce analysis/plans without code changes.
 
@@ -89,7 +91,7 @@ Read-only workflows (`assess-and-plan`, `package-modernize`) have no review poin
 | **File** | `commands/workflows/assess-and-plan/workflow.yaml` |
 | **Purpose** | Evaluate migration scope and effort — assessment and planning only, no code changes |
 | **Flow** | detect → assess → plan |
-| **Outputs** | `.fx-to-dotnet/detection.md`, `.fx-to-dotnet/analysis.md`, `.fx-to-dotnet/package-updates.md`, `.fx-to-dotnet/plan.md` |
+| **Outputs** | `.specify/migration/detection.md`, `.specify/migration/analysis.md` (shared), `.specify/migration/package-updates.md`, `.specify/migration/plan.md` (shared), `.specify/migration/orchestration.md` |
 | **Use case** | "What does migration look like for my solution?" |
 | **Handoffs** | → `sdk-normalize` |
 
@@ -109,15 +111,15 @@ Read-only workflows (`assess-and-plan`, `package-modernize`) have no review poin
 | **File** | `commands/workflows/sdk-normalize/workflow.yaml` |
 | **Purpose** | Convert all legacy project files to SDK-style format without changing target framework |
 | **Flow** | detect → convert (layer-by-layer) → fix |
-| **Prerequisite** | `assess-and-plan` recommended (`.fx-to-dotnet/plan.md` provides layer ordering) but not required |
-| **Outputs** | `.fx-to-dotnet/{ProjectName}.md` (per-project conversion state) |
+| **Prerequisite** | `assess-and-plan` recommended (`.specify/migration/plan.md` provides layer ordering) but not required |
+| **Outputs** | `.specify/migration/{ProjectName}.md` (per-project conversion state) |
 | **Use case** | "Convert projects to SDK-style project files" |
 | **Handoffs** | → `package-modernize` |
 
 **Workflow steps:**
 1. Resolve solution path
 2. Run `speckit.fx-to-dotnet.detect` on each project to identify which need conversion
-3. If `.fx-to-dotnet/plan.md` exists, use its dependency layer ordering; otherwise compute layers from detect results
+3. If `.specify/migration/plan.md` exists, use its dependency layer ordering; otherwise compute layers from detect results
 4. For each dependency layer (leaf-first):
    - Invoke `speckit.fx-to-dotnet.convert` for projects that are not already SDK-style
    - Invoke `speckit.fx-to-dotnet.fix` to validate build after each layer
@@ -134,7 +136,7 @@ Read-only workflows (`assess-and-plan`, `package-modernize`) have no review poin
 | **Purpose** | Audit NuGet package compatibility and generate a chunked update plan — no code changes |
 | **Flow** | assess (package audit) → plan (package chunks) |
 | **Prerequisite** | `sdk-normalize` completed (projects must be SDK-style) |
-| **Outputs** | `.fx-to-dotnet/analysis.md` (updated), `.fx-to-dotnet/package-updates.md` (chunked plan) |
+| **Outputs** | `.specify/migration/analysis.md` (updated), `.specify/migration/package-updates.md` (chunked plan) |
 | **Use case** | "What packages need updating and in what order?" |
 | **Handoffs** | → `package-update` |
 
@@ -154,19 +156,19 @@ Read-only workflows (`assess-and-plan`, `package-modernize`) have no review poin
 | **File** | `commands/workflows/package-update/workflow.yaml` |
 | **Purpose** | Execute 1–N package update chunks from the package modernization plan |
 | **Flow** | update-packages (per chunk) → fix (per chunk) |
-| **Prerequisite** | `package-modernize` completed (`.fx-to-dotnet/package-updates.md` has chunked plan) |
-| **Outputs** | Updated `.csproj` files, `.fx-to-dotnet/package-updates.md` (chunk results) |
+| **Prerequisite** | `package-modernize` completed (`.specify/migration/package-updates.md` has chunked plan) |
+| **Outputs** | Updated `.csproj` files, `.specify/migration/package-updates.md` (chunk results) |
 | **Use case** | "Apply the planned package updates" |
 | **Handoffs** | → `library-plan` |
 
 **Workflow steps:**
 1. Resolve solution path
-2. Pre-check: verify `.fx-to-dotnet/package-updates.md` exists with chunked plan; if not, suggest `package-modernize` first
+2. Pre-check: verify `.specify/migration/package-updates.md` exists with chunked plan; if not, suggest `package-modernize` first
 3. Resume check: if some chunks already completed, resume from first incomplete chunk
 4. For each chunk (minor updates before major):
    - Invoke `speckit.fx-to-dotnet.update-packages` with chunk data
    - Invoke `speckit.fx-to-dotnet.fix` to validate build
-   - Record chunk result in `.fx-to-dotnet/package-updates.md`
+   - Record chunk result in `.specify/migration/package-updates.md`
    - **Review point:** report updated packages, build status, changed `.csproj` files; wait for approval (skipped if `autoApprove` and build passed)
 5. Summary: report total updated packages, remaining incompatibilities, build status
 6. Offer handoff to `library-plan` (recommended next step)
@@ -181,21 +183,21 @@ Read-only workflows (`assess-and-plan`, `package-modernize`) have no review poin
 | **Flow** | enumerate libraries from plan → document each → for each library: invoke `library-update` |
 | **Prerequisite** | `package-update` completed |
 | **Scope filter** | `class-library`, `console-app`, `windows-service`, `web-library` (excludes `web-app-host`) |
-| **Outputs** | `.fx-to-dotnet/library-plan.md` (library inventory with migration order and per-library status) |
+| **Outputs** | `.specify/migration/library-plan.md` (library inventory with migration order and per-library status) |
 | **Use case** | "Plan and migrate all non-web library projects" |
 | **Handoffs** | → `web-app-migration` |
 
 **Workflow steps:**
 1. Resolve solution path + target framework (default: net10.0)
-2. Pre-check: verify `.fx-to-dotnet/plan.md` exists and package updates are complete; if not, suggest prior workflows
-3. Load project list from `.fx-to-dotnet/plan.md`; filter to non-web classifications (`class-library`, `console-app`, `windows-service`, `web-library`)
-4. Compute dependency layers (leaf-first order) and document in `.fx-to-dotnet/library-plan.md`:
+2. Pre-check: verify `.specify/migration/plan.md` exists and package updates are complete; if not, suggest prior workflows
+3. Load project list from `.specify/migration/plan.md`; filter to non-web classifications (`class-library`, `console-app`, `windows-service`, `web-library`)
+4. Compute dependency layers (leaf-first order) and document in `.specify/migration/library-plan.md`:
    - Per library: project name, classification, dependency layer, dependencies, migration status
    - Migration order: leaf-first within each layer
 5. Resume check: if some libraries already completed, resume from first incomplete library
 6. For each dependency layer (leaf-first), for each library in that layer:
    - Invoke `speckit.fx-to-dotnet.library-update` for the library
-   - Record result in `.fx-to-dotnet/library-plan.md`
+   - Record result in `.specify/migration/library-plan.md`
    - **Review point (per-library):** report migration status, build result, files changed; wait for approval (skipped if `autoApprove` and build passed)
    - **Review point (per-layer):** after all libraries in layer complete, report layer summary; wait for approval (skipped if `autoApprove` and all builds passed)
 7. Summary: report migrated vs skipped vs remaining libraries, build status
@@ -210,7 +212,7 @@ Read-only workflows (`assess-and-plan`, `package-modernize`) have no review poin
 | **Purpose** | Multitarget a single library project to modern .NET |
 | **Flow** | multitarget-migrate → fix |
 | **Prerequisite** | Called from `library-plan` (or standalone with project path) |
-| **Outputs** | `.fx-to-dotnet/{ProjectName}.md` (per-project multitarget state) |
+| **Outputs** | `.specify/migration/{ProjectName}.md` (per-project multitarget state) |
 | **Use case** | "Multitarget one library project to modern .NET" |
 | **Handoffs** | (returns to `library-plan` caller) |
 
@@ -219,7 +221,7 @@ Read-only workflows (`assess-and-plan`, `package-modernize`) have no review poin
 2. Pre-check: verify project is SDK-style and packages are updated; if not, suggest prior workflows
 3. Invoke `speckit.fx-to-dotnet.multitarget-migrate` for the project
 4. Invoke `speckit.fx-to-dotnet.fix` to validate build
-5. Record result in `.fx-to-dotnet/{ProjectName}.md`
+5. Record result in `.specify/migration/{ProjectName}.md`
 6. **Review point:** report project migration status, build result, files changed; wait for approval (skipped if `autoApprove` and build passed, or if called from `library-plan` which manages its own review points)
 
 ### 7. web-app-migration
@@ -234,7 +236,7 @@ Read-only workflows (`assess-and-plan`, `package-modernize`) have no review poin
 | **Use case** | "Migrate an ASP.NET Framework web application" |
 
 **Workflow steps:**
-1. Pre-check: verify `.fx-to-dotnet/plan.md` exists and library plan is complete; if not, suggest prior workflows
+1. Pre-check: verify `.specify/migration/plan.md` exists and library plan is complete; if not, suggest prior workflows
 2. Multitarget Migration: invoke `speckit.fx-to-dotnet.multitarget-migrate` per layer → **review point (per-layer):** report multitargeted projects, build status; wait for approval (skipped if `autoApprove` and build passed)
 3. Route Inventory: invoke `speckit.fx-to-dotnet.inventory` on web-app-host projects to map endpoints, controllers, filters, auth requirements
 4. **Review point:** report inventory results — endpoint count, controllers, auth requirements; wait for approval before proceeding to code migration (skipped if `autoApprove`)
@@ -253,7 +255,7 @@ Add `handoffs:` YAML frontmatter to 8 existing phase/utility commands.
 | # | Command | Handoffs | send |
 |---|---------|----------|------|
 | 1 | `assess` | → "Generate Migration Plan" (`speckit.fx-to-dotnet.plan`) | `true` |
-| | | → "Review Assessment" (user reviews `.fx-to-dotnet/analysis.md`) | `false` |
+| | | → "Review Assessment" (user reviews `.specify/migration/analysis.md`) | `false` |
 | 2 | `plan` | → "Normalize to SDK-Style" (`speckit.fx-to-dotnet.sdk-normalize`) | `false` |
 | | | → "Start SDK Conversion" (`speckit.fx-to-dotnet.convert`) | `false` |
 | 3 | `convert` | → "Modernize Packages" (`speckit.fx-to-dotnet.package-modernize`) | `false` |
@@ -272,11 +274,10 @@ Add `handoffs:` YAML frontmatter to 8 existing phase/utility commands.
 handoffs:
   - label: "Generate Migration Plan"
     agent: speckit.fx-to-dotnet.plan
-    prompt: "Generate a migration plan from the assessment in .fx-to-dotnet/analysis.md"
-    send: true
+    prompt: "Generate a migration plan from the assessment in .specify/migration/analysis.md"    send: true
   - label: "Review Assessment"
     agent: speckit.fx-to-dotnet.assess
-    prompt: "Review the assessment output in .fx-to-dotnet/analysis.md"
+    prompt: "Review the assessment output in .specify/migration/analysis.md"
     send: false
 ```
 
@@ -327,10 +328,10 @@ No `hooks:` section — the 5 SDD bridge commands are already registered as exte
 
 ## State Management
 
-All workflows share the `.fx-to-dotnet/` state directory. Running `assess-and-plan` then `library-plan` works because each phase command has resume logic built in.
+All workflows share the `.specify/migration/` state directory. Running `assess-and-plan` then `library-plan` works because each phase command has resume logic built in.
 
 ```
-{solutionDir}/.fx-to-dotnet/
+{solutionDir}/.specify/migration/
 ├── detection.md          ← detect, assess-and-plan, sdk-normalize
 ├── analysis.md           ← assess (all workflows)
 ├── package-updates.md    ← assess (all workflows)
@@ -368,6 +369,6 @@ All workflows share the `.fx-to-dotnet/` state directory. Running `assess-and-pl
 - [ ] Handoff chain: trace each workflow end-to-end; no broken references
 - [ ] Cross-reference audit: run `scripts/cross-reference-audit.ps1` / `.py`
 - [ ] SDD bridge commands: all 5 registered as extension commands, no `hooks:` section present
-- [ ] State file consistency: all workflows write to `.fx-to-dotnet/` with compatible format
+- [ ] State file consistency: all workflows write to `.specify/migration/` with compatible format
 - [ ] Review points: every mutation step followed by review point; `autoApprove` override tested
 - [ ] Resume logic: each workflow resumes correctly from partial state

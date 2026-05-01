@@ -50,6 +50,6 @@ steps:
 
   - id: review-libraries
     type: gate
-    message: "All library projects migrated. Review .fx-to-dotnet/library-plan.md before proceeding to web app migration."
+    message: "All library projects migrated. Review {featureDir}/migration/library-plan.md before proceeding to web app migration."
     options: [approve, reject]
     on_reject: abort

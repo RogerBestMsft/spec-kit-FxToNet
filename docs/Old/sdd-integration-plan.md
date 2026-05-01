@@ -1,6 +1,8 @@
+> **⚠ SUPERSEDED** — This plan has been superseded by [docs/speckit-tight-integration-plan.md](../speckit-tight-integration-plan.md) (April 30, 2026), which delivers the lifecycle hooks, dispatch contract, precondition gate, per-task review, and companion preset that this earlier draft only sketched. Retained for historical context.
+
 # Seamless SDD Integration Plan — fx-to-dotnet Extension
 
-**Status**: Draft — Pending Review  
+**Status**: Superseded — see banner above.  
 **Date**: April 24, 2026  
 **Scope**: fx-to-dotnet extension hook commands only (no spec-kit core changes)
 
@@ -38,7 +40,7 @@ speckit.implement──before_implement─► implement-hook
                  ──after_implement──► verify-hook
                                      │ Audits task completion
                                      │ Runs solution build
-                                     │ Writes .fx-to-dotnet/completion.md
+                                     │ Writes .specify/migration/completion.md
 ```
 
 ### What Goes Wrong
@@ -93,8 +95,8 @@ The hooks execute correctly in isolation, but the **data handoff between spec-ki
 
 | | |
 |---|---|
-| **Problem** | `verify-hook` writes `.fx-to-dotnet/completion.md` but doesn't update the SDD plan.md or tasks.md. The SDD artifacts don't reflect migration completion or build verification status. |
-| **Root Cause** | The verify-hook rules state "this hook is informational" — it only writes to the `.fx-to-dotnet/` directory. |
+| **Problem** | `verify-hook` writes `.specify/migration/completion.md` but doesn't update the SDD plan.md or tasks.md. The SDD artifacts don't reflect migration completion or build verification status. |
+| **Root Cause** | The verify-hook rules state "this hook is informational" — it only writes to the `.specify/migration/` directory. |
 | **Impact** | The SDD artifacts (plan.md, tasks.md) remain incomplete — they show migration as planned/tasked but not as verified. Anyone reviewing the SDD artifacts gets an incomplete picture. |
 
 ---
@@ -261,7 +263,7 @@ In step 4 (Completion), before returning control to core implement, append a `##
 - {Any build warnings, skipped tasks, or deferred items}
 ```
 
-Populate from `.fx-to-dotnet/` state files (per-project `.md` files, `plan.md` phase markers, `package-updates.md`).
+Populate from `.specify/migration/` state files (per-project `.md` files, `plan.md` phase markers, `package-updates.md`).
 
 #### Change 9: Add codebase-state checkpoint to tasks.md
 
@@ -317,14 +319,14 @@ Build: {Pass ✓ / Fail ✗} | Tasks: {completed}/{total} | Warnings: {count}
 ```
 speckit.specify
   └─► specify-hook
-       ├─ Writes .fx-to-dotnet/detection.md
+       ├─ Writes .specify/migration/detection.md
        └─ Appends "## Migration Context Detected" to spec.md
           with extension-managed marker ◄── NEW (Change 6)
 
 speckit.plan
   └─► plan-hook
-       ├─ Invokes assess → .fx-to-dotnet/analysis.md, package-updates.md
-       ├─ Invokes plan → .fx-to-dotnet/plan.md
+       ├─ Invokes assess → .specify/migration/analysis.md, package-updates.md
+       ├─ Invokes plan → .specify/migration/plan.md
        ├─ Appends "## Migration Assessment Summary" to spec.md
        │  with extension-managed marker ◄── NEW (Change 7)
        └─ Appends "## .NET Migration Plan" to plan.md
@@ -347,7 +349,7 @@ speckit.implement
        └─ Inserts codebase-state checkpoint in tasks.md ◄── NEW (Change 9)
   └─► (core implement processes remaining [US*] tasks with full migration context)
   └─► verify-hook (after_implement)
-       ├─ Writes .fx-to-dotnet/completion.md
+       ├─ Writes .specify/migration/completion.md
        ├─ Appends "### Migration Verification" to plan.md ◄── NEW (Change 10)
        └─ Appends verification note to tasks.md ◄── NEW (Change 11)
 ```
@@ -375,7 +377,7 @@ speckit.implement
 - [ ] **AI markers**: Extension-managed directives appear in spec.md (`## Migration Context Detected`, `## Migration Assessment Summary`) and plan.md (`## .NET Migration Plan`)
 - [ ] **Handoff context**: Implement-hook writes `## Migration Execution Summary` to plan.md with project/package/TFM changes before returning control
 - [ ] **Codebase checkpoint**: Tasks.md contains a migration-complete note above remaining user-story tasks
-- [ ] **Verification artifacts**: verify-hook updates both `.fx-to-dotnet/completion.md` AND SDD plan.md/tasks.md
+- [ ] **Verification artifacts**: verify-hook updates both `.specify/migration/completion.md` AND SDD plan.md/tasks.md
 - [ ] **Idempotency**: Re-running any hook doesn't create duplicate content (existing resume checks + new dedup logic)
 - [ ] **Silent exit**: All hooks still exit silently when no migration context is detected
 
@@ -401,7 +403,7 @@ speckit.implement
 |------|-----------|------------|
 | Core tasks command ignores blockquote directives and generates duplicates anyway | Low — AI agents reliably parse explicit "Do NOT generate tasks" instructions | Defense-in-depth: tasks-hook dedup (Change 5) removes any duplicates that slip through |
 | Phase renumbering breaks task references | Low — task IDs (`T###`) are independent of phase numbers | Task ID references remain stable; only phase headings change |
-| Migration execution summary is too verbose for plan.md | Medium | Keep summary to key facts (tables); full details remain in `.fx-to-dotnet/` state files |
+| Migration execution summary is too verbose for plan.md | Medium | Keep summary to key facts (tables); full details remain in `.specify/migration/` state files |
 | Dedup keyword matching removes legitimate user-story tasks | Very low — keywords are specific to migration concepts | Only scan for tasks NOT tagged `[MIG]` that contain migration-specific terms |
 
 ---

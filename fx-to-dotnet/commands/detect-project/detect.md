@@ -1,5 +1,5 @@
 ---
-description: "Read project file(s); determine SDK-style format, project classification, confidence level, and evidence. Accepts a single project file or a solution (.sln/.slnx) and classifies all projects in it. Appends results to .fx-to-dotnet/plan.md."
+description: "Read project file(s); determine SDK-style format, project classification, confidence level, and evidence. Accepts a single project file or a solution (.sln/.slnx) and classifies all projects in it. Appends results to {featureDir}/migration/plan.md."
 tools: [read, edit, search]
 handoffs:
   - label: "Run Full Assessment"
@@ -122,15 +122,37 @@ Always include confidence:
 
 ## 4. Report Output
 
-Append the classification results to `.fx-to-dotnet/plan.md` using the `edit` tool, under a top-level `## Project Detection` section. Also return the same content inline to the caller.
+Write the classification results to `{featureDir}/migration/detection.md` using the `edit` tool. Also return the same content inline to the caller.
 
-### Single-project format
+This file is the **shared detection artifact** for the workspace. It is consumed by:
+- Spec Kit lifecycle hooks (`speckit.fx-to-dotnet.specify-hook`, `plan-hook`, `tasks-hook`, `implement-hook`, `verify-hook`) to decide whether the workspace is a Framework-migration workspace and to read the per-project classifications.
+- Other `fx-to-dotnet` extension commands (`assess`, `plan`, `orchestrate`, workflow commands) that need the project inventory and classifications.
 
-Use this format for a single project, and reuse it for **each** project when the input is a solution:
+Treat `{featureDir}/migration/detection.md` as a **generated artifact**: overwrite the entire file on every run. Do not append. Do not preserve unrelated sections — this file is owned by `speckit.fx-to-dotnet.detect`.
+
+Create the `{featureDir}/migration/` directory if it does not exist.
+
+### File header (always emitted)
+
+Every write begins with this header so consumers can validate the artifact:
 
 ```markdown
+# Detection Report
+
+Generated: {ISO-8601 timestamp}
+Source: speckit.fx-to-dotnet.detect
+```
+
+### Single-project body
+
+When the input is a single project file, append one project block after the header:
+
+```markdown
+## Projects
+
 ### {projectPath}
 - sdkStyle: yes | no
+- targetFramework: {e.g. net48, net8.0, netstandard2.0}
 - classification: web-app-host | web-library | windows-service | class-library | console-app | winforms-app | wpf-app | uncertain
 - confidence: high | medium | low
 - evidence:
@@ -140,17 +162,20 @@ Use this format for a single project, and reuse it for **each** project when the
 - nextAction: {one of the values below}
 ```
 
-### Solution input
+### Solution body
 
-When the input is a solution, write a `## Project Detection` section that begins with the solution path, then emits one single-project block per project:
+When the input is a solution, record the solution path and emit one block per project:
 
 ```markdown
-## Project Detection
+## Solution
 
 - solutionPath: {absolute path to the .sln or .slnx}
 
+## Projects
+
 ### {project 1 path}
 - sdkStyle: ...
+- targetFramework: ...
 - classification: ...
 - confidence: ...
 - evidence:
@@ -159,6 +184,7 @@ When the input is a solution, write a `## Project Detection` section that begins
 
 ### {project 2 path}
 - sdkStyle: ...
+- targetFramework: ...
 - classification: ...
 - confidence: ...
 - evidence:
@@ -166,7 +192,21 @@ When the input is a solution, write a `## Project Detection` section that begins
 - nextAction: ...
 ```
 
-If `## Project Detection` already exists in `plan.md`, replace it. Do not modify other sections.
+### Consumer-friendly summary (always emitted at end of file)
+
+After the `## Projects` section(s), emit two short bullet lists so hooks can render quick summaries without re-parsing the per-project blocks:
+
+```markdown
+## Framework projects
+- {project path} — {classification} — targets {targetFramework}
+- ...
+
+## Modern projects
+- {project path} — {classification} — targets {targetFramework}
+- ...
+```
+
+A project belongs to **Framework projects** if its `targetFramework` matches `net4*` (.NET Framework 4.x) or the project is legacy (non-SDK-style) without a modern TFM. All others go under **Modern projects**. If either list is empty, emit the heading with a single bullet `- (none)` so the section structure remains stable.
 
 nextAction values:
 - proceed-as-web-host

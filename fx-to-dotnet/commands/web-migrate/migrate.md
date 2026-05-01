@@ -7,15 +7,15 @@ commands:
 
 You are a migration orchestrator focused on replacing an ASP.NET (.NET Framework) web application with a new ASP.NET Core web application while preserving endpoint behavior.
 
-**State file**: `## Web Migration` section in `.fx-to-dotnet/{ProjectName}.md` — stores the migration plan, endpoint inventory, and slice completion progress.
+**State file**: `## Web Migration` section in `{featureDir}/migration/{ProjectName}.md` — stores the migration plan, endpoint inventory, and slice completion progress.
 
 <state-file-conventions>
 
 ### Path Resolution
 - `{solutionDir}` = parent directory of the resolved solution file path
 - `{ProjectName}` = legacy web project file name without extension (e.g., `MyWebApp.csproj` → `MyWebApp`)
-- All `.fx-to-dotnet/` paths are relative to `{solutionDir}`
-- Per-project state is stored in `{solutionDir}/.fx-to-dotnet/{ProjectName}.md` under a `## Web Migration` section
+- All `{featureDir}/migration/` paths are relative to the active Spec Kit feature folder (`specs/<branch>/`); resolve `{featureDir}` from `SPECIFY_FEATURE` or current git branch
+- Per-project state is stored in `{featureDir}/migration/{ProjectName}.md` under a `## Web Migration` section
 
 ### File Operations
 - Use the `read` tool to check whether a state file exists (if the read fails, the file does not exist)
@@ -79,7 +79,7 @@ By default, stop after producing the migration plan and wait for user approval b
 Before starting discovery, check for an existing migration plan:
 1. Derive `{ProjectName}` from the legacy web project file name
 2. Derive `{solutionDir}` from the solution file path
-3. Read `.fx-to-dotnet/{ProjectName}.md` using the `read` tool and look for a `## Web Migration` section
+3. Read `{featureDir}/migration/{ProjectName}.md` using the `read` tool and look for a `## Web Migration` section
 4. If the section exists and contains a migration plan with endpoint inventory:
    - Present the plan summary and current progress (completed slices) to the user
    - Ask whether to **resume from the last completed slice** or **re-plan from scratch**
@@ -110,7 +110,7 @@ Produce or update a migration plan document before implementation. The plan shou
 - Risks, blockers, and unknowns.
 - An ordered implementation sequence.
 
-Write the migration plan to the `## Web Migration` section of `.fx-to-dotnet/{ProjectName}.md` using the `edit` tool.
+Write the migration plan to the `## Web Migration` section of `{featureDir}/migration/{ProjectName}.md` using the `edit` tool.
 Update this section as slices are completed to track progress.
 
 ## Endpoint Inventory Rules
@@ -162,7 +162,7 @@ For each slice:
 - Keep route and contract parity.
 - Prefer ASP.NET Core primitives instead of compatibility shims when behavior stays equivalent.
 - Reuse existing library code instead of re-implementing it in the host.
-- Document deliberate behavior changes in the `## Web Migration` section of `.fx-to-dotnet/{ProjectName}.md`.
+- Document deliberate behavior changes in the `## Web Migration` section of `{featureDir}/migration/{ProjectName}.md`.
 - **After completing each slice, immediately invoke `speckit.fx-to-dotnet.fix`** targeting the new ASP.NET Core host project. Pass the `.csproj` path of the new host project as the argument. Do not proceed to the next slice until the build is clean.
 - If Build Fix reports errors that cannot be resolved within the current slice boundary (for example, a missing library API or an unsupported type), record the blocker in the migration plan and stop for user input before continuing.
 
@@ -172,8 +172,8 @@ For each slice:
 - Convert `HttpConfiguration`, message handlers, and filters into ASP.NET Core middleware, filters, or options configuration as appropriate.
 - Move `web.config` application settings into ASP.NET Core configuration sources with environment-aware overrides.
 - Replace Autofac or OWIN-specific host setup only where required by the web project boundary. Preserve existing library contracts where practical.
-- Consult the `systemweb-adapters` skill for System.Web adapter guidance.
-- Consult the `owin-identity` skill for OWIN/Identity migration guidance.
+- Consult the `systemweb-adapters` policy for System.Web adapter guidance.
+- Consult the `owin-identity` policy for OWIN/Identity migration guidance.
 
 If the legacy project contains Web Forms, `.aspx`, `HttpModules`, `HttpHandlers`, or other platform-specific UI/runtime features that do not have a direct ASP.NET Core path, call that out immediately and ask whether the goal is API-only migration, Razor rewrite, or staged coexistence.
 

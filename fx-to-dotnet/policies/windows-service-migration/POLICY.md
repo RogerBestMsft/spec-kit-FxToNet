@@ -119,7 +119,7 @@ description: "Windows Service migration policy for .NET Framework ServiceBase to
 - **MSI/WiX installer migration**: If the original service used an MSI installer (WiX, InstallShield), installer migration is out of scope for code migration. Flag as a manual follow-up task. The new service can be registered with `sc.exe create` or PowerShell `New-Service`.
 - **Service identity and permissions**: Service accounts (LocalSystem, NetworkService, custom accounts) are operational concerns preserved at the `sc.exe` / `New-Service` level — not code changes.
 - **OnPause/OnContinue**: Rare in practice. If the original service overrides `OnPause`/`OnContinue`, use `IHostedLifecycleService` (.NET 8+) or implement a manual pause mechanism with `ManualResetEventSlim` checked in the `ExecuteAsync` loop.
-- **EF6 in services**: If the Windows Service uses Entity Framework 6, follow the `ef6-migration-policy` skill — retain EF6, do not replace with EF Core during migration.
+- **EF6 in services**: If the Windows Service uses Entity Framework 6, follow the `ef6-migration-policy` policy — retain EF6, do not replace with EF Core during migration.
 - **Configuration migration**: `App.config` → `appsettings.json` is handled naturally by the Generic Host's `CreateApplicationBuilder`, which sets up `IConfiguration` with JSON providers. Strongly-typed `IOptions<T>` bindings replace `ConfigurationManager.AppSettings` lookups.
 
 ## References

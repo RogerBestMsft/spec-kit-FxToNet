@@ -47,6 +47,6 @@ steps:
 
   - id: review-plan
     type: gate
-    message: "Review the migration plan in .fx-to-dotnet/plan.md before proceeding to SDK normalization."
+    message: "Review the migration plan in {featureDir}/migration/plan.md before proceeding to SDK normalization."
     options: [approve, reject]
     on_reject: abort

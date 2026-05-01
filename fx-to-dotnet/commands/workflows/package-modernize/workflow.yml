@@ -35,6 +35,6 @@ steps:
 
   - id: review-package-plan
     type: gate
-    message: "Review the chunked package update plan in .fx-to-dotnet/package-updates.md before applying updates."
+    message: "Review the chunked package update plan in {featureDir}/migration/package-updates.md before applying updates."
     options: [approve, reject]
     on_reject: abort

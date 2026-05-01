@@ -1,8 +1,52 @@
 schema_version: "1.0"
+# ---------------------------------------------------------------------------
+# Shared artifacts (path-by-convention; no manifest schema field exists for this)
+#
+# As of v0.7.0, ALL migration-lifecycle artifacts live under the active Spec
+# Kit feature folder at `specs/<branch>/migration/` (referred to below as
+# `{featureDir}/migration/`). This colocates them with `spec.md`, `plan.md`,
+# and `tasks.md` so each feature branch gets its own isolated migration state
+# and so core Spec Kit (`/speckit.analyze`, `/speckit.verify`) — which
+# already operates on the active feature dir — discovers them by convention.
+#
+#   {featureDir}/migration/analysis.md
+#     Producer: speckit.fx-to-dotnet.assess
+#     Consumers: speckit.fx-to-dotnet.{plan-hook, implement-hook, orchestrate, plan},
+#                core /speckit.analyze and /speckit.verify (by convention).
+#     Schema: see commands/assess/assess.md "analysis.md Template".
+#
+#   {featureDir}/migration/plan.md
+#     Producer: speckit.fx-to-dotnet.plan
+#     Consumers: speckit.fx-to-dotnet.{plan-hook, implement-hook, orchestrate,
+#                detect, convert, fix, update-packages, multitarget-migrate,
+#                web-migrate}, core /speckit.analyze and /speckit.verify
+#                (by convention).
+#     Schema: see commands/plan/plan.md (## headings define the structure).
+#
+#   {featureDir}/migration/orchestration.md
+#     Producer: speckit.fx-to-dotnet.initialize, speckit.fx-to-dotnet.orchestrate
+#     Consumers: speckit.fx-to-dotnet.{initialize, orchestrate} (resume-check)
+#     Schema: key/value lines — solutionPath, targetFramework,
+#             lastCompletedPhase, packageCompatStatus, multitargetStatus,
+#             aspnetMigrationStatus.
+#
+# Other migration state lives under the same {featureDir}/migration/ directory
+# as private extension state (package-updates.md, preferences.md,
+# detection.md, implement-state.md, completion.md, per-project {Project}.md).
+#
+# Resolving {featureDir}: hooks and commands resolve the active feature dir
+# the same way Spec Kit core does — from the SPECIFY_FEATURE env var or by
+# locating the `specs/<branch>/` directory matching the current git branch
+# name (e.g. `001-feature-name`). If no active feature dir is detectable,
+# mandatory hooks silent-exit success.
+#
+# History: in v0.5.0–v0.6.0 these files lived at workspace root under
+# `.specify/migration/`. v0.7.0 relocates them to be per-feature.
+# ---------------------------------------------------------------------------
 extension:
   id: "fx-to-dotnet"
   name: ".NET Framework to Modern .NET Migration"
-  version: "0.3.0"
+  version: "0.7.0"
   description: "Orchestrate end-to-end .NET Framework to modern .NET migration across 7 phases, with SDD lifecycle integration"
   author: "Microsoft"
   repository: "https://github.com/AzureAD/fx-to-dotnet-extensions"
@@ -25,10 +69,20 @@ provides:
       file: "commands/orchestrate/orchestrate.md"
     - name: "speckit.fx-to-dotnet.assess"
       file: "commands/assess/assess.md"
+      scripts:
+        - "scripts/bash/find-recommended-package-upgrades.sh"
+        - "scripts/bash/get-minimal-package-set.sh"
+        - "scripts/powershell/Find-RecommendedPackageUpgrades.ps1"
+        - "scripts/powershell/Get-MinimalPackageSet.ps1"
     - name: "speckit.fx-to-dotnet.plan"
       file: "commands/plan/plan.md"
     - name: "speckit.fx-to-dotnet.convert"
       file: "commands/sdk-convert/convert.md"
+      scripts:
+        - "scripts/bash/find-recommended-package-upgrades.sh"
+        - "scripts/bash/get-minimal-package-set.sh"
+        - "scripts/powershell/Find-RecommendedPackageUpgrades.ps1"
+        - "scripts/powershell/Get-MinimalPackageSet.ps1"
     - name: "speckit.fx-to-dotnet.fix"
       file: "commands/build-fix/fix.md"
       scripts:
@@ -59,6 +113,41 @@ provides:
       file: "commands/workflows/library-plan/workflow.yml"
     - name: "speckit.fx-to-dotnet.web-app-migration"
       file: "commands/workflows/web-app-migration/workflow.yml"
+    - name: "speckit.fx-to-dotnet.library-update"
+      file: "commands/workflows/library-update/workflow.yml"
+    # --- Lifecycle hook commands ---
+    - name: "speckit.fx-to-dotnet.specify-hook"
+      file: "commands/hooks/specify-hook.md"
+    - name: "speckit.fx-to-dotnet.plan-hook"
+      file: "commands/hooks/plan-hook.md"
+    - name: "speckit.fx-to-dotnet.tasks-hook"
+      file: "commands/hooks/tasks-hook.md"
+    - name: "speckit.fx-to-dotnet.implement-hook"
+      file: "commands/hooks/implement-hook.md"
+    - name: "speckit.fx-to-dotnet.verify-hook"
+      file: "commands/hooks/verify-hook.md"
+
+hooks:
+  after_specify:
+    command: "speckit.fx-to-dotnet.specify-hook"
+    optional: false
+    description: "Augment specification with .NET migration context"
+  after_plan:
+    command: "speckit.fx-to-dotnet.plan-hook"
+    optional: false
+    description: "Inject .NET migration policies and constraints into plan"
+  after_tasks:
+    command: "speckit.fx-to-dotnet.tasks-hook"
+    optional: false
+    description: "Add .NET migration-specific tasks to task list"
+  before_implement:
+    command: "speckit.fx-to-dotnet.implement-hook"
+    optional: false
+    description: "Prepare .NET migration tooling before implementation"
+  after_implement:
+    command: "speckit.fx-to-dotnet.verify-hook"
+    optional: true
+    description: "Verify .NET migration outcomes after implementation"
 
 tags:
   - "dotnet"
@@ -66,3 +155,4 @@ tags:
   - "modernization"
   - "framework"
   - "aspnet"
+  - "shared-artifact"

@@ -27,12 +27,12 @@ All scripts accept JSON input via **stdin** and produce JSON output on **stdout*
 
 **PowerShell:**
 ```powershell
-$input | & "skills/nuget-package-compat/scripts/powershell/Find-RecommendedPackageUpgrades.ps1"
+$input | & "fx-to-dotnet/scripts/powershell/Find-RecommendedPackageUpgrades.ps1"
 ```
 
 **Bash:**
 ```bash
-echo "$input" | bash skills/nuget-package-compat/scripts/bash/find-recommended-package-upgrades.sh
+echo "$input" | bash fx-to-dotnet/scripts/bash/find-recommended-package-upgrades.sh
 ```
 
 **Input JSON:**
@@ -90,12 +90,12 @@ A package appears in `recommendations` only if it needs an upgrade or has legacy
 
 **PowerShell:**
 ```powershell
-$input | & "skills/nuget-package-compat/scripts/powershell/Get-MinimalPackageSet.ps1"
+$input | & "fx-to-dotnet/scripts/powershell/Get-MinimalPackageSet.ps1"
 ```
 
 **Bash:**
 ```bash
-echo "$input" | bash skills/nuget-package-compat/scripts/bash/get-minimal-package-set.sh
+echo "$input" | bash fx-to-dotnet/scripts/bash/get-minimal-package-set.sh
 ```
 
 **Input JSON:**

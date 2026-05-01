@@ -6,11 +6,11 @@ commands:
 handoffs:
   - label: "Generate Migration Plan"
     agent: speckit.fx-to-dotnet.plan
-    prompt: "Generate a migration plan from the assessment in .fx-to-dotnet/analysis.md"
+    prompt: "Generate a migration plan from the assessment in {featureDir}/migration/analysis.md"
     send: true
   - label: "Review Assessment"
     agent: speckit.fx-to-dotnet.assess
-    prompt: "Review the assessment output in .fx-to-dotnet/analysis.md"
+    prompt: "Review the assessment output in {featureDir}/migration/analysis.md"
     send: false
 ---
 
@@ -21,13 +21,14 @@ You are a .NET migration assessment specialist. Your job is to gather informatio
 <state-file-conventions>
 
 ### Path Resolution
+- `{featureDir}` = active Spec Kit feature folder (`specs/<branch>/`); resolve from `SPECIFY_FEATURE` env var or current git branch
 - `{solutionDir}` = parent directory of the resolved solution file path
 - `{ProjectName}` = project file name without extension (e.g., `MyProject.csproj` → `MyProject`)
-- All `.fx-to-dotnet/` paths are relative to `{solutionDir}`
+- All migration paths are relative to `{featureDir}` (per-feature scope)
 
 ### Output Files
-- `.fx-to-dotnet/analysis.md` — full assessment report (includes project classifications)
-- `.fx-to-dotnet/package-updates.md` — package compatibility findings (feeds, cards, unsupported libs, out-of-scope items)
+- `{featureDir}/migration/analysis.md` — full assessment report (includes project classifications). **Shared artifact**: discoverable by core Spec Kit (`/speckit.analyze`, `/speckit.verify`) and by other extensions; lives under the active feature folder by convention.
+- `{featureDir}/migration/package-updates.md` — package compatibility findings (feeds, cards, unsupported libs, out-of-scope items) AND, after `speckit.fx-to-dotnet.update-packages` runs, chunked execution state. This file is the **shared package-update artifact** for the feature: `assess` owns the findings sections, `update-packages` owns the execution-state section, and both Spec Kit lifecycle hooks and other `fx-to-dotnet` commands (`plan`, `orchestrate`, workflow commands) consume it. Section ownership is enforced via `> **Extension-managed**` blockquote anchors — see the **package-updates.md Template** below.
 
 
 ### File Operations
@@ -45,6 +46,19 @@ You are a .NET migration assessment specialist. Your job is to gather informatio
 - DO NOT order updates into chunks or create execution sequences — the Migration Planner handles that
 - DO NOT edit any project files or apply package updates
 - Ground all package compatibility decisions in actual NuGet metadata
+
+## Required Policies
+
+Before any work begins, you MUST load every policy listed below. These are the canonical required policies for `speckit.fx-to-dotnet.assess`; the `after_plan` hook verifies each is cited in `{featureDir}/migration/analysis.md` and will block `speckit.plan` until all are applied.
+
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='dependency-layers')` to load the dependency-layer computation algorithm.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='nuget-package-compat')` to load the NuGet package compatibility analysis procedure.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='ef6-migration-policy')` to load the Entity Framework 6 retention/migration policy.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='systemweb-adapters')` to load the System.Web adapter migration guidance.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='owin-identity')` to load the OWIN/Identity migration guidance.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='windows-service-migration')` to load the Windows Service → BackgroundService migration guidance.
+
+Each policy loaded here MUST appear as a row in the `## Policies Applied` table of `{featureDir}/migration/analysis.md` (see template below). Policies with no matching code in the solution still emit a row with `Applied To = none — no matches in solution` and `Outcome = n/a` — the row's presence is the proof of loading.
 
 ## Workflow
 
@@ -68,13 +82,13 @@ Before any MCP tool calls, verify the workspace has the required MCP server conf
 #### Resume Check
 
 Before starting MCP workflow, check for existing assessment output:
-1. Derive `{solutionDir}` from the provided solution path
-2. Attempt to read `.fx-to-dotnet/analysis.md` using the `read` tool
+1. Derive `{solutionDir}` from the provided solution path; resolve `{featureDir}` from `SPECIFY_FEATURE` env var or current git branch
+2. Attempt to read `{featureDir}/migration/analysis.md` using the `read` tool
 3. If the file exists and appears complete (contains all expected output sections), report that a prior assessment was found and ask the user whether to **reuse it** or **re-run the assessment**
 4. If reusing, skip to the output step and return the existing data
 5. If the file does not exist or is incomplete, proceed with MCP workflow below
 
-Ensure `.fx-to-dotnet/` directory exists — create it via `edit` tool (writing any state file will create the directory) if needed.
+Ensure the migration directory exists before any writes — the `edit` tool will create `{featureDir}/migration/` on first write to `analysis.md`, `package-updates.md`, or any other file under that directory.
 
 #### MCP Workflow Initialization
 
@@ -88,7 +102,7 @@ Ensure `.fx-to-dotnet/` directory exists — create it via `edit` tool (writing 
 1. Call `get_scenarios()` to list available scenarios
 2. Select the scenario closest to "analysis" (e.g., analysis, assessment, audit)
 3. **⛔ MANDATORY**: Call `get_instructions(kind='scenario', query='<selected_scenario_id>')` to load full scenario instructions before any work
-4. Call `get_instructions(kind='skill', query='scenario-initialization')` to load the initialization flow
+4. Call `get_instructions(kind='policy', query='scenario-initialization')` to load the initialization flow
 5. Gather required parameters from the user's input (solution path, target framework = net10.0)
 6. Call `initialize_scenario` with the selected scenario to create the workflow folder
 
@@ -96,8 +110,8 @@ Ensure `.fx-to-dotnet/` directory exists — create it via `edit` tool (writing 
 
 For each assessment task returned by `get_state()` in `availableTasks`:
 
-1. Call `start_task(taskId)` — read task content and related skills
-2. Evaluate and load any relevant skills from `task_related_skills`
+1. Call `start_task(taskId)` — read task content and related policies
+2. Evaluate and load any relevant policies from `task_related_policies`
 3. Execute the task following loaded instructions
 4. Write findings into `tasks/{taskId}/task.md`
 5. Call `complete_task(taskId, filesModified, executionLogSummary)`
@@ -122,14 +136,14 @@ If no projects are returned or the tool errors, report the error.
 
 After obtaining the topological project order, call `get_project_dependencies` for all projects in parallel (passing the solution path and each project path) to collect their project references. From the returned dependencies, extract the project-type dependencies to build a dependency map.
 
-Follow the `dependency-layers` skill to compute dependency layers from the gathered project-dependency data:
+⛔ MANDATORY: Call `get_instructions(kind='policy', query='dependency-layers')` (if not already loaded in the Required Policies preamble) and apply its algorithm to compute dependency layers from the gathered project-dependency data:
 - Build the input list where each entry has: `projectPath` (workspace-relative path) and `dependencies` (list of in-solution project references)
 - Dependencies should only include projects that are in the topological project list (in-solution references)
-- Execute the algorithm described in the skill: normalize paths → build adjacency map → iterative reduction → cycle detection
+- Execute the algorithm described in the policy: normalize paths → build adjacency map → iterative reduction → cycle detection
 
 Record the computed layers. If any projects remain as unresolved cycles, include them in the assessment report as a warning.
 
-Include both `topologicalProjects` and `dependencyLayers` in `.fx-to-dotnet/analysis.md`.
+Include both `topologicalProjects` and `dependencyLayers` in `{featureDir}/migration/analysis.md`.
 
 ### 6. Classify Each Project
 
@@ -141,7 +155,7 @@ The command returns:
 - `confidence` — high, medium, or low
 - `evidence` — supporting indicators
 
-Collect all classification results and include them in the Project Classifications table in `.fx-to-dotnet/analysis.md`. If any classification is `uncertain`, include it in the output for user review.
+Collect all classification results and include them in the Project Classifications table in `{featureDir}/migration/analysis.md`. If any classification is `uncertain`, include it in the output for user review.
 
 ### 7. Package Compatibility Analysis
 
@@ -173,7 +187,7 @@ Classify project scope:
 
 For each candidate package, collect real compatibility data. The assessment does NOT make update decisions or group packages — it only gathers facts for the Migration Planner.
 
-1. Invoke the NuGet package compatibility analysis scripts (from the `nuget-package-compat` skill) with a `findRecommendedUpgrades` operation, passing the effective feed context and the list of candidate packages as JSON input
+1. ⛔ MANDATORY: Call `get_instructions(kind='policy', query='nuget-package-compat')` (if not already loaded in the Required Policies preamble) and invoke the NuGet package compatibility analysis scripts it provides with a `findRecommendedUpgrades` operation, passing the effective feed context and the list of candidate packages as JSON input
 2. For each package, record:
    - Whether the current version already supports the target framework
    - If not, the **minimum version** that supports both .NET Framework and .NET Core/Standard/modern .NET
@@ -201,7 +215,12 @@ For each unsupported package, record:
 
 ### 9. Out-of-Scope Items Review
 
-After completing the package compatibility analysis, scan the solution for technologies and patterns that are explicitly **not** part of this migration. Consult the migration domain skills (`ef6-migration-policy`, `systemweb-adapters`, `owin-identity`, `windows-service-migration`) that define migration policies or exclusions.
+After completing the package compatibility analysis, scan the solution for technologies and patterns that are explicitly **not** part of this migration. The migration domain policies define the rules and exclusions that drive this scan:
+
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='ef6-migration-policy')` (if not already loaded) and apply its rules to every detected EF6 reference.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='systemweb-adapters')` (if not already loaded) and apply its guidance to every detected `System.Web` API/handler/module/property usage.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='owin-identity')` (if not already loaded) and apply its guidance to every detected OWIN/Identity startup, middleware, or auth pipeline.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='windows-service-migration')` (if not already loaded) and apply its guidance to every project containing `ServiceBase` subclasses or TopShelf hosts.
 
 For each out-of-scope item detected, record:
 - What was found (e.g. EF6 DbContext usage, specific package references)
@@ -210,20 +229,20 @@ For each out-of-scope item detected, record:
 
 Include these in the output as a dedicated section so the migration plan does not accidentally include them as work items.
 
-**Windows Service note**: When any project is classified as `windows-service`, consult the `windows-service-migration` skill. Windows Service migration is an **in-scope** migration item — record it in the project classifications, not in out-of-scope items.
+**Windows Service note**: When any project is classified as `windows-service`, ⛔ MANDATORY: apply the `windows-service-migration` policy (loaded via the Required Policies preamble) — Windows Service migration is an **in-scope** migration item; record it in the project classifications, not in out-of-scope items.
 
 ### 10. Persist Assessment Output
 
-After all assessment work is complete, write the results to `.fx-to-dotnet/` files:
+After all assessment work is complete, write the results to the appropriate state files:
 
-1. Write the full assessment report to `.fx-to-dotnet/analysis.md` using the `edit` tool — follow the **analysis.md template** below exactly
-2. Write the package compatibility findings (NuGet Feeds, Compatibility Cards, Unsupported Libraries, Out-of-Scope Items) to `.fx-to-dotnet/package-updates.md` using the `edit` tool
+1. Write the full assessment report to `{featureDir}/migration/analysis.md` using the `edit` tool — follow the **analysis.md template** below exactly. This is a **shared artifact**: it lives under the active Spec Kit feature folder so that core Spec Kit (`/speckit.analyze`, `/speckit.verify`) and other extensions can discover it by convention.
+2. Write the package compatibility findings (NuGet Feeds, Compatibility Cards, Unsupported Libraries, Out-of-Scope Items) to `{featureDir}/migration/package-updates.md` using the `edit` tool — this also lives under `{featureDir}/migration/` alongside the other migration artifacts.
 
 These files enable the orchestrator and downstream commands to resume from a completed assessment without re-running it.
 
 ## analysis.md Template
 
-Write `.fx-to-dotnet/analysis.md` using this exact structure:
+Write `{featureDir}/migration/analysis.md` using this exact structure:
 
 ```markdown
 # Assessment Report
@@ -256,6 +275,89 @@ Unresolved/Cycles: ← omit section if none
 | # | Project | SDK-Style | Classification | Confidence | Evidence |
 |---|---------|-----------|----------------|------------|----------|
 | 1 | {path}  | yes/no    | web-app-host / web-library / windows-service / class-library / console-app / winforms-app / wpf-app / uncertain | high/medium/low | {summary} |
+
+## Policies Applied
+
+> Every policy listed in the `## Required Policies` preamble of `assess.md` MUST appear as a row below. Policies with no matching code in the solution still get a row with `Applied To = none — no matches in solution` and `Outcome = n/a` — the row's presence is the proof of loading. The `after_plan` hook parses this table and blocks `speckit.plan` if any required policy row is missing.
+
+| Policy | Source | Applied To | Outcome |
+|---|---|---|---|
+| `dependency-layers` | `policies/dependency-layers/POLICY.md` | {projects analyzed for layer computation, or `none — no matches in solution`} | {summary, or `n/a`} |
+| `nuget-package-compat` | `policies/nuget-package-compat/POLICY.md` | {packages analyzed, or `none — no matches in solution`} | {summary, or `n/a`} |
+| `ef6-migration-policy` | `policies/ef6-migration-policy/POLICY.md` | {projects with EF6 references, or `none — no matches in solution`} | {summary, or `n/a`} |
+| `systemweb-adapters` | `policies/systemweb-adapters/POLICY.md` | {projects with System.Web usage, or `none — no matches in solution`} | {summary, or `n/a`} |
+| `owin-identity` | `policies/owin-identity/POLICY.md` | {projects with OWIN/Identity usage, or `none — no matches in solution`} | {summary, or `n/a`} |
+| `windows-service-migration` | `policies/windows-service-migration/POLICY.md` | {projects with `ServiceBase`/TopShelf, or `none — no matches in solution`} | {summary, or `n/a`} |
+```
+
+## package-updates.md Template
+
+Write `{featureDir}/migration/package-updates.md` using this exact structure. The file has two ownership zones:
+
+- **Findings zone** (this command, `speckit.fx-to-dotnet.assess`): the header plus the four `##` findings sections below. `assess` owns and rewrites this zone on every run.
+- **Execution-state zone** (`speckit.fx-to-dotnet.update-packages`): the trailing `## Execution State` section. `assess` MUST emit a placeholder for this section (so consumers see a stable schema) but MUST NOT touch its body once `update-packages` has populated it on a later run.
+
+To preserve any existing execution state, before writing: `read` the current `{featureDir}/migration/package-updates.md` (if present), capture everything from the `## Execution State` heading through end-of-file, and re-emit that captured block verbatim after rewriting the findings zone. If the file does not exist or has no `## Execution State` section, emit the placeholder shown below.
+
+```markdown
+# Package Update Plan
+
+> **Extension-managed (findings)** — sections from `# Package Update Plan` through the end of `## Out-of-Scope Items` are generated by `speckit.fx-to-dotnet.assess`. To refresh, re-run `speckit.fx-to-dotnet.assess`. The trailing `## Execution State` section is owned by `speckit.fx-to-dotnet.update-packages` and is preserved across reruns.
+
+Generated: {ISO-8601 timestamp}
+Source: speckit.fx-to-dotnet.assess
+Solution: {absolute path to the .sln or .slnx}
+Target: {targetFramework, e.g. net10.0}
+
+## NuGet Feeds
+
+The effective active feed list after applying `nuget.config` precedence and `clear`/add/remove rules:
+
+| # | Feed Name | Source URL | Authenticated | Origin |
+|---|-----------|------------|---------------|--------|
+| 1 | {name} | {url} | yes/no | {solution / parent / user} |
+
+If no feeds resolved, emit a single row: `| — | (none) | — | — | — |` and add a note explaining the failure.
+
+## Compatibility Cards
+
+One row per package reference discovered in the solution scope (excluding ASP.NET Framework application host projects per assess scope rules).
+
+| # | Package ID | Current Version | Target Framework | Current Supports Target | Minimum Compatible Version | Has Legacy Content Folder | Has Install Script | Feed Source | Projects |
+|---|------------|-----------------|------------------|-------------------------|----------------------------|---------------------------|--------------------|-------------|----------|
+| 1 | {id} | {version} | {tfm} | yes/no | {version or `—`} | yes/no | yes/no | {feed name} | {comma-separated project paths} |
+
+Notes column conventions:
+- `Minimum Compatible Version` is `—` when `Current Supports Target` is `yes`.
+- `Has Legacy Content Folder` and `Has Install Script` are sourced from the NuGet metadata flags described in step 7c.
+
+## Unsupported Libraries
+
+Packages for which NuGet metadata confirms no version supports the target framework. The Migration Planner will route these to manual remediation, not to the chunked update queue.
+
+| # | Package ID | Current Version | Reason | Projects |
+|---|------------|-----------------|--------|----------|
+| 1 | {id} | {version} | {discontinued / .NET Framework only / no modern assets / etc.} | {project paths} |
+
+If none, emit a single row: `| — | (none) | — | — | — |`.
+
+## Out-of-Scope Items
+
+Technologies and patterns explicitly excluded from this migration per the loaded migration policies. The Migration Planner MUST NOT emit work items for these; they are recorded here so the rationale is durable.
+
+| # | Item | Detected In | Policy Source | Recommended Post-Migration Action |
+|---|------|-------------|---------------|-----------------------------------|
+| 1 | {e.g. EF6 DbContext usage} | {project paths} | `policies/ef6-migration-policy/POLICY.md` | {summary} |
+
+Recognized policy sources (cite the POLICY path verbatim): `policies/ef6-migration-policy/POLICY.md`, `policies/systemweb-adapters/POLICY.md`, `policies/owin-identity/POLICY.md`. (Windows Service migration is **in-scope** — it appears in `analysis.md` project classifications, not here.)
+
+If none, emit a single row: `| — | (none) | — | — | — |`.
+
+## Execution State
+
+> **Extension-managed (execution state)** — this section is owned by `speckit.fx-to-dotnet.update-packages`. `speckit.fx-to-dotnet.assess` MUST NOT modify the body of this section once populated. To reset, delete this section's body and re-run `speckit.fx-to-dotnet.update-packages`.
+
+(no execution state yet — `speckit.fx-to-dotnet.update-packages` has not run)
 ```
 
 ## Output Format
@@ -264,8 +366,8 @@ Return the assessment report path, topological project order, project classifica
 
 ```
 📄 Assessment complete:
-   analysis.md → {full_path}
-   package-updates.md → {full_path}
+   analysis.md → {full_path to {featureDir}/migration/analysis.md}
+   package-updates.md → {full_path to {featureDir}/migration/package-updates.md}
    topologicalProjects → [{ordered list}]
    dependencyLayers → Layer 1: [...], Layer 2: [...], ...
    classifications → {count} projects classified ({uncertain_count} uncertain)

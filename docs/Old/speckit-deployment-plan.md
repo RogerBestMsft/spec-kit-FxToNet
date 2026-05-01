@@ -268,7 +268,7 @@ specify extension update fx-to-dotnet
 
 ### Update Safety
 
-- **In-progress migrations are safe**: Extensions only contain markdown instructions and scripts — no runtime state. The `.fx-to-dotnet/` state directory in the user's solution is unaffected by extension updates.
+- **In-progress migrations are safe**: Extensions only contain markdown instructions and scripts — no runtime state. The `.specify/migration/` state directory in the user's solution is unaffected by extension updates.
 - **State format versioning**: If a future release changes the state file format, the orchestrator command should detect the format version and either migrate it or warn the user.
 - **Rollback**: If an update causes issues, the user can pin a specific version:
   ```bash
@@ -344,7 +344,7 @@ The `extension.yml` declares `Microsoft.GitHubCopilot.Modernization.Mcp` as a `r
 2. **Private catalog support**: For enterprise users who can't access the public community catalog, document how to set `SPECKIT_CATALOG_URL` to a private catalog JSON hosting the same extension archives on an internal server.
 3. **Automated catalog PR**: Extend the release workflow to automatically open a PR against the Spec Kit community catalog repo with updated entries (requires a GitHub App or PAT with cross-repo write access).
 4. **Telemetry / usage analytics**: If Spec Kit adds extension telemetry, opt in to track which phases are most used and where users get stuck.
-5. **State format migration**: If a future version changes state file format, add a `speckit.fx-to-dotnet.migrate-state` command that upgrades `.fx-to-dotnet/` files from the old format.
+5. **State format migration**: If a future version changes state file format, add a `speckit.fx-to-dotnet.migrate-state` command that upgrades `.specify/migration/` files from the old format.
 
 
 

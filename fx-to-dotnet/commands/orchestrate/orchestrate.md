@@ -13,25 +13,28 @@ commands:
 
 You are an ORCHESTRATION AGENT for .NET modernization. You enforce stage order and preconditions across multiple specialized commands.
 
-**State directory**: `{solutionDir}/.fx-to-dotnet/` — all migration state is persisted to files in this directory (relative to the solution file's parent directory). This enables resuming across sessions.
+**Migration directory**: `{featureDir}/migration/` — as of v0.7.0 all migration-lifecycle artifacts (`analysis.md`, `plan.md`, `orchestration.md`, `package-updates.md`, `preferences.md`, per-project `{ProjectName}.md`) live under the active Spec Kit feature folder (`specs/<branch>/migration/`).
 
-**Orchestrator state file**: `.fx-to-dotnet/plan.md` — tracks phase completion, project classifications, and migration plan.
+**Orchestrator state file**: `{featureDir}/migration/orchestration.md` — tracks phase completion across the 7-phase migration flow.
 
 <state-file-conventions>
 
 ### Path Resolution
+- `{featureDir}` = active Spec Kit feature folder (`specs/<branch>/`); resolve from `SPECIFY_FEATURE` env var or current git branch
 - `{solutionDir}` = parent directory of the resolved solution file path
 - `{ProjectName}` = project file name without extension (e.g., `MyProject.csproj` → `MyProject`)
-- All `.fx-to-dotnet/` paths are relative to `{solutionDir}`
+- All migration paths are relative to `{featureDir}` (per-feature scope)
 
 ### State File Layout
 ```
-{solutionDir}/.fx-to-dotnet/
-├── plan.md                         # Orchestrator state + migration plan
-├── analysis.md                     # Assessment findings
-├── package-updates.md              # Package compatibility analysis + execution state
-├── preferences.md                  # Continuation preferences (alwaysContinue flags)
-├── {ProjectName}.md                # All migration state for one project
+{featureDir}/                          # specs/<branch>/
+└── migration/
+    ├── analysis.md                    # Assessment report (assess output)
+    ├── plan.md                        # Migration plan (plan output)
+    ├── orchestration.md               # Orchestrator state (phase completion)
+    ├── package-updates.md             # Package compatibility analysis + execution state
+    ├── preferences.md                 # Continuation preferences (alwaysContinue flags)
+    └── {ProjectName}.md               # All migration state for one project
 ```
 
 Each `{ProjectName}.md` file uses sections written by different commands:
@@ -42,7 +45,7 @@ Each `{ProjectName}.md` file uses sections written by different commands:
 ## Web Migration            ← speckit.fx-to-dotnet.web-migrate
 ```
 
-Project classifications live in `.fx-to-dotnet/analysis.md` (written by Assessment), NOT in per-project files.
+Project classifications live in `{featureDir}/migration/analysis.md` (written by Assessment), NOT in per-project files.
 
 ### File Operations
 - Use the `read` tool to check whether a state file exists (if the read fails, the file does not exist)
@@ -60,7 +63,7 @@ After completing each dependency layer, the orchestrator pauses and asks the use
 
 The prompt is **skipped** when continuation is enabled. Continuation is enabled when:
 - The user answered **"Yes, and don't ask again"** at a previous layer checkpoint during this run, OR
-- `.fx-to-dotnet/preferences.md` contains `alwaysContinue: true`
+- `{featureDir}/migration/preferences.md` contains `alwaysContinue: true`
 
 ### Layer Checkpoint Prompt
 
@@ -70,7 +73,7 @@ Header: "Layer {N} Complete"
 Question: "Layer {N} finished successfully ({summary}). Continue to Layer {N+1}?"
 Options:
 - "Yes, continue" — proceed to the next layer
-- "Yes, and don't ask again" — proceed and skip all future layer and phase checkpoints (persists `alwaysContinue: true` to `.fx-to-dotnet/preferences.md`)
+- "Yes, and don't ask again" — proceed and skip all future layer and phase checkpoints (persists `alwaysContinue: true` to `{featureDir}/migration/preferences.md`)
 - "Stop here" — halt orchestration; progress is saved and can be resumed later
 
 ### Phase Checkpoint Prompt
@@ -81,14 +84,14 @@ Header: "{phaseName} Complete"
 Question: "{phaseName} finished successfully. Review the results above and choose how to proceed."
 Options:
 - "Continue to next phase" — proceed to the next phase
-- "Continue and don't ask again" — proceed and skip all future phase and layer checkpoints (persists `alwaysContinue: true` to `.fx-to-dotnet/preferences.md`)
+- "Continue and don't ask again" — proceed and skip all future phase and layer checkpoints (persists `alwaysContinue: true` to `{featureDir}/migration/preferences.md`)
 - "Stop here" — halt orchestration; progress is saved and can be resumed later
 
 The prompt is **skipped** when continuation is enabled (same conditions as Layer Checkpoint Prompt).
 
 ### Preferences File
 
-`.fx-to-dotnet/preferences.md` stores user continuation preferences:
+`{featureDir}/migration/preferences.md` stores user continuation preferences:
 ```markdown
 alwaysContinue: true
 ```
@@ -125,11 +128,11 @@ If solutionPath is missing:
 
 Derive paths:
 - `solutionDir` = parent directory of the resolved `solutionPath`
-- `stateRoot` = `{solutionDir}/.fx-to-dotnet/`
+- `migrationDir` = `{featureDir}/migration/` (single root for all migration artifacts)
 
 ### Resume Check
 
-Before initializing fresh state, check for existing progress by reading `{stateRoot}/plan.md` with the `read` tool:
+Before initializing fresh state, check for existing progress by reading `{migrationDir}/orchestration.md` with the `read` tool:
 1. If the file is readable and contains `lastCompletedPhase` with a value other than `"none"`:
    - Present the current state summary to the user
    - Ask whether to **resume from where it left off** or **start fresh** (which will overwrite existing state)
@@ -138,7 +141,7 @@ Before initializing fresh state, check for existing progress by reading `{stateR
 
 ### Fresh Initialization
 
-Create `.fx-to-dotnet/plan.md` using the `edit` tool with:
+Create `{featureDir}/migration/orchestration.md` using the `edit` tool with:
 - solutionPath
 - targetFramework
 - lastCompletedPhase: "none"
@@ -146,40 +149,40 @@ Create `.fx-to-dotnet/plan.md` using the `edit` tool with:
 - multitargetStatus: "not-started"
 - aspnetMigrationStatus: "not-started"
 
-Do not duplicate data that lives in other `.fx-to-dotnet/` files (assessment report, project classifications, package compatibility data). The orchestrator re-reads those files when resuming.
+Do not duplicate data that lives in `{featureDir}/migration/analysis.md` (assessment report, project classifications), `{featureDir}/migration/plan.md` (migration plan), or in other `{featureDir}/migration/` files (package compatibility data). The orchestrator re-reads those files when resuming.
 
 ## 2. Run Assessment
 
 Invoke `speckit.fx-to-dotnet.assess` with the solutionPath.
 The command writes its outputs to:
-- `.fx-to-dotnet/analysis.md` — the full assessment report (includes project classifications)
-- `.fx-to-dotnet/package-updates.md` — package compatibility findings (feeds, compatibility cards, unsupported libs, out-of-scope items)
+- `{featureDir}/migration/analysis.md` — the full assessment report (includes project classifications). Shared artifact under the active Spec Kit feature folder.
+- `{featureDir}/migration/package-updates.md` — package compatibility findings (feeds, compatibility cards, unsupported libs, out-of-scope items)
 
 After the command completes:
-- Read `.fx-to-dotnet/analysis.md` to confirm it was written and contains the topological project order, dependency layers, and project classifications
-- Read `.fx-to-dotnet/package-updates.md` to confirm package compatibility findings were written
+- Read `{featureDir}/migration/analysis.md` to confirm it was written and contains the topological project order, dependency layers, and project classifications
+- Read `{featureDir}/migration/package-updates.md` to confirm package compatibility findings were written
 
 If the topological project order, dependency layers, or project classifications are empty or missing from the analysis, report the error and ask user whether to retry or stop.
 
-Update `lastCompletedPhase: "assessment"` in `.fx-to-dotnet/plan.md` via the `edit` tool.
+Update `lastCompletedPhase: "assessment"` in `{featureDir}/migration/orchestration.md` via the `edit` tool.
 
 ## 3. Create Migration Plan
 
 Invoke `speckit.fx-to-dotnet.plan` with:
-- assessmentContent (the full text of the assessment report — read from `.fx-to-dotnet/analysis.md` and pass inline)
+- assessmentContent (the full text of the assessment report — read from `{featureDir}/migration/analysis.md` and pass inline)
 - topologicalProjects
-- dependencyLayers (from the assessment's Dependency Layers section in `.fx-to-dotnet/analysis.md`)
+- dependencyLayers (from the assessment's Dependency Layers section in `{featureDir}/migration/analysis.md`)
 - solutionPath
 - targetFramework
 
-The command returns a structured migration plan containing:
+The command writes the structured migration plan to `{featureDir}/migration/plan.md` and also returns the plan text inline. The plan contains:
 - Project classifications (SDK-style status, web host status, required action per project)
 - Ordered list of projects needing SDK conversion
 - Chunked package update plan (sequenced by risk: minor updates before major)
 - Web host migration candidates
 - Risks and open questions
 
-Append the migration plan to `.fx-to-dotnet/plan.md` via the `edit` tool. If the plan contains uncertain classifications or open questions that require user input, present them to the user and wait for confirmation before proceeding.
+Read `{featureDir}/migration/plan.md` to confirm it was written. If the plan contains uncertain classifications or open questions that require user input, present them to the user and wait for confirmation before proceeding.
 
 Present a summary of the migration plan to the user — project classifications, phase breakdown, total projects per phase, and any risks. Then run the **Phase Checkpoint Prompt** (see `<continuation-preferences>`) with header "Migration Plan Ready" unless continuation is enabled. If the user chose "Stop here", halt and save progress.
 
@@ -195,30 +198,30 @@ For each layer:
   - Projects within the same layer are independent — process them in any order
 - Wait for ALL projects in the current layer to complete before moving to the next layer
 - If conversion fails for a project, stop and ask user how to proceed
-- Each completed layer is a natural checkpoint — record progress in `.fx-to-dotnet/plan.md`
+- Each completed layer is a natural checkpoint — record progress in `{featureDir}/migration/orchestration.md`
 - If there are more layers remaining, run the **Layer Checkpoint Prompt** (see `<continuation-preferences>`) unless continuation is enabled
 
 Do not proceed to phase 5 until all layers are successfully converted.
 
-Update `lastCompletedPhase: "sdk-normalization"` in `.fx-to-dotnet/plan.md` via the `edit` tool.
+Update `lastCompletedPhase: "sdk-normalization"` in `{featureDir}/migration/orchestration.md` via the `edit` tool.
 
 Run the **Phase Checkpoint Prompt** (see `<continuation-preferences>`) with header "SDK Normalization Complete" unless continuation is enabled. If the user chose "Stop here", halt and save progress.
 
 ## 5. Run Package Compatibility Migration
 
-If the packageCompatFindings (from `.fx-to-dotnet/package-updates.md`) contains low-confidence items, present them to the user and wait for approval before proceeding.
+If the packageCompatFindings (from `{featureDir}/migration/package-updates.md`) contains low-confidence items, present them to the user and wait for approval before proceeding.
 
 Invoke `speckit.fx-to-dotnet.update-packages` with:
 - solutionPath
 - targetFramework
-- Chunked update plan from the Migration Planner's output (chunked update queue and compatibility cards — read from `.fx-to-dotnet/package-updates.md`)
+- Chunked update plan from the Migration Planner's output (chunked update queue and compatibility cards — read from `{featureDir}/migration/package-updates.md`)
 
-The command reads and updates its execution state in `.fx-to-dotnet/package-updates.md`.
+The command reads and updates its execution state in `{featureDir}/migration/package-updates.md`.
 
 Wait for completion.
 If it fails or stops with unresolved blockers, ask user whether to continue, retry, or stop.
 
-Update `packageCompatStatus` and `lastCompletedPhase: "package-compat"` in `.fx-to-dotnet/plan.md` via the `edit` tool.
+Update `packageCompatStatus` and `lastCompletedPhase: "package-compat"` in `{featureDir}/migration/orchestration.md` via the `edit` tool.
 
 Run the **Phase Checkpoint Prompt** (see `<continuation-preferences>`) with header "Package Compatibility Complete" unless continuation is enabled. If the user chose "Stop here", halt and save progress.
 
@@ -234,10 +237,10 @@ For each layer:
   - Projects within the same layer are independent — process them in any order
 - Wait for ALL projects in the current layer to complete before moving to the next layer
 - If a project fails or stops with unresolved blockers, ask user whether to continue, retry, or stop
-- Each completed layer is a natural checkpoint — record progress in `.fx-to-dotnet/plan.md`
+- Each completed layer is a natural checkpoint — record progress in `{featureDir}/migration/orchestration.md`
 - If there are more layers remaining, run the **Layer Checkpoint Prompt** (see `<continuation-preferences>`) unless continuation is enabled
 
-Update `multitargetStatus` and `lastCompletedPhase: "multitarget"` in `.fx-to-dotnet/plan.md` via the `edit` tool.
+Update `multitargetStatus` and `lastCompletedPhase: "multitarget"` in `{featureDir}/migration/orchestration.md` via the `edit` tool.
 
 Run the **Phase Checkpoint Prompt** (see `<continuation-preferences>`) with header "Multitarget Migration Complete" unless continuation is enabled. If the user chose "Stop here", halt and save progress.
 
@@ -255,7 +258,7 @@ Invoke `speckit.fx-to-dotnet.web-migrate` with:
 Wait for completion.
 If it fails or stops with unresolved blockers, ask user whether to continue, retry, or stop.
 
-Update `aspnetMigrationStatus` and `lastCompletedPhase: "aspnet-migration"` in `.fx-to-dotnet/plan.md` via the `edit` tool.
+Update `aspnetMigrationStatus` and `lastCompletedPhase: "aspnet-migration"` in `{featureDir}/migration/orchestration.md` via the `edit` tool.
 
 ## 8. Completion
 

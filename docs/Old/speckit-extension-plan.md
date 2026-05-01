@@ -199,7 +199,7 @@ Each command is created by: (a) copying the markdown body from the corresponding
 **Adaptation checklist** (apply to every copied file):
 
 1. **Frontmatter**: Replace agent YAML (`name`, `description`, `argument-hint`, `tools`, `agents`, `handoffs`) with Spec Kit command YAML (`description`, `tools`, `scripts`)
-2. **State directory**: Find-and-replace all `.fx2dotnet/` references → `.fx-to-dotnet/`
+2. **State directory**: Find-and-replace all `.fx2dotnet/` references → `.specify/migration/`
 3. **Agent invocations → cross-extension command invocations**: Replace "invoke [AgentName] subagent" / "delegate to [AgentName]" with the target extension's command name:
    - "invoke Build Fix subagent" → "invoke `speckit.fx-to-dotnet.fix`"
    - "invoke Assessment subagent" → "invoke `speckit.fx-to-dotnet.assess`"
@@ -219,7 +219,7 @@ Each command is created by: (a) copying the markdown body from the corresponding
 6. **Terminal execution**: Replace "run via subagent" terminal instructions with "run via script" referencing `scripts/bash/dotnet-build.sh` or `scripts/powershell/dotnet-build.ps1`
 7. **Explore agent**: Replace "delegate to Explore subagent" with direct file-read/search tool usage
 
-**State convention** (shared across all extensions): All state persisted under `{solutionDir}/.fx-to-dotnet/`:
+**State convention** (shared across all extensions): All state persisted under `{solutionDir}/.specify/migration/`:
 - `plan.md` — orchestrator state + migration plan
 - `analysis.md` — assessment findings
 - `package-updates.md` — package compatibility state
@@ -232,7 +232,7 @@ Each command is created by: (a) copying the markdown body from the corresponding
    - **tools**: file read/write, search, ask-questions, invoke-command
    - **Body** (copied from source, then adapted): Instructions for:
      - Input resolution: solution path (.sln/.slnx), target framework (default net10.0), state root derivation
-     - Resume check: read `.fx-to-dotnet/plan.md`; ask user to resume or start fresh
+     - Resume check: read `.specify/migration/plan.md`; ask user to resume or start fresh
      - Phase gate enforcement: invokes commands in order:
        1. `speckit.fx-to-dotnet.assess` → Assessment
        2. `speckit.fx-to-dotnet.plan` → Planning
@@ -249,7 +249,7 @@ Each command is created by: (a) copying the markdown body from the corresponding
    - **description**: "Gather solution info, identify frameworks, dependencies, blockers; classify projects; audit package compatibility"
    - **tools**: MCP tools (`get_state`, `get_scenarios`, `get_instructions`, `start_task`, `complete_task`, `get_projects_in_topological_order`), `dependency-layers` skill (inline computation), `nuget-package-compat` skill scripts (`findRecommendedUpgrades`), file read/write, search, invoke-command
    - **Body** (copied from source, then adapted): Instructions for:
-     - Resume check for existing `.fx-to-dotnet/analysis.md`
+     - Resume check for existing `.specify/migration/analysis.md`
      - MCP initialization sequence
      - Topological ordering + dependency layer computation
      - Project classification: invoke `speckit.fx-to-dotnet.detect` per project
@@ -262,7 +262,7 @@ Each command is created by: (a) copying the markdown body from the corresponding
    - **description**: "Synthesize assessment findings into actionable, layered migration plan with chunked package updates"
    - **tools**: file read/write, search
    - **Body** (copied from source, then adapted): Instructions for:
-     - Parse assessment data from `.fx-to-dotnet/analysis.md` and `package-updates.md`
+     - Parse assessment data from `.specify/migration/analysis.md` and `package-updates.md`
      - Project action classification, web migration candidates, unsupported/out-of-scope resolution
      - Chunked package update plan
      - Output: migration plan with sections per phase
@@ -356,7 +356,7 @@ Each policy doc is created by copying the corresponding fx2dotnet skill SKILL.md
 1. **Remove SKILL.md frontmatter/metadata** if any; these are plain markdown reference docs
 2. **Inline sub-references**: For systemweb-adapters, append `references/behavioral-differences.md`, `references/migrating-modules.md`, `references/migrating-handlers.md`, and `references/property-translations.md` as sections within the single `policies/systemweb-adapters.md`
 3. **Agent references → cross-extension command references**: Replace "Build Fix agent" etc. with `speckit.fx-to-dotnet.fix` etc.
-4. **State directory**: Replace `.fx2dotnet/` → `.fx-to-dotnet/` if referenced
+4. **State directory**: Replace `.fx2dotnet/` → `.specify/migration/` if referenced
 
 #### 25. `policies/ef6-retention.md`
    - **Source**: `skills/ef6-migration-policy/SKILL.md`
@@ -434,7 +434,7 @@ Each policy doc is created by copying the corresponding fx2dotnet skill SKILL.md
 1. **Extension schema validation**: `extension.yml` passes `specify extension validate`; all command names match `^speckit\.fx-to-dotnet\.[a-z-]+$`
 2. **Cross-command reference audit**: Every `speckit.fx-to-dotnet.*` invocation in any command maps to an actual command in `extension.yml`
 3. **Policy coverage**: Every policy doc referenced by a command exists in `fx-to-dotnet/policies/`
-4. **State convention consistency**: All commands use `.fx-to-dotnet/` state paths with consistent file naming
+4. **State convention consistency**: All commands use `.specify/migration/` state paths with consistent file naming
 5. **Install test**: Install the extension via `specify extension add --dev`; verify all 11 commands appear
 6. **End-to-end dry run**: Orchestrator delegates correctly to the assess command for Phase 1
 7. **Policy completeness**: Each policy doc covers all rules from the original fx2dotnet skill
@@ -451,7 +451,7 @@ Each policy doc is created by copying the corresponding fx2dotnet skill SKILL.md
 | **Bundled build scripts** | Scripts live in `fx-to-dotnet/scripts/`, used by the `fix` command |
 | **No built-in MCP server** | Only `Microsoft.GitHubCopilot.Modernization.Mcp` is an external MCP dependency; NuGet compat analysis uses bundled skill scripts instead of an MCP server |
 | **Command naming** | `speckit.fx-to-dotnet.{verb}` — each command uses a short verb (`fix`, `assess`, `plan`, `convert`, `update-packages`, `multitarget-migrate`, `web-migrate`, `detect`, `inventory`, `show-policy`) |
-| **Shared state directory `.fx-to-dotnet/`** | All commands read/write the same state files under the solution directory; state format is consistent |
+| **Shared state directory `.specify/migration/`** | All commands read/write the same state files under the solution directory; state format is consistent |
 | **Copy-and-adapt from fx2dotnet** | Markdown bodies copied from existing agent/skill files then adapted per checklist |
 
 ---
