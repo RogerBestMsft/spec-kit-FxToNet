@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.11']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Python test dependencies
+        if: hashFiles('tests/requirements.txt') != ''
+        run: python -m pip install -r tests/requirements.txt
+
+      # ---------- Static gates ----------
+
+      - name: Version check
+        run: python support_scripts/version-check.py
+
+      - name: Cross-reference audit
+        run: python support_scripts/cross-reference-audit.py
+
+      - name: MCP config validate (Linux)
+        if: runner.os == 'Linux'
+        run: bash support_scripts/mcp-config-validate.sh
+
+      - name: MCP config validate (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./support_scripts/mcp-config-validate.ps1
+
+      # ---------- Smoke pack (Linux only) ----------
+
+      - name: Smoke pack
+        if: runner.os == 'Linux'
+        env:
+          RELEASES_DIR: ${{ github.workspace }}/releases
+        run: |
+          set -euo pipefail
+          bash support_scripts/package-extensions.sh
+
+          bundle_zip=$(ls "$RELEASES_DIR"/fx-to-dotnet-*.zip 2>/dev/null | head -1 || true)
+          if [ -z "$bundle_zip" ]; then echo "ERROR: combined bundle zip not produced"; exit 1; fi
+          echo "Found: $bundle_zip"
+
+          # Should be exactly one zip in the releases dir.
+          zip_count=$(ls "$RELEASES_DIR"/*.zip 2>/dev/null | wc -l)
+          if [ "$zip_count" -ne 1 ]; then
+            echo "ERROR: expected exactly 1 zip in $RELEASES_DIR, found $zip_count"
+            ls -la "$RELEASES_DIR"
+            exit 1
+          fi
+
+          tmp=$(mktemp -d)
+          unzip -q "$bundle_zip" -d "$tmp/bundle"
+
+          test -f "$tmp/bundle/fx-to-dotnet/extension.yml"  || { echo "ERROR: extension.yml not at fx-to-dotnet/ in bundle"; exit 1; }
+          test -f "$tmp/bundle/fx-to-dotnet-sdd/preset.yml" || { echo "ERROR: preset.yml not at fx-to-dotnet-sdd/ in bundle"; exit 1; }
+          echo "OK: combined bundle layout is correct"
+
+      # ---------- Test suite (conditional on tests/ existing) ----------
+
+      - name: Pytest (structural + scripts)
+        if: hashFiles('tests/structural/**', 'tests/scripts/**') != ''
+        run: pytest tests/structural tests/scripts -n auto --maxfail=1
+
+      - name: Pytest (runtime)
+        if: hashFiles('tests/runtime/**') != ''
+        run: pytest tests/runtime -n auto
+
+      - name: Set up Pester (Windows)
+        if: runner.os == 'Windows' && hashFiles('tests/scripts/Scripts.Tests.ps1') != ''
+        shell: pwsh
+        run: |
+          if (-not (Get-Module -ListAvailable -Name Pester | Where-Object { $_.Version -ge [Version]'5.0.0' })) {
+            Install-Module -Name Pester -Force -SkipPublisherCheck -MinimumVersion 5.0.0 -Scope CurrentUser
+          }
+
+      - name: Pester (Windows)
+        if: runner.os == 'Windows' && hashFiles('tests/scripts/Scripts.Tests.ps1') != ''
+        shell: pwsh
+        run: |
+          $cfg = New-PesterConfiguration
+          $cfg.Run.Path = 'tests/scripts/Scripts.Tests.ps1'
+          $cfg.Run.Exit = $true
+          $cfg.Output.Verbosity = 'Detailed'
+          Invoke-Pester -Configuration $cfg
