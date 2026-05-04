@@ -101,6 +101,7 @@ graph TB
 
 | Command | Description |
 |---------|-------------|
+| `speckit.fx-to-dotnet.initialize` | Initialize per-feature migration state (`{featureDir}/migration/orchestration.md`) |
 | `speckit.fx-to-dotnet.orchestrate` | Orchestrator — drives the 7-phase migration flow |
 | `speckit.fx-to-dotnet.assess` | Phase 1: Gather solution info, classify projects, audit package compatibility |
 | `speckit.fx-to-dotnet.plan` | Phase 2: Synthesize assessment into an actionable migration plan |

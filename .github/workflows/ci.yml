@@ -32,6 +32,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Set up .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
       - name: Install Python test dependencies
         if: hashFiles('tests/requirements.txt') != ''
         run: python -m pip install -r tests/requirements.txt
@@ -86,11 +91,11 @@ jobs:
 
       - name: Pytest (structural + scripts)
         if: hashFiles('tests/structural/**', 'tests/scripts/**') != ''
-        run: pytest tests/structural tests/scripts -n auto --maxfail=1
+        run: pytest tests/structural tests/scripts -n auto --maxfail=1 --junitxml=junit-structural-scripts.xml
 
       - name: Pytest (runtime)
         if: hashFiles('tests/runtime/**') != ''
-        run: pytest tests/runtime -n auto
+        run: pytest tests/runtime -n auto --junitxml=junit-runtime.xml
 
       - name: Set up Pester (Windows)
         if: runner.os == 'Windows' && hashFiles('tests/scripts/Scripts.Tests.ps1') != ''
@@ -108,4 +113,15 @@ jobs:
           $cfg.Run.Path = 'tests/scripts/Scripts.Tests.ps1'
           $cfg.Run.Exit = $true
           $cfg.Output.Verbosity = 'Detailed'
+          $cfg.TestResult.Enabled = $true
+          $cfg.TestResult.OutputFormat = 'JUnitXml'
+          $cfg.TestResult.OutputPath = 'junit-pester.xml'
           Invoke-Pester -Configuration $cfg
+
+      - name: Upload junit test reports
+        if: always() && hashFiles('junit-*.xml') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-${{ matrix.os }}
+          path: junit-*.xml
+          if-no-files-found: ignore

@@ -42,3 +42,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# .NET build output
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo

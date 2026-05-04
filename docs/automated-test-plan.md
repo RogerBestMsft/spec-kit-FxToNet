@@ -1,8 +1,8 @@
 # Automated Test Plan — fx-to-dotnet Extension
 
-Status: Draft for review
+Status: Approved — Ready for Implementation
 Owner: TBD
-Last updated: 2026-04-30
+Last updated: 2026-05-01
 
 ## Goals
 
@@ -131,22 +131,90 @@ Runs alongside Phase 2.
 
 ## Decisions
 
-- **Scope:** full, including runtime MCP/agent flow.
-- **Frameworks:** pytest cross-platform + Pester for PS-only assertions.
-- **CI:** GitHub Actions, push + PR, Windows + Linux matrix.
-- **Agent reasoning:** not executed in CI; only deterministic file-IO + MCP interactions, with a hand-rolled mock MCP responder.
-- **Out of scope:** real migrations, live NuGet calls, live `dnx` MCP package downloads.
+- **Scope:** full, including runtime MCP/agent flow (L1 + L2 + L3 + CI + nightly).
+- **Frameworks:** pytest cross-platform + Pester 5 for PS-only assertions (param validation, error streams, `$LASTEXITCODE`). Pytest is the sole source of truth for cross-platform script behavior.
+- **CI:** GitHub Actions, push + PR, Windows + Linux matrix; nightly job for .NET 10 preview SDK.
+- **Mock MCP:** hand-rolled stdio JSON-RPC stub responder; record/replay deferred until drift hurts.
+- **.NET SDK in CI:** PR jobs use `net8.0` fixtures (fast, broadly available); nightly installs .NET 10 preview via `global.json` and runs `tests/scripts` + `tests/runtime` against a `tests/fixtures/fake-solution-net10/` fixture set.
+- **Agent reasoning:** not executed in CI; only deterministic file-IO + MCP interactions exercised.
+- **Out of scope:** real customer migrations, live NuGet calls, live `dnx` MCP package downloads, LLM/agent reasoning execution.
 
-## Open questions
+## PR strategy
 
-1. **Mock MCP fidelity** — hand-rolled stubs (recommended start) vs record/replay of real MCP traffic (deferred until drift hurts)?
-2. **.NET SDK in CI** — install .NET 10 preview via `global.json` (slow but accurate) or use `net8.0` fixtures for build-script tests plus a separate nightly job on the real preview SDK (recommended)?
-3. **Pester scope** — PS-specific assertions only (recommended) or full mirror of pytest scripts (two sources of truth)?
+- **PR #1**: Phases 1–3 + CI step 26 (L1 + L2 with green CI). Smallest blast radius, fastest feedback.
+- **PR #2**: Phase 4 (L3 runtime/mock-MCP) + Phase 5 steps 27–28 (release + dependabot polish) + nightly workflow.
+
+The known-stale [docs/workflow-plan.md](workflow-plan.md) will be flagged by `test_readme_claims`; the test fails-loud and the doc is fixed in PR #1 (no warn-only suppression).
 
 ## Suggested execution order
 
-1. Phase 1 (scaffolding) → Phase 2 (structural) — fastest feedback, smallest blast radius.
+1. Phase 1 (scaffolding) → Phase 2 (structural) — fastest feedback.
 2. Phase 3 (scripts) — surfaces and fixes any pair drift.
 3. Phase 5 step 26 (CI for L1+L2) — get green CI before runtime work.
 4. Phase 4 (runtime) — most complex; mock MCP design lives or dies here.
-5. Phase 5 steps 27–28 — release + dependabot polish.
+5. Phase 5 steps 27–28 + nightly workflow — release polish + .NET 10 preview gating.
+
+## Task list
+
+Task IDs are stable across phases; `[P]` denotes tasks safe to run in parallel within a phase. Each task lists the files it touches and the acceptance signal that proves it is done.
+
+### Phase 1 — Harness scaffolding (blocks all)
+
+- **T001** Create `tests/{schemas,fixtures,structural,scripts,runtime}/` directory tree.
+  - *Done when*: directories exist and are tracked.
+- **T002 [P]** Author `tests/requirements.txt` pinning `pytest>=8`, `pyyaml>=6`, `jsonschema>=4`, `pytest-xdist>=3`.
+  - *Done when*: `pip install -r tests/requirements.txt` succeeds on a clean venv.
+- **T003 [P]** Author `tests/conftest.py` exposing `repo_root`, `extension_yml`, `preset_yml`, `workflow_ymls`, `tmp_solution_fixture`.
+  - *Done when*: a smoke test consuming each fixture passes.
+- **T004 [P]** Author `tests/README.md` documenting `pytest -q`, `pytest -n auto`, and `Invoke-Pester tests/scripts/Scripts.Tests.ps1`.
+  - *Done when*: file present; commands work locally.
+- **T005 [P]** Author JSON schemas under `tests/schemas/`: `extension.schema.json`, `preset.schema.json`, `workflow.schema.json`, `mcp-config.schema.json`.
+  - *Done when*: validating each live manifest against its schema returns zero errors.
+- **T006 [P]** Author `tests/fixtures/HelloLib.csproj` — minimal SDK-style `net8.0` library + one `Class1.cs`.
+  - *Done when*: `dotnet build` succeeds locally.
+- **T007 [P]** Author `tests/fixtures/fake-solution/` — 2–3 layered `net8.0` csprojs + `.sln`.
+  - *Done when*: `dotnet build` succeeds; topo order is unambiguous.
+
+### Phase 2 — L1 Structural tests (parallel after Phase 1)
+
+- **T008 [P]** `tests/structural/test_extension_yaml.py` — schema validity; semver; every `provides.commands[].file` and `scripts[]` resolves; every `hooks[].command` is declared.
+- **T009 [P]** `tests/structural/test_preset_yaml.py` — schema; preset version constraint matches current `extension.yml`; templates resolve.
+- **T010 [P]** `tests/structural/test_workflow_yaml.py` — every `steps[].command` declared; gate `options` non-empty; do-while has `condition` + `max_iterations`; `{{ inputs.X }}` references resolve.
+- **T011 [P]** `tests/structural/test_command_frontmatter.py` — frontmatter parses; `description` present; `tools` is list; cross-refs resolve.
+- **T012 [P]** `tests/structural/test_cross_references.py` — wraps `support_scripts/cross-reference-audit.py` + snapshot of resolved/unresolved sets.
+- **T013 [P]** `tests/structural/test_policy_links.py` — `policies/*.md` and `policies/**/POLICY.md` targets exist.
+- **T014 [P]** `tests/structural/test_readme_claims.py` — README ↔ `extension.yml` drift check.
+- **T015 [P]** `tests/structural/test_version_consistency.py` — wraps `support_scripts/version-check.py`.
+- **T016 [P]** `tests/structural/test_mcp_config.py` — JSON in `mcp-setup.md` + validate scripts.
+- **T017** Fix [docs/workflow-plan.md](workflow-plan.md) staleness so T014 stays green without suppression.
+
+### Phase 3 — L2 Script tests (parallel with Phase 2)
+
+- **T018 [P]** `tests/scripts/test_dotnet_build_scripts.py` — `::build-start::`, `::build-end::`, `exit-code:` markers + propagation; skip bash on bare Windows.
+- **T019 [P]** `tests/scripts/test_bump_version.py` — copy `extension.yml`; run `bump-version.{ps1,sh} 9.9.9`; reject `abc`.
+- **T020 [P]** `tests/scripts/test_package_extensions.py` — bundle layout matches the smoke-pack assertions in [.github/workflows/ci.yml](../.github/workflows/ci.yml).
+- **T021 [P]** `tests/scripts/test_generate_catalog.py` — JSON keys (`id`, `version`, `tags`, …) from both `.py` and `.ps1`.
+- **T022 [P]** `tests/scripts/test_script_pairs_parity.py` — diff normalized stdout across `(*.ps1, *.sh|*.py)` pairs under `support_scripts/`.
+- **T023 [P]** `tests/scripts/Scripts.Tests.ps1` — Pester 5 PS-only assertions.
+
+### Phase 4 — L3 Runtime / mock MCP (depends on Phases 2–3 + CI green)
+
+- **T024** `tests/runtime/conftest.py` — stdio JSON-RPC mock MCP responder for `Microsoft.GitHubCopilot.Modernization.Mcp` + `Swick.Mcp.Fx2dotnet`; canned `get_state`, `get_projects_in_topological_order`, `convert_project_to_sdk_style`, `FindRecommendedPackageUpgrades`, `ComputeDependencyLayers`; `fake_solution_dir` fixture.
+- **T025** `tests/runtime/_driver.py` — thin command-driver that parses a command's `commands/**/*.md` and executes only its deterministic file-IO + MCP-call steps (LLM reasoning stubbed).
+- **T026 [P]** `tests/runtime/test_assess_command_smoke.py` — `analysis.md` + `package-updates.md` produced with expected sections.
+- **T027 [P]** `tests/runtime/test_orchestrator_phase_order.py` — 7-phase order in `plan.md`.
+- **T028 [P]** `tests/runtime/test_resume_semantics.py` — pre-seed `lastCompletedPhase: assess`; assess phase skipped.
+- **T029 [P]** `tests/runtime/test_hook_lifecycle.py` — mandatory hooks fail-loud, optional hooks silent-exit.
+- **T030 [P]** `tests/runtime/test_workflow_executor.py` — minimal interpreter; runs `assess-and-plan` and `sdk-normalize` against the mock MCP.
+
+### Phase 5 — CI integration
+
+- **T031** Confirm existing conditional gates in [.github/workflows/ci.yml](../.github/workflows/ci.yml) (`Pytest (structural + scripts)`, `Pester (Windows)`, `Pytest (runtime)`) activate now that `tests/` exists; add `--junitxml` and `actions/upload-artifact` if not already present.
+- **T032** Manual mutation-matrix sanity: introduce each defect in §Verification item 6; confirm exactly the expected test fails. 5/5 with no collateral.
+- **T033** Add `.github/workflows/nightly.yml` — schedule daily on `main`; install .NET 10 preview via temporary `global.json`; run `tests/scripts` + `tests/runtime` against `tests/fixtures/fake-solution-net10/`. Non-blocking for one week, then promote to required.
+- **T034** Update [.github/workflows/release.yml](../.github/workflows/release.yml) so `package-extensions` runs only after the full suite (structural + scripts + runtime + Pester) passes on tag.
+- **T035** Verify [.github/dependabot.yml](../.github/dependabot.yml) covers `pip` (for `tests/requirements.txt`) and `github-actions`; add ecosystems if missing.
+
+### Dependency summary
+
+T001 → T002–T007 → T008–T023 → T024+T025 → T026–T030 → T031–T035.

@@ -1,0 +1,76 @@
+name: Nightly (.NET 10 preview)
+
+# Runs the script + runtime test tiers against the .NET 10 preview SDK so we
+# detect regressions ahead of GA. Non-blocking for the first week (see plan
+# T033 in docs/automated-test-plan.md), then promoted to required.
+
+on:
+  schedule:
+    - cron: '0 7 * * *'  # 07:00 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview-suite:
+    name: Nightly preview (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true  # non-blocking for the first week per plan
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Pin .NET 10 preview via global.json
+        shell: bash
+        run: |
+          cat > global.json <<'JSON'
+          {
+            "sdk": {
+              "version": "10.0.100-preview.1.25080.5",
+              "rollForward": "latestFeature",
+              "allowPrerelease": true
+            }
+          }
+          JSON
+          cat global.json
+
+      - name: Set up .NET 10 preview SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
+
+      - name: dotnet --info
+        run: dotnet --info
+
+      - name: Install Python test dependencies
+        run: python -m pip install -r tests/requirements.txt
+
+      - name: Pytest (scripts)
+        run: pytest tests/scripts -n auto --maxfail=1 --junitxml=junit-nightly-scripts.xml
+
+      - name: Pytest (runtime)
+        run: pytest tests/runtime -n auto --junitxml=junit-nightly-runtime.xml
+
+      - name: Upload nightly junit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-junit-${{ matrix.os }}
+          path: junit-nightly-*.xml
+          if-no-files-found: ignore
