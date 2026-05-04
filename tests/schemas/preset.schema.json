@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Spec Kit preset.yml",
+  "type": "object",
+  "required": ["schema_version", "preset", "requires", "provides"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "preset": {
+      "type": "object",
+      "required": ["id", "name", "version", "description", "author"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?(\\+[A-Za-z0-9.-]+)?$" },
+        "description": { "type": "string", "minLength": 1 },
+        "author": { "type": "string", "minLength": 1 },
+        "repository": { "type": "string" },
+        "license": { "type": "string" }
+      }
+    },
+    "requires": {
+      "type": "object",
+      "properties": {
+        "speckit_version": { "type": "string" },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "version"],
+            "properties": {
+              "id": { "type": "string" },
+              "version": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "provides": {
+      "type": "object",
+      "properties": {
+        "templates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path"],
+            "properties": {
+              "path": { "type": "string" },
+              "overrides": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "tags": { "type": "array", "items": { "type": "string" } }
+  }
+}

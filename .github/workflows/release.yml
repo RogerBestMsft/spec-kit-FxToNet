@@ -1,0 +1,223 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 1.0.0). Will create a draft release.'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Reuse all CI gates (static checks + smoke pack + test suite when present).
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  version-equality:
+    name: Verify tag matches manifest versions
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.compute.outputs.version }}
+      tag:     ${{ steps.compute.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute version & tag
+        id: compute
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ inputs.version }}"
+            tag="v${version}"
+          else
+            tag="${GITHUB_REF##*/}"
+            version="${tag#v}"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}"           >> "$GITHUB_OUTPUT"
+          echo "Resolved version=${version} tag=${tag}"
+
+      - name: Assert tag format and manifest equality
+        shell: bash
+        env:
+          VERSION: ${{ steps.compute.outputs.version }}
+        run: |
+          set -euo pipefail
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "ERROR: version '$VERSION' is not semver MAJOR.MINOR.PATCH"
+            exit 1
+          fi
+
+          ext_ver=$(grep -E '^\s+version:' fx-to-dotnet/extension.yml | head -1 \
+            | sed -E 's/.*version:[[:space:]]*"?([^"[:space:]]+)"?.*/\1/')
+          preset_ver=$(grep -E '^\s+version:' presets/fx-to-dotnet-sdd/preset.yml | head -1 \
+            | sed -E 's/.*version:[[:space:]]*"?([^"[:space:]]+)"?.*/\1/')
+
+          echo "tag=$VERSION extension=$ext_ver preset=$preset_ver"
+
+          if [ "$ext_ver" != "$VERSION" ] || [ "$preset_ver" != "$VERSION" ]; then
+            echo "ERROR: version mismatch (tag=$VERSION extension=$ext_ver preset=$preset_ver)"
+            echo "Run support_scripts/bump-version.sh $VERSION and bump preset.yml manually before tagging."
+            exit 1
+          fi
+
+  package:
+    name: Package release artifacts
+    runs-on: ubuntu-latest
+    needs: [ci, version-equality]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package extension and preset
+        env:
+          RELEASES_DIR: ${{ github.workspace }}/releases
+        run: bash support_scripts/package-extensions.sh
+
+      - name: Compute SHA-256 sums
+        working-directory: releases
+        run: |
+          sha256sum *.zip > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: releases/
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [package, version-equality]
+    permissions:
+      contents: write
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: releases
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version-equality.outputs.tag }}
+          name: Release ${{ needs.version-equality.outputs.tag }}
+          files: |
+            releases/fx-to-dotnet-*.zip
+            releases/SHA256SUMS.txt
+          generate_release_notes: true
+          draft: ${{ github.event_name == 'workflow_dispatch' }}
+          fail_on_unmatched_files: true
+
+  catalog-pr:
+    name: Open community catalog PR
+    runs-on: ubuntu-latest
+    needs: [release, version-equality]
+    # Skip silently when the cross-repo token is unset (forks, contributors).
+    # Also skip for workflow_dispatch (draft) releases.
+    if: ${{ github.event_name == 'push' }}
+    steps:
+      - name: Check for catalog token
+        id: token
+        env:
+          TOKEN: ${{ secrets.SPECKIT_CATALOG_TOKEN }}
+        run: |
+          if [ -z "${TOKEN:-}" ]; then
+            echo "SPECKIT_CATALOG_TOKEN is not set; skipping catalog PR step."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout this repo (for catalog generator)
+        if: steps.token.outputs.skip == 'false'
+        uses: actions/checkout@v4
+        with:
+          path: fx2dotnet
+
+      - name: Checkout github/spec-kit
+        if: steps.token.outputs.skip == 'false'
+        uses: actions/checkout@v4
+        with:
+          repository: github/spec-kit
+          token: ${{ secrets.SPECKIT_CATALOG_TOKEN }}
+          path: spec-kit
+
+      - name: Set up Python
+        if: steps.token.outputs.skip == 'false'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate catalog entries
+        if: steps.token.outputs.skip == 'false'
+        run: |
+          python fx2dotnet/support_scripts/generate-catalog.py > catalog-entries.json
+          cat catalog-entries.json
+
+      - name: Merge entries into community catalogs
+        if: steps.token.outputs.skip == 'false'
+        shell: python
+        run: |
+          import json, pathlib, sys
+
+          entries = json.loads(pathlib.Path("catalog-entries.json").read_text(encoding="utf-8"))
+
+          def merge(catalog_path: pathlib.Path, new_items: list[dict]) -> None:
+              data = []
+              if catalog_path.exists():
+                  try:
+                      data = json.loads(catalog_path.read_text(encoding="utf-8"))
+                  except json.JSONDecodeError:
+                      print(f"WARNING: {catalog_path} is not valid JSON; replacing with new array")
+                      data = []
+              if not isinstance(data, list):
+                  print(f"ERROR: {catalog_path} is not a JSON array (got {type(data).__name__})")
+                  sys.exit(1)
+              by_id = {e.get("id"): i for i, e in enumerate(data) if isinstance(e, dict)}
+              for item in new_items:
+                  i = by_id.get(item["id"])
+                  if i is None:
+                      data.append(item)
+                  else:
+                      data[i] = item
+              catalog_path.parent.mkdir(parents=True, exist_ok=True)
+              catalog_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+          base = pathlib.Path("spec-kit")
+          merge(base / "extensions" / "catalog.community.json", entries.get("extensions", []))
+          merge(base / "presets"    / "catalog.community.json", entries.get("presets",    []))
+          print("Catalog files updated.")
+
+      - name: Open pull request against github/spec-kit
+        if: steps.token.outputs.skip == 'false'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          path: spec-kit
+          token: ${{ secrets.SPECKIT_CATALOG_TOKEN }}
+          branch: update-fx-to-dotnet-${{ needs.version-equality.outputs.tag }}
+          commit-message: |
+            chore(catalog): update fx-to-dotnet to ${{ needs.version-equality.outputs.tag }}
+          title: "chore(catalog): update fx-to-dotnet to ${{ needs.version-equality.outputs.tag }}"
+          body: |
+            Updates the community catalog entries for the `fx-to-dotnet` extension and
+            `fx-to-dotnet-sdd` preset to **${{ needs.version-equality.outputs.tag }}**.
+
+            - Release: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.version-equality.outputs.tag }}
+            - Verified: `false` (owner can flip after smoke install).
+
+            Generated automatically by the `release.yml` workflow in
+            `${{ github.repository }}`.

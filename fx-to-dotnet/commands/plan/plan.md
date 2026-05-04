@@ -1,6 +1,15 @@
 ---
 description: "Synthesize assessment findings into actionable, layered migration plan with chunked package updates"
 tools: [read, search, invoke-command]
+handoffs:
+  - label: "Normalize to SDK-Style"
+    agent: speckit.fx-to-dotnet.sdk-normalize
+    prompt: "Convert all legacy project files to SDK-style format using the plan in {featureDir}/migration/plan.md"
+    send: false
+  - label: "Start SDK Conversion"
+    agent: speckit.fx-to-dotnet.convert
+    prompt: "Convert a legacy project file to SDK-style format"
+    send: false
 ---
 
 # Migration Planner
@@ -17,12 +26,21 @@ You are a read-only planning agent. Your job is to consume the assessment findin
 - Use file-read and search tools when codebase searches are needed
 - All project paths in the plan MUST be relative to the solution directory — never use absolute paths
 
+## Required Policies
+
+Before any work begins, you MUST load every policy listed below. These are the canonical required policies for `speckit.fx-to-dotnet.plan`; the `after_plan` hook verifies each is cited in `{featureDir}/migration/plan.md` and will block `speckit.plan` until all are applied.
+
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='dependency-layers')` to load the dependency-layer ordering algorithm used by Phase 1 and Phase 3.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='windows-service-migration')` to load the Windows Service → BackgroundService migration guidance applied in Phase 3.
+
+Each policy loaded here MUST appear as a row in the `## Policies Applied` table emitted at the end of the migration plan output (see structure below). Policies with no matching code in the solution still emit a row with `Applied To = none — no matches in solution` and `Outcome = n/a` — the row's presence is the proof of loading.
+
 ## Inputs
 
 You receive from the calling command:
 - `assessmentContent` — the full text of the assessment report (passed inline, not as a file path)
 - `topologicalProjects` — ordered list of project paths (dependency order)
-- `dependencyLayers` — projects grouped by dependency layer (from the assessment report's Dependency Layers section, computed via the `dependency-layers` skill). Layer 1 = leaf projects with no in-solution dependencies; each subsequent layer depends only on earlier layers. Projects within the same layer are independent and can be processed in parallel.
+- `dependencyLayers` — projects grouped by dependency layer (from the assessment report's Dependency Layers section, computed via the `dependency-layers` policy which you ⛔ MUST have loaded via the Required Policies preamble). Layer 1 = leaf projects with no in-solution dependencies; each subsequent layer depends only on earlier layers. Projects within the same layer are independent and can be processed in parallel.
 - `solutionPath` — path to the .sln/.slnx file
 - `targetFramework` — target framework (default: net10.0)
 
@@ -52,7 +70,7 @@ Using the project classifications from the assessment, assign an action to each 
 - `needs-sdk-conversion` — legacy format, not a web-app-host → SDK conversion required (includes web-library projects)
 - `web-app-host` — web application host project → skip SDK conversion; migrated in Phase 4 via ASP.NET Core migration
 - `uncertain-web` — assessment marked as `uncertain`, flag for user confirmation
-- `windows-service` — contains `ServiceBase` or TopShelf; will need service code migration during multitarget phase (via `policies/windows-service.md` policy)
+- `windows-service` — contains `ServiceBase` or TopShelf; will need service code migration during multitarget phase. ⛔ MANDATORY: apply the `windows-service-migration` policy (loaded via the Required Policies preamble) when planning this action.
 
 A project can have both `needs-sdk-conversion` and `windows-service` actions.
 
@@ -189,7 +207,7 @@ Projects to multitarget, organized by dependency layer (process layers bottom-up
 ### Windows Service Projects
 Projects containing ServiceBase or TopShelf that will undergo service code migration during multitargeting:
 - {project}: ServiceBase subclasses found: {list}
-- Migration approach: BackgroundService (via `policies/windows-service.md`)
+- Migration approach: BackgroundService (⛔ MANDATORY: apply the `windows-service-migration` policy loaded via the Required Policies preamble)
 - Note: Both hosting packages (`Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Hosting.WindowsServices`) support .NET Framework 4.6.2+ — migration is safe during multitargeting
 
 ## Phase 4: ASP.NET Core Web Migration
@@ -200,8 +218,19 @@ Projects containing ServiceBase or TopShelf that will undergo service code migra
 
 ## Risks and Open Questions
 - {any blockers, uncertain classifications, or user decisions needed}
+
+## Policies Applied
+
+> Every policy listed in the `## Required Policies` preamble of `plan.md` MUST appear as a row below. Policies with no matching code in the solution still get a row with `Applied To = none — no matches in solution` and `Outcome = n/a` — the row's presence is the proof of loading. The `after_plan` hook parses this table and blocks `speckit.plan` if any required policy row is missing.
+
+| Policy | Source | Applied To | Outcome |
+|---|---|---|---|
+| `dependency-layers` | `policies/dependency-layers/POLICY.md` | {layers ordered for Phase 1/Phase 3, or `none — no matches in solution`} | {summary, or `n/a`} |
+| `windows-service-migration` | `policies/windows-service-migration/POLICY.md` | {Windows Service projects scheduled for BackgroundService migration, or `none — no matches in solution`} | {summary, or `n/a`} |
 ```
 
 ## Output Format
 
-Return the complete migration plan text as your final output.
+Write the complete migration plan text to `{featureDir}/migration/plan.md` using the `edit` tool, following the structure in step 6 exactly. This is a **shared artifact**: it lives under the active Spec Kit feature folder so that core Spec Kit (`/speckit.analyze`, `/speckit.verify`) and other extensions can discover it by convention.
+
+Also return the complete migration plan text as your final output so the calling command/hook can present a summary to the user without re-reading the file.

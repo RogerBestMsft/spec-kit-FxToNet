@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: chore(actions)
+
+  # Activates once tests/requirements.txt is added (per docs/automated-test-plan.md).
+  - package-ecosystem: pip
+    directory: /tests
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - python
+    commit-message:
+      prefix: chore(deps)
+    open-pull-requests-limit: 5
