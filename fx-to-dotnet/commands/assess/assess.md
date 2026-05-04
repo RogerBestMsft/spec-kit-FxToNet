@@ -66,18 +66,19 @@ Each policy loaded here MUST appear as a row in the `## Policies Applied` table 
 
 #### MCP Server Pre-flight
 
-Before any MCP tool calls, verify the workspace has the required MCP server configured:
+Before any MCP tool calls, verify the workspace has the required MCP server configured. The exact config path and top-level JSON key are IDE-dependent — never hardcode them here.
 
-1. Use the `read` tool to read `.mcp.json` from the workspace root (same directory as the solution file, or its parent)
-2. If the read fails (file does not exist) or the JSON does not contain a `Microsoft.GitHubCopilot.Modernization.Mcp` key under `mcpServers`:
-   - Reference `policies/mcp-setup.md` for the canonical configuration
+1. Apply the **Host Detection** rules in `policies/mcp-setup.md` to determine the active IDE. From the **Host Matrix** in that policy, derive `{configPath}` (workspace-relative) and `{topKey}` (`servers` for VS Code, `mcpServers` for every other host).
+2. Use the `read` tool to read `{configPath}`.
+3. If the read fails (file does not exist) or the JSON does not contain a `Microsoft.GitHubCopilot.Modernization.Mcp` key under `{topKey}`:
+   - Reference `policies/mcp-setup.md` for the canonical configuration (it provides one snippet per `{topKey}` variant).
    - Ask the user:
-     - **"Configure automatically"** — create or patch `.mcp.json`
+     - **"Configure automatically"** — create or patch `{configPath}` with the snippet matching `{topKey}`
      - **"I'll configure it manually"** — show the required snippet and stop
-   - If auto-configuring, use the `edit` tool to create or merge the entry into `.mcp.json`
-   - Tell the user to reload the VS Code window (`Ctrl+Shift+P` → `Developer: Reload Window`), then retry this command
+   - If auto-configuring, use the `edit` tool to create or merge the entry into `{configPath}` (creating any parent directory such as `.vscode/` if needed).
+   - Tell the user: **"Reload your IDE window (VS Code: `Ctrl+Shift+P` → `Developer: Reload Window`; otherwise restart the IDE), then retry this command."**
    - **Stop** — do not proceed until the MCP server is available
-3. If the entry is present, continue to Resume Check
+4. If the entry is present, continue to Resume Check
 
 #### Resume Check
 

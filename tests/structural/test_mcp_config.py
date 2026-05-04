@@ -27,15 +27,40 @@ def test_mcp_setup_contains_valid_mcp_json(extension_dir: Path, repo_root: Path)
     assert blocks, "mcp-setup.md has no ```json fenced blocks"
 
     found_mcp_servers = False
+    found_servers = False
+    required_server = "Microsoft.GitHubCopilot.Modernization.Mcp"
+
     for raw in blocks:
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as exc:
             raise AssertionError(f"Invalid JSON block in mcp-setup.md: {exc}\n{raw[:200]}")
-        if isinstance(data, dict) and "mcpServers" in data:
+        if not isinstance(data, dict):
+            continue
+        if "mcpServers" in data:
+            # Schema validates the canonical mcpServers shape used by VS / Cursor / Windsurf / JetBrains / generic.
             validate_with(repo_root, "mcp-config.schema.json", data)
+            assert required_server in data["mcpServers"], (
+                f"mcpServers block missing required entry {required_server!r}"
+            )
             found_mcp_servers = True
-    assert found_mcp_servers, "No mcpServers JSON block found in mcp-setup.md"
+        elif "servers" in data:
+            # VS Code variant: same inner shape under a different top-level key.
+            # Reuse the schema by adapting the wrapper key.
+            adapted = {"mcpServers": data["servers"]}
+            validate_with(repo_root, "mcp-config.schema.json", adapted)
+            assert required_server in data["servers"], (
+                f"servers block missing required entry {required_server!r}"
+            )
+            found_servers = True
+
+    assert found_mcp_servers, (
+        "No 'mcpServers' JSON block found in mcp-setup.md "
+        "(required for VS / Cursor / Windsurf / JetBrains / generic hosts)"
+    )
+    assert found_servers, (
+        "No 'servers' JSON block found in mcp-setup.md (required for VS Code host)"
+    )
 
 
 def test_mcp_config_validate_sh_succeeds(repo_root: Path) -> None:

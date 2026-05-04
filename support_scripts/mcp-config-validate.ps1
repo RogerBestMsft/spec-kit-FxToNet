@@ -14,19 +14,22 @@ $Extensions = @(
 $Root = Split-Path -Parent $PSScriptRoot
 $RequiredServer = "Microsoft.GitHubCopilot.Modernization.Mcp"
 
-function Extract-JsonBlock {
+function Extract-JsonBlocks {
     param([string]$Markdown)
 
-    if ($Markdown -match '(?s)```json\s*\r?\n(.*?)\r?\n```') {
-        return $Matches[1]
+    $blocks = [System.Collections.Generic.List[string]]::new()
+    $regex = [regex]::new('(?s)```json\s*\r?\n(.*?)\r?\n```')
+    foreach ($m in $regex.Matches($Markdown)) {
+        $blocks.Add($m.Groups[1].Value)
     }
-    return $null
+    return ,$blocks
 }
 
 function Test-McpConfig {
     param(
         [string]$JsonText,
-        [string]$SourceFile
+        [string]$SourceFile,
+        [string]$TopKey  # 'mcpServers' or 'servers'
     )
 
     $errors = [System.Collections.Generic.List[string]]::new()
@@ -40,14 +43,14 @@ function Test-McpConfig {
         return $errors
     }
 
-    # Check top-level mcpServers key
-    if (-not $config.PSObject.Properties['mcpServers']) {
-        $errors.Add("${SourceFile}: missing top-level 'mcpServers' key")
+    # Check top-level container key (varies by host)
+    if (-not $config.PSObject.Properties[$TopKey]) {
+        $errors.Add("${SourceFile}: missing top-level '${TopKey}' key")
         return $errors
     }
 
     # Check required server entry
-    $servers = $config.mcpServers
+    $servers = $config.$TopKey
     if (-not $servers.PSObject.Properties[$RequiredServer]) {
         $errors.Add("${SourceFile}: missing required server '${RequiredServer}' under mcpServers")
         return $errors
@@ -107,11 +110,6 @@ function Test-CommandReferences {
                 $errors.Add("${ext}/${cmdFile}: does not reference '${policyPath}'")
             }
 
-            # Check that the command references .mcp.json
-            if ($text -notmatch '\.mcp\.json') {
-                $errors.Add("${ext}/${cmdFile}: does not reference '.mcp.json'")
-            }
-
             # Check that the command has a pre-flight section
             if ($text -notmatch 'MCP Server Pre-flight') {
                 $errors.Add("${ext}/${cmdFile}: missing 'MCP Server Pre-flight' section")
@@ -134,18 +132,49 @@ foreach ($ext in $Extensions) {
         continue
     }
 
-    Write-Host "Validating canonical snippet in ${rel}"
+    Write-Host "Validating canonical snippets in ${rel}"
     $markdown = Get-Content -Path $policyFile -Raw -Encoding UTF8
-    $jsonBlock = Extract-JsonBlock -Markdown $markdown
+    $jsonBlocks = Extract-JsonBlocks -Markdown $markdown
 
-    if (-not $jsonBlock) {
+    if (-not $jsonBlocks -or $jsonBlocks.Count -eq 0) {
         $allErrors.Add("${rel}: no JSON code block found")
         continue
     }
 
-    $configErrors = Test-McpConfig -JsonText $jsonBlock -SourceFile $rel
-    if ($configErrors -and $configErrors.Count -gt 0) {
-        $allErrors.AddRange($configErrors)
+    $foundMcpServers = $false
+    $foundServers = $false
+    foreach ($block in $jsonBlocks) {
+        # Determine which top-level key this block uses by parsing once.
+        try {
+            $parsed = $block | ConvertFrom-Json -ErrorAction Stop
+        }
+        catch {
+            $allErrors.Add("${rel}: invalid JSON in canonical snippet — $($_.Exception.Message)")
+            continue
+        }
+        $topKey = $null
+        if ($parsed.PSObject.Properties['mcpServers']) { $topKey = 'mcpServers' }
+        elseif ($parsed.PSObject.Properties['servers']) { $topKey = 'servers' }
+        else {
+            $allErrors.Add("${rel}: JSON block missing both 'mcpServers' and 'servers' top-level keys")
+            continue
+        }
+
+        $configErrors = Test-McpConfig -JsonText $block -SourceFile $rel -TopKey $topKey
+        if ($configErrors -and $configErrors.Count -gt 0) {
+            $allErrors.AddRange($configErrors)
+        }
+        else {
+            if ($topKey -eq 'mcpServers') { $foundMcpServers = $true }
+            elseif ($topKey -eq 'servers') { $foundServers = $true }
+        }
+    }
+
+    if (-not $foundMcpServers) {
+        $allErrors.Add("${rel}: missing valid 'mcpServers' canonical snippet (required for VS / Cursor / Windsurf / JetBrains / generic hosts)")
+    }
+    if (-not $foundServers) {
+        $allErrors.Add("${rel}: missing valid 'servers' canonical snippet (required for VS Code host)")
     }
 }
 

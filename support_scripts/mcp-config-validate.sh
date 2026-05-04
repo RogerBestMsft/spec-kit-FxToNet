@@ -11,27 +11,35 @@ REQUIRED_SERVER="Microsoft.GitHubCopilot.Modernization.Mcp"
 
 errors=()
 
-# --- Extract JSON block from markdown ---
-extract_json_block() {
+# --- Extract all JSON blocks from markdown (newline-separated, blocks delimited by NUL) ---
+# Emits each block followed by a NUL byte, so consumers can split with `read -d ''`.
+extract_json_blocks() {
     local file="$1"
-    sed -n '/^```json$/,/^```$/p' "$file" | sed '1d;$d'
+    python3 - "$file" <<'PY'
+import re, sys, pathlib
+text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+for m in re.finditer(r"```json\s*\n(.*?)\n```", text, flags=re.DOTALL):
+    sys.stdout.write(m.group(1))
+    sys.stdout.write("\x00")
+PY
 }
 
 # --- Validate JSON snippet ---
 validate_mcp_config() {
     local json_text="$1"
     local source_file="$2"
+    local top_key="$3"  # 'mcpServers' or 'servers'
 
     # Check valid JSON
     if ! echo "$json_text" | python3 -m json.tool > /dev/null 2>&1; then
         errors+=("${source_file}: invalid JSON in canonical snippet")
-        return
+        return 1
     fi
 
-    # Check top-level mcpServers key
-    if ! echo "$json_text" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'mcpServers' in d" 2>/dev/null; then
-        errors+=("${source_file}: missing top-level 'mcpServers' key")
-        return
+    # Check top-level container key
+    if ! echo "$json_text" | python3 -c "import sys,json; d=json.load(sys.stdin); assert '${top_key}' in d" 2>/dev/null; then
+        errors+=("${source_file}: missing top-level '${top_key}' key")
+        return 1
     fi
 
     # Check required server entry and properties via python
@@ -40,13 +48,13 @@ validate_mcp_config() {
 import sys, json
 
 data = json.load(sys.stdin)
-servers = data.get('mcpServers', {})
+servers = data.get('${top_key}', {})
 server_name = '${REQUIRED_SERVER}'
 source = '${source_file}'
 errs = []
 
 if server_name not in servers:
-    errs.append(f'{source}: missing required server \"{server_name}\" under mcpServers')
+    errs.append(f'{source}: missing required server \"{server_name}\" under ${top_key}')
 else:
     s = servers[server_name]
     if s.get('type') != 'stdio':
@@ -73,7 +81,9 @@ sys.exit(1 if errs else 0)
         while IFS= read -r line; do
             errors+=("$line")
         done <<< "$validation_output"
+        return 1
     fi
+    return 0
 }
 
 # --- Validate command references ---
@@ -99,10 +109,6 @@ validate_command_references() {
                 errors+=("${rel}: does not reference 'policies/mcp-setup.md'")
             fi
 
-            if ! grep -q '\.mcp\.json' "$full_path"; then
-                errors+=("${rel}: does not reference '.mcp.json'")
-            fi
-
             if ! grep -q 'MCP Server Pre-flight' "$full_path"; then
                 errors+=("${rel}: missing 'MCP Server Pre-flight' section")
             fi
@@ -122,15 +128,60 @@ for ext in "${EXTENSIONS[@]}"; do
         continue
     fi
 
-    echo "Validating canonical snippet in ${rel}"
-    json_block=$(extract_json_block "$policy_file")
+    echo "Validating canonical snippets in ${rel}"
 
-    if [ -z "$json_block" ]; then
+    # Read all JSON blocks (NUL-separated) into an array.
+    json_blocks=()
+    while IFS= read -r -d '' block; do
+        json_blocks+=("$block")
+    done < <(extract_json_blocks "$policy_file")
+
+    if [ ${#json_blocks[@]} -eq 0 ]; then
         errors+=("${rel}: no JSON code block found")
         continue
     fi
 
-    validate_mcp_config "$json_block" "$rel"
+    found_mcp_servers=0
+    found_servers=0
+    for block in "${json_blocks[@]}"; do
+        # Determine top-level key.
+        top_key=$(python3 -c "
+import sys, json
+try:
+    d = json.loads(sys.stdin.read())
+except Exception:
+    sys.exit(0)
+if isinstance(d, dict):
+    if 'mcpServers' in d:
+        print('mcpServers')
+    elif 'servers' in d:
+        print('servers')
+" <<< "$block")
+
+        if [ -z "$top_key" ]; then
+            errors+=("${rel}: JSON block missing both 'mcpServers' and 'servers' top-level keys (or invalid JSON)")
+            continue
+        fi
+
+        before_count=${#errors[@]}
+        validate_mcp_config "$block" "$rel" "$top_key" || true
+        after_count=${#errors[@]}
+
+        if [ "$before_count" -eq "$after_count" ]; then
+            if [ "$top_key" = "mcpServers" ]; then
+                found_mcp_servers=1
+            elif [ "$top_key" = "servers" ]; then
+                found_servers=1
+            fi
+        fi
+    done
+
+    if [ "$found_mcp_servers" -ne 1 ]; then
+        errors+=("${rel}: missing valid 'mcpServers' canonical snippet (required for VS / Cursor / Windsurf / JetBrains / generic hosts)")
+    fi
+    if [ "$found_servers" -ne 1 ]; then
+        errors+=("${rel}: missing valid 'servers' canonical snippet (required for VS Code host)")
+    fi
 done
 
 # 2. Validate consuming commands reference the policy
