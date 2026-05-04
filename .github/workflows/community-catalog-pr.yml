@@ -3,14 +3,8 @@ name: Community Catalog PR
 # Opens a PR against github/spec-kit to update the community catalog entries
 # for the fx-to-dotnet extension and fx-to-dotnet-sdd preset.
 #
-# Triggers:
-#   * Automatically after the `Release` workflow completes successfully on a
-#     tag push (skipped for workflow_dispatch / draft releases).
-#   * Manually via workflow_dispatch with an explicit tag (e.g. v1.2.3).
+# Trigger: manual only via workflow_dispatch with an explicit tag (e.g. v1.2.3).
 on:
-  workflow_run:
-    workflows: ["Release"]
-    types: [completed]
   workflow_dispatch:
     inputs:
       tag:
@@ -22,35 +16,22 @@ permissions:
   contents: read
 
 concurrency:
-  group: community-catalog-pr-${{ github.event.inputs.tag || github.event.workflow_run.head_branch || github.ref }}
+  group: community-catalog-pr-${{ github.event.inputs.tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
   catalog-pr:
     name: Open community catalog PR
     runs-on: ubuntu-latest
-    # Only run for tag-push releases that succeeded, or manual dispatch.
-    # Skips draft releases produced by workflow_dispatch on the Release workflow.
-    if: >-
-      ${{ github.event_name == 'workflow_dispatch' ||
-          (github.event_name == 'workflow_run' &&
-           github.event.workflow_run.conclusion == 'success' &&
-           github.event.workflow_run.event == 'push' &&
-           startsWith(github.event.workflow_run.head_branch, 'v')) }}
     steps:
       - name: Resolve release tag
         id: resolve
         shell: bash
         env:
           DISPATCH_TAG: ${{ github.event.inputs.tag }}
-          RUN_BRANCH:   ${{ github.event.workflow_run.head_branch }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            tag="${DISPATCH_TAG}"
-          else
-            tag="${RUN_BRANCH}"
-          fi
+          tag="${DISPATCH_TAG}"
           if ! echo "$tag" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "ERROR: resolved tag '$tag' is not in v MAJOR.MINOR.PATCH form."
             exit 1

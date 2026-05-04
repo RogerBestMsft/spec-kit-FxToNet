@@ -4,20 +4,20 @@
     Generate community catalog JSON entries from extension.yml and preset.yml files.
 .DESCRIPTION
     Outputs a single JSON object: { extensions: [...], presets: [...] }.
-    Both entries reference the same combined release artifact:
-      {repository}/releases/download/v{version}/fx-to-dotnet-{version}.zip
+    Each entry references its own installable zip artifact (the combined
+    bundle is also published but is not directly installable):
+      extension: {repository}/releases/download/v{version}/fx-to-dotnet-extension-{version}.zip
+      preset:    {repository}/releases/download/v{version}/fx-to-dotnet-sdd-{version}.zip
 #>
 
 $ErrorActionPreference = 'Stop'
 
-$BundleId = 'fx-to-dotnet'  # name of the single combined release zip
-
 $Extensions = @(
-    'fx-to-dotnet'
+    @{ Id = 'fx-to-dotnet'; ZipBase = 'fx-to-dotnet-extension' }
 )
 
 $Presets = @(
-    'fx-to-dotnet-sdd'
+    @{ Id = 'fx-to-dotnet-sdd'; ZipBase = 'fx-to-dotnet-sdd' }
 )
 
 $Root = Split-Path -Parent $PSScriptRoot
@@ -37,7 +37,8 @@ function Build-Entry {
         [string]$ArtifactId,
         [string]$Text,
         [string]$Family,
-        [string[]]$DefaultTags
+        [string[]]$DefaultTags,
+        [string]$ZipBase
     )
     $version = Get-YamlValue -Text $Text -Key 'version'
     if (-not $version) {
@@ -59,7 +60,7 @@ function Build-Entry {
         version     = $version
         description = $description
         author      = $author
-        url         = "${repo}/releases/download/v${version}/${BundleId}-${version}.zip"
+        url         = "${repo}/releases/download/v${version}/${ZipBase}-${version}.zip"
         repository  = $repo
         tags        = $DefaultTags
         family      = $Family
@@ -72,27 +73,29 @@ $out = [ordered]@{
     presets    = [System.Collections.Generic.List[object]]::new()
 }
 
-foreach ($extId in $Extensions) {
-    $ymlPath = Join-Path $Root $extId 'extension.yml'
+foreach ($ext in $Extensions) {
+    $ymlPath = Join-Path $Root $ext.Id 'extension.yml'
     if (-not (Test-Path $ymlPath)) {
         Write-Warning "WARNING: $ymlPath not found"
         continue
     }
     $text = Get-Content -Path $ymlPath -Raw -Encoding UTF8
-    $entry = Build-Entry -ArtifactId $extId -Text $text -Family 'fx-to-dotnet' `
-        -DefaultTags @('dotnet', 'migration', 'modernization')
+    $entry = Build-Entry -ArtifactId $ext.Id -Text $text -Family 'fx-to-dotnet' `
+        -DefaultTags @('dotnet', 'migration', 'modernization') `
+        -ZipBase $ext.ZipBase
     if ($entry) { $out.extensions.Add($entry) }
 }
 
-foreach ($presetId in $Presets) {
-    $ymlPath = Join-Path $Root 'presets' $presetId 'preset.yml'
+foreach ($preset in $Presets) {
+    $ymlPath = Join-Path $Root 'presets' $preset.Id 'preset.yml'
     if (-not (Test-Path $ymlPath)) {
         Write-Warning "WARNING: $ymlPath not found"
         continue
     }
     $text = Get-Content -Path $ymlPath -Raw -Encoding UTF8
-    $entry = Build-Entry -ArtifactId $presetId -Text $text -Family 'fx-to-dotnet' `
-        -DefaultTags @('dotnet', 'migration', 'sdd', 'preset')
+    $entry = Build-Entry -ArtifactId $preset.Id -Text $text -Family 'fx-to-dotnet' `
+        -DefaultTags @('dotnet', 'migration', 'sdd', 'preset') `
+        -ZipBase $preset.ZipBase
     if ($entry) { $out.presets.Add($entry) }
 }
 

@@ -4,8 +4,12 @@
 Outputs a single JSON object:
   { "extensions": [ { ...entry... } ], "presets": [ { ...entry... } ] }
 
-Both entries reference the same combined release artifact:
-  {repository}/releases/download/v{version}/fx-to-dotnet-{version}.zip
+Each entry references its own installable zip artifact (the combined bundle
+`fx-to-dotnet-<v>.zip` is also published but is not directly installable
+because `specify extension add` requires the manifest at zip root or in a
+single subfolder):
+  extension: {repository}/releases/download/v{version}/fx-to-dotnet-extension-{version}.zip
+  preset:    {repository}/releases/download/v{version}/fx-to-dotnet-sdd-{version}.zip
 """
 
 import json
@@ -32,7 +36,7 @@ def _build_entry(
     text: str,
     family: str,
     default_tags: list[str],
-    bundle_id: str,
+    artifact_zip: str,
 ) -> dict | None:
     version = _yaml_value(text, "version")
     if not version:
@@ -45,8 +49,7 @@ def _build_entry(
         "version": version,
         "description": _yaml_value(text, "description") or "",
         "author": _yaml_value(text, "author") or "Microsoft",
-        # Both extension and preset entries reference the single combined bundle zip.
-        "url": f"{repo}/releases/download/v{version}/{bundle_id}-{version}.zip",
+        "url": f"{repo}/releases/download/v{version}/{artifact_zip}-{version}.zip",
         "repository": repo,
         "tags": default_tags,
         "family": family,
@@ -56,7 +59,6 @@ def _build_entry(
 
 def main() -> int:
     root = Path(__file__).resolve().parent.parent
-    bundle_id = "fx-to-dotnet"  # name of the single combined release zip
     out: dict[str, list[dict]] = {"extensions": [], "presets": []}
     errors = 0
 
@@ -70,7 +72,8 @@ def main() -> int:
             yml.read_text(encoding="utf-8"),
             family="fx-to-dotnet",
             default_tags=["dotnet", "migration", "modernization"],
-            bundle_id=bundle_id,
+            # extension-only installable zip
+            artifact_zip=f"{ext_id}-extension",
         )
         if entry is None:
             errors += 1
@@ -87,7 +90,8 @@ def main() -> int:
             yml.read_text(encoding="utf-8"),
             family="fx-to-dotnet",
             default_tags=["dotnet", "migration", "sdd", "preset"],
-            bundle_id=bundle_id,
+            # preset-only installable zip
+            artifact_zip=preset_id,
         )
         if entry is None:
             errors += 1

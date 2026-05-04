@@ -69,24 +69,34 @@ jobs:
           set -euo pipefail
           bash support_scripts/package-extensions.sh
 
-          bundle_zip=$(ls "$RELEASES_DIR"/fx-to-dotnet-*.zip 2>/dev/null | head -1 || true)
-          if [ -z "$bundle_zip" ]; then echo "ERROR: combined bundle zip not produced"; exit 1; fi
-          echo "Found: $bundle_zip"
-
-          # Should be exactly one zip in the releases dir.
+          # Expect three zips: combined bundle + extension-only + preset-only.
           zip_count=$(ls "$RELEASES_DIR"/*.zip 2>/dev/null | wc -l)
-          if [ "$zip_count" -ne 1 ]; then
-            echo "ERROR: expected exactly 1 zip in $RELEASES_DIR, found $zip_count"
+          if [ "$zip_count" -ne 3 ]; then
+            echo "ERROR: expected exactly 3 zips in $RELEASES_DIR, found $zip_count"
             ls -la "$RELEASES_DIR"
             exit 1
           fi
 
+          bundle_zip=$(ls "$RELEASES_DIR"/fx-to-dotnet-[0-9]*.zip 2>/dev/null | head -1 || true)
+          ext_zip=$(ls "$RELEASES_DIR"/fx-to-dotnet-extension-*.zip 2>/dev/null | head -1 || true)
+          preset_zip=$(ls "$RELEASES_DIR"/fx-to-dotnet-sdd-*.zip 2>/dev/null | head -1 || true)
+          if [ -z "$bundle_zip" ]; then echo "ERROR: combined bundle zip not produced"; exit 1; fi
+          if [ -z "$ext_zip" ];    then echo "ERROR: extension-only zip not produced";   exit 1; fi
+          if [ -z "$preset_zip" ]; then echo "ERROR: preset-only zip not produced";      exit 1; fi
+          echo "Found: $bundle_zip"
+          echo "Found: $ext_zip"
+          echo "Found: $preset_zip"
+
           tmp=$(mktemp -d)
           unzip -q "$bundle_zip" -d "$tmp/bundle"
+          unzip -q "$ext_zip"    -d "$tmp/ext"
+          unzip -q "$preset_zip" -d "$tmp/preset"
 
           test -f "$tmp/bundle/fx-to-dotnet/extension.yml"  || { echo "ERROR: extension.yml not at fx-to-dotnet/ in bundle"; exit 1; }
           test -f "$tmp/bundle/fx-to-dotnet-sdd/preset.yml" || { echo "ERROR: preset.yml not at fx-to-dotnet-sdd/ in bundle"; exit 1; }
-          echo "OK: combined bundle layout is correct"
+          test -f "$tmp/ext/fx-to-dotnet/extension.yml"     || { echo "ERROR: extension.yml not at fx-to-dotnet/ in ext zip"; exit 1; }
+          test -f "$tmp/preset/fx-to-dotnet-sdd/preset.yml" || { echo "ERROR: preset.yml not at fx-to-dotnet-sdd/ in preset zip"; exit 1; }
+          echo "OK: all three release zips have correct layout"
 
       # ---------- Test suite (conditional on tests/ existing) ----------
 
