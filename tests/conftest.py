@@ -22,7 +22,8 @@ def extension_dir(repo_root: Path) -> Path:
 
 @pytest.fixture(scope="session")
 def preset_dir(repo_root: Path) -> Path:
-    return repo_root / "presets" / "fx-to-dotnet-sdd"
+    # The preset now ships alongside the extension under fx-to-dotnet/.
+    return repo_root / "fx-to-dotnet"
 
 
 @pytest.fixture(scope="session")
@@ -33,7 +34,7 @@ def extension_yml(extension_dir: Path) -> dict:
 
 @pytest.fixture(scope="session")
 def preset_yml(preset_dir: Path) -> dict:
-    """Parsed `presets/fx-to-dotnet-sdd/preset.yml`."""
+    """Parsed `fx-to-dotnet/preset.yml`."""
     return yaml.safe_load((preset_dir / "preset.yml").read_text(encoding="utf-8"))
 
 

@@ -4,12 +4,11 @@
 Outputs a single JSON object:
   { "extensions": [ { ...entry... } ], "presets": [ { ...entry... } ] }
 
-Each entry references its own installable zip artifact (the combined bundle
-`fx-to-dotnet-<v>.zip` is also published but is not directly installable
-because `specify extension add` requires the manifest at zip root or in a
-single subfolder):
-  extension: {repository}/releases/download/v{version}/fx-to-dotnet-extension-{version}.zip
-  preset:    {repository}/releases/download/v{version}/fx-to-dotnet-sdd-{version}.zip
+The extension and the companion preset now ship together inside the single
+`fx-to-dotnet-<version>.zip` bundle (both `extension.yml` and `preset.yml`
+live under the `fx-to-dotnet/` subfolder). Both catalog entries reference
+the same combined artifact:
+  {repository}/releases/download/v{version}/fx-to-dotnet-{version}.zip
 """
 
 import json
@@ -72,8 +71,8 @@ def main() -> int:
             yml.read_text(encoding="utf-8"),
             family="fx-to-dotnet",
             default_tags=["dotnet", "migration", "modernization"],
-            # extension-only installable zip
-            artifact_zip=f"{ext_id}-extension",
+            # combined bundle (extension + preset together)
+            artifact_zip=ext_id,
         )
         if entry is None:
             errors += 1
@@ -81,7 +80,8 @@ def main() -> int:
         out["extensions"].append(entry)
 
     for preset_id in PRESETS:
-        yml = root / "presets" / preset_id / "preset.yml"
+        # The preset now ships alongside the extension under fx-to-dotnet/.
+        yml = root / "fx-to-dotnet" / "preset.yml"
         if not yml.exists():
             print(f"WARNING: {yml} not found", file=sys.stderr)
             continue
@@ -90,8 +90,8 @@ def main() -> int:
             yml.read_text(encoding="utf-8"),
             family="fx-to-dotnet",
             default_tags=["dotnet", "migration", "sdd", "preset"],
-            # preset-only installable zip
-            artifact_zip=preset_id,
+            # combined bundle (same zip as the extension)
+            artifact_zip="fx-to-dotnet",
         )
         if entry is None:
             errors += 1

@@ -41,7 +41,7 @@ Flow: prepare repo → bump versions → tag GitHub releases → submit two PRs 
 2. Update `repository` URLs from `AzureAD/fx-to-dotnet-extensions` to
    `https://github.com/RogerBestMsft/spec-kit-FxToNet`:
    - [fx-to-dotnet/extension.yml](../fx-to-dotnet/extension.yml#L22)
-   - [presets/fx-to-dotnet-sdd/preset.yml](../presets/fx-to-dotnet-sdd/preset.yml#L8)
+   - [fx-to-dotnet/preset.yml](../fx-to-dotnet/preset.yml#L8)
 3. Policies live under `fx-to-dotnet/policies/` and are included automatically
    when [package-extensions.ps1](../scripts/package-extensions.ps1) /
    [package-extensions.sh](../scripts/package-extensions.sh) zip the extension
@@ -49,8 +49,8 @@ Flow: prepare repo → bump versions → tag GitHub releases → submit two PRs 
 4. Add publishing-required files at each artifact root:
    - `fx-to-dotnet/LICENSE` — copy from repo [LICENSE](../LICENSE).
    - `fx-to-dotnet/CHANGELOG.md` — v1.0.0 baseline entry.
-   - `presets/fx-to-dotnet-sdd/LICENSE` — copy.
-   - `presets/fx-to-dotnet-sdd/CHANGELOG.md` — v1.0.0 baseline entry.
+   - `fx-to-dotnet/LICENSE` — copy.
+   - `fx-to-dotnet/CHANGELOG.md` — v1.0.0 baseline entry.
    - Verify each artifact has a usable `README.md` (extension already does;
      check the preset).
 5. Confirm [.extensionignore](../fx-to-dotnet/.extensionignore) exclusions
@@ -59,9 +59,9 @@ Flow: prepare repo → bump versions → tag GitHub releases → submit two PRs 
 ## Phase 2 — Version bump *(parallel with phase 1 step 5)*
 
 1. Bump [extension.yml](../fx-to-dotnet/extension.yml#L19) `0.5.0` → `1.0.0`.
-2. Bump [preset.yml](../presets/fx-to-dotnet-sdd/preset.yml#L4) `0.4.0` → `1.0.0`.
+2. Bump [preset.yml](../fx-to-dotnet/preset.yml#L4) `0.4.0` → `1.0.0`.
 3. Update preset's `requires.extensions[fx-to-dotnet]` constraint to `>=1.0.0`
-   in [preset.yml](../presets/fx-to-dotnet-sdd/preset.yml#L15).
+   in [preset.yml](../fx-to-dotnet/preset.yml#L15).
 4. Run [version-check.ps1](../scripts/version-check.ps1) and
    [cross-reference-audit.ps1](../scripts/cross-reference-audit.ps1) to ensure
    no stale `0.5.0` / `0.4.0` references remain.
@@ -76,7 +76,7 @@ Flow: prepare repo → bump versions → tag GitHub releases → submit two PRs 
    `extension.yml`, not `fx-to-dotnet/extension.yml`).
 3. Test dev install in a throwaway project:
    - `specify extension add --dev <path>/fx-to-dotnet`
-   - `specify preset add --dev <path>/presets/fx-to-dotnet-sdd`
+   - `specify preset add --dev <path>/fx-to-dotnet`
    - Verify all 25 commands register, all 5 hooks listed, preset templates
      resolve.
 4. Test archive install: `specify extension add fx-to-dotnet --from <local-zip>`.
@@ -113,7 +113,7 @@ Flow: prepare repo → bump versions → tag GitHub releases → submit two PRs 
 
 - [fx-to-dotnet/extension.yml](../fx-to-dotnet/extension.yml) — version,
   repository, 25 commands and 5 hooks.
-- [presets/fx-to-dotnet-sdd/preset.yml](../presets/fx-to-dotnet-sdd/preset.yml)
+- [fx-to-dotnet/preset.yml](../fx-to-dotnet/preset.yml)
   — version, repository, `requires.extensions` pin.
 - [fx-to-dotnet/.extensionignore](../fx-to-dotnet/.extensionignore) —
   exclusion list used when zipping.

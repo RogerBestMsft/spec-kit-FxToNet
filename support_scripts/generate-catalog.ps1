@@ -4,20 +4,21 @@
     Generate community catalog JSON entries from extension.yml and preset.yml files.
 .DESCRIPTION
     Outputs a single JSON object: { extensions: [...], presets: [...] }.
-    Each entry references its own installable zip artifact (the combined
-    bundle is also published but is not directly installable):
-      extension: {repository}/releases/download/v{version}/fx-to-dotnet-extension-{version}.zip
-      preset:    {repository}/releases/download/v{version}/fx-to-dotnet-sdd-{version}.zip
+    The extension and the companion preset now ship together inside the
+    single fx-to-dotnet-<version>.zip bundle (both extension.yml and
+    preset.yml live under the fx-to-dotnet/ subfolder). Both catalog
+    entries reference the same combined artifact:
+      {repository}/releases/download/v{version}/fx-to-dotnet-{version}.zip
 #>
 
 $ErrorActionPreference = 'Stop'
 
 $Extensions = @(
-    @{ Id = 'fx-to-dotnet'; ZipBase = 'fx-to-dotnet-extension' }
+    @{ Id = 'fx-to-dotnet'; ZipBase = 'fx-to-dotnet' }
 )
 
 $Presets = @(
-    @{ Id = 'fx-to-dotnet-sdd'; ZipBase = 'fx-to-dotnet-sdd' }
+    @{ Id = 'fx-to-dotnet-sdd'; ZipBase = 'fx-to-dotnet' }
 )
 
 $Root = Split-Path -Parent $PSScriptRoot
@@ -87,7 +88,8 @@ foreach ($ext in $Extensions) {
 }
 
 foreach ($preset in $Presets) {
-    $ymlPath = Join-Path $Root 'presets' $preset.Id 'preset.yml'
+    # The preset now ships alongside the extension under fx-to-dotnet/.
+    $ymlPath = Join-Path $Root 'fx-to-dotnet' 'preset.yml'
     if (-not (Test-Path $ymlPath)) {
         Write-Warning "WARNING: $ymlPath not found"
         continue

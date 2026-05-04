@@ -5,7 +5,7 @@ This repository packages [`fx-to-dotnet`](fx-to-dotnet/README.md) — a single S
 The extension integrates tightly with the Spec Kit lifecycle (`/speckit.specify` → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement`) via five lifecycle hooks. Migration content is owned end-to-end by the extension; user-story implementation is gated behind completion of all migration tasks.
 
 - Extension version: `0.8.0` (see [fx-to-dotnet/extension.yml](fx-to-dotnet/extension.yml))
-- Preset version: `0.8.0` (see [presets/fx-to-dotnet-sdd/preset.yml](presets/fx-to-dotnet-sdd/preset.yml))
+- Preset version: `0.8.0` (see [fx-to-dotnet/preset.yml](fx-to-dotnet/preset.yml))
 - License: MIT
 - Author: Microsoft
 
@@ -14,8 +14,7 @@ The extension integrates tightly with the Spec Kit lifecycle (`/speckit.specify`
 ```mermaid
 graph LR
     Root[spec-kit-FxToNet]
-    Root --> Ext[fx-to-dotnet/<br/>extension]
-    Root --> Pre[presets/<br/>fx-to-dotnet-sdd]
+    Root --> Ext[fx-to-dotnet/<br/>extension + preset]
     Root --> Docs[docs/<br/>plans + integration]
     Root --> Sup[support_scripts/<br/>build + release tooling]
 
@@ -23,19 +22,16 @@ graph LR
     Ext --> Pol[policies/<br/>migration guidance]
     Ext --> Scr[scripts/<br/>bash + powershell]
     Ext --> Manifest[extension.yml]
-
-    Pre --> Tpl[templates/<br/>tasks + implement + plan-template]
-    Pre --> PreManifest[preset.yml]
+    Ext --> PreManifest[preset.yml]
+    Ext --> Tpl[templates/<br/>tasks + implement + plan-template]
 
     style Root fill:#4a9eff,color:#fff
     style Ext fill:#6cc644,color:#fff
-    style Pre fill:#9c27b0,color:#fff
 ```
 
 | Path | Purpose |
 |------|---------|
-| [fx-to-dotnet/](fx-to-dotnet/README.md) | The Spec Kit extension itself — commands, hooks, workflows, policies, scripts |
-| [presets/fx-to-dotnet-sdd/](presets/fx-to-dotnet-sdd/README.md) | Optional companion preset that overrides core `speckit.tasks`, `speckit.implement`, and `plan-template` so the core agent never emits competing migration content |
+| [fx-to-dotnet/](fx-to-dotnet/README.md) | The Spec Kit extension itself — commands, hooks, workflows, policies, scripts — plus the companion `fx-to-dotnet-sdd` preset (manifest at [fx-to-dotnet/preset.yml](fx-to-dotnet/preset.yml), templates under [fx-to-dotnet/templates/](fx-to-dotnet/templates/)) |
 | [docs/](docs/) | Design plans: workflow, publish, release pipeline, automated tests, tight-integration plan + tasks |
 | [support_scripts/](support_scripts/) | Cross-platform helpers for version bumping, packaging, deploying, catalog generation, and cross-reference auditing |
 
@@ -273,8 +269,7 @@ Several commands work independently of the full migration suite:
 
 ## Documentation
 
-- [fx-to-dotnet extension README](fx-to-dotnet/README.md) — extension-level details, commands, hooks, state files
-- [presets/fx-to-dotnet-sdd README](presets/fx-to-dotnet-sdd/README.md) — companion preset
+- [fx-to-dotnet extension README](fx-to-dotnet/README.md) — extension-level details, commands, hooks, state files (also covers the bundled `fx-to-dotnet-sdd` preset)
 - [docs/speckit-tight-integration-plan.md](docs/speckit-tight-integration-plan.md) — the integration design plan
 - [docs/workflow-plan.md](docs/workflow-plan.md) — workflow command design
 - [docs/release-pipeline-plan.md](docs/release-pipeline-plan.md) — release pipeline

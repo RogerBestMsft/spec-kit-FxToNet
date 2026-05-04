@@ -105,7 +105,7 @@ Runs alongside Phase 2.
 ## Relevant files
 
 - [fx-to-dotnet/extension.yml](../fx-to-dotnet/extension.yml) — source of truth for declared commands/hooks/scripts.
-- [presets/fx-to-dotnet-sdd/preset.yml](../presets/fx-to-dotnet-sdd/preset.yml) — preset version coupling.
+- [fx-to-dotnet/preset.yml](../fx-to-dotnet/preset.yml) — preset version coupling.
 - `fx-to-dotnet/commands/**/*.md` — frontmatter + cross-reference targets.
 - `fx-to-dotnet/commands/workflows/*/workflow.yml` — schema + executor input.
 - [fx-to-dotnet/policies/mcp-setup.md](../fx-to-dotnet/policies/mcp-setup.md) — MCP JSON snippet.

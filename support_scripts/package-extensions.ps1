@@ -1,7 +1,9 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-  Package all spec-kit extensions into zip archives under releases/
+  Package the fx-to-dotnet extension (which now also ships the
+  fx-to-dotnet-sdd preset alongside extension.yml) into a single zip
+  archive under releases/.
 #>
 [CmdletBinding()]
 param()
@@ -18,19 +20,17 @@ if ($env:RELEASES_DIR) {
     $Releases = Join-Path $RepoRoot 'releases'
 }
 
-# Three release artifacts are produced:
-#   1. fx-to-dotnet-<version>.zip                — combined bundle (extension + preset as subfolders)
-#   2. fx-to-dotnet-extension-<version>.zip      — extension only (single fx-to-dotnet/ subfolder)
-#   3. fx-to-dotnet-sdd-<version>.zip            — preset only (single fx-to-dotnet-sdd/ subfolder)
+# A single release artifact is produced:
+#   fx-to-dotnet-<version>.zip — extension + companion preset together,
+#                                with both extension.yml and preset.yml
+#                                inside the single fx-to-dotnet/ subfolder.
 #
-# `specify extension add`/`specify preset add` require the manifest at zip root
-# or inside a single top-level subfolder, so the combined bundle is not directly
-# installable; the per-artifact zips are.
+# `specify extension add` and `specify preset add` both accept a manifest
+# inside a single top-level subfolder, so this layout is installable as
+# either an extension or a preset from the same zip.
 $BundleId    = 'fx-to-dotnet'
 $ExtensionId = 'fx-to-dotnet'
-$PresetId    = 'fx-to-dotnet-sdd'
 $ExtensionDir = Join-Path $SpecKit $ExtensionId                       # fx-to-dotnet/
-$PresetDir    = Join-Path $SpecKit 'presets' $PresetId                # fx-to-dotnet-sdd/
 
 if (-not (Test-Path $Releases)) { New-Item -ItemType Directory -Path $Releases -Force | Out-Null }
 
@@ -42,37 +42,25 @@ function Get-ManifestVersion {
 }
 
 $extensionYml = Join-Path $ExtensionDir 'extension.yml'
-$presetYml    = Join-Path $PresetDir    'preset.yml'
+$presetYml    = Join-Path $ExtensionDir 'preset.yml'
 if (-not (Test-Path $extensionYml)) { Write-Error "$extensionYml not found" }
 if (-not (Test-Path $presetYml))    { Write-Error "$presetYml not found" }
 
-$version           = Get-ManifestVersion -Path $extensionYml
-$bundleArchive     = Join-Path $Releases "$BundleId-$version.zip"
-$extensionArchive  = Join-Path $Releases "$ExtensionId-extension-$version.zip"
-$presetArchive     = Join-Path $Releases "$PresetId-$version.zip"
+$version       = Get-ManifestVersion -Path $extensionYml
+$bundleArchive = Join-Path $Releases "$BundleId-$version.zip"
 
-foreach ($a in @($bundleArchive, $extensionArchive, $presetArchive)) {
-    if (Test-Path $a) { Remove-Item $a -Force }
-}
+if (Test-Path $bundleArchive) { Remove-Item $bundleArchive -Force }
 
-# Stage into a temporary folder so the zips preserve top-level subfolders
+# Stage into a temporary folder so the zip preserves the top-level subfolder
 # (Compress-Archive does not support -BasePath rewriting).
 $staging = Join-Path ([System.IO.Path]::GetTempPath()) ("fx-to-dotnet-bundle-" + [Guid]::NewGuid())
 New-Item -ItemType Directory -Path $staging | Out-Null
 try {
-    $stagedExt    = Join-Path $staging $ExtensionId
-    $stagedPreset = Join-Path $staging $PresetId
+    $stagedExt = Join-Path $staging $ExtensionId
     Copy-Item -Recurse -Path $ExtensionDir -Destination $stagedExt
-    Copy-Item -Recurse -Path $PresetDir    -Destination $stagedPreset
 
     Write-Host "Packaging combined bundle  -> $bundleArchive"
-    Compress-Archive -Path @($stagedExt, $stagedPreset) -DestinationPath $bundleArchive -Force
-
-    Write-Host "Packaging extension-only   -> $extensionArchive"
-    Compress-Archive -Path $stagedExt    -DestinationPath $extensionArchive -Force
-
-    Write-Host "Packaging preset-only      -> $presetArchive"
-    Compress-Archive -Path $stagedPreset -DestinationPath $presetArchive -Force
+    Compress-Archive -Path $stagedExt -DestinationPath $bundleArchive -Force
 }
 finally {
     Remove-Item -Recurse -Force $staging -ErrorAction SilentlyContinue

@@ -168,7 +168,49 @@ After all `[MIG-*]` rows are resolved the hook appends `## Migration Execution S
 
 ### Companion Preset (optional)
 
-The sibling [presets/fx-to-dotnet-sdd/](../presets/fx-to-dotnet-sdd/) preset overrides core `speckit.tasks` and `speckit.implement` so the core agent never emits competing migration content (Layer 4 of the integration plan). Hooks alone work without the preset; the preset is the deterministic backstop.
+This package also ships a companion **`fx-to-dotnet-sdd`** preset (manifest at [preset.yml](preset.yml), templates under [templates/](templates/)) that overrides core `speckit.tasks`, `speckit.implement`, and the `plan-template` so the core agent never emits competing migration content (Layer 4 of the integration plan). Hooks alone work without the preset; the preset is the deterministic backstop.
+
+- **Preset id**: `fx-to-dotnet-sdd`
+- **Requires**: `speckit_version >= 0.7.2`, extension `fx-to-dotnet >= 0.8.0`
+
+#### What the preset overrides
+
+| Override | Path | Effect |
+|----------|------|--------|
+| `commands/tasks.md` | [templates/commands/tasks.md](templates/commands/tasks.md) | Core `speckit.tasks` no longer emits migration tasks; the `tasks-hook` owns `[MIG-*]` rows |
+| `commands/implement.md` | [templates/commands/implement.md](templates/commands/implement.md) | Core `speckit.implement` defers all `[MIG-*]` rows to the `before_implement` hook |
+| `templates/plan-template.md` | [templates/plan-template.md](templates/plan-template.md) | Plan template reserves the `## .NET Migration Plan` section for the `plan-hook` |
+
+#### How it fits
+
+```mermaid
+graph TB
+    subgraph Without[Hooks alone]
+        H1[fx-to-dotnet hooks] --> X1{Core agent might<br/>still emit migration<br/>tasks/plan content}
+    end
+    subgraph With[Hooks + this preset]
+        H2[fx-to-dotnet hooks] --> Y1[deterministic<br/>migration content]
+        Pre[fx-to-dotnet-sdd preset] --> Y2[core templates<br/>stay out of the way]
+        Y1 --> Done([single source of<br/>migration truth])
+        Y2 --> Done
+    end
+
+    style X1 fill:#f9a825
+    style Done fill:#388e3c,color:#fff
+    style Pre fill:#9c27b0,color:#fff
+```
+
+Install the preset when you want a deterministic guarantee that core never emits competing migration content (recommended for shared / production use):
+
+```bash
+specify preset add fx-to-dotnet-sdd
+```
+
+Or, from a local checkout:
+
+```bash
+specify preset add --dev /path/to/fx-to-dotnet
+```
 
 ## Quick Start
 

@@ -1,4 +1,4 @@
-"""T020: package-extensions.{ps1,sh} produces a bundle matching CI smoke pack."""
+"""T020: package-extensions.{ps1,sh} produces a single combined bundle."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ def _names(zip_path: Path) -> list[str]:
 def _bundle_contents_ok(zip_path: Path) -> tuple[bool, list[str]]:
     names = _names(zip_path)
     has_ext_yml = any(n.endswith("fx-to-dotnet/extension.yml") for n in names)
-    has_preset_yml = any(n.endswith("fx-to-dotnet-sdd/preset.yml") for n in names)
+    has_preset_yml = any(n.endswith("fx-to-dotnet/preset.yml") for n in names)
     has_command = any(
         n.startswith("fx-to-dotnet/commands/") and n.endswith(".md") for n in names
     )
@@ -28,20 +28,12 @@ def _bundle_contents_ok(zip_path: Path) -> tuple[bool, list[str]]:
     if not has_ext_yml:
         issues.append("missing fx-to-dotnet/extension.yml")
     if not has_preset_yml:
-        issues.append("missing fx-to-dotnet-sdd/preset.yml")
+        issues.append("missing fx-to-dotnet/preset.yml")
     if not has_command:
         issues.append("missing any fx-to-dotnet/commands/**/*.md")
-    return not issues, issues
-
-
-def _single_subdir_ok(zip_path: Path, subdir: str, manifest: str) -> tuple[bool, list[str]]:
-    names = _names(zip_path)
-    issues: list[str] = []
-    if not any(n.endswith(f"{subdir}/{manifest}") for n in names):
-        issues.append(f"missing {subdir}/{manifest}")
-    # Top-level entries (paths without a leading directory other than `subdir`)
+    # Top-level entries should only contain the single fx-to-dotnet subfolder.
     top_dirs = {n.split("/", 1)[0] for n in names if "/" in n}
-    extra = top_dirs - {subdir}
+    extra = top_dirs - {"fx-to-dotnet"}
     if extra:
         issues.append(f"unexpected top-level entries: {sorted(extra)}")
     return not issues, issues
@@ -77,20 +69,10 @@ def test_package_extensions_produces_bundle(repo_root: Path, tmp_path: Path, she
     )
 
     all_zips = sorted(releases.glob("*.zip"))
-    assert len(all_zips) == 3, f"expected 3 zips, got {len(all_zips)}: {all_zips}"
+    assert len(all_zips) == 1, f"expected 1 zip, got {len(all_zips)}: {all_zips}"
 
-    bundle_zips = [z for z in all_zips if z.name.startswith("fx-to-dotnet-") and "extension" not in z.name and "sdd" not in z.name]
-    ext_zips    = list(releases.glob("fx-to-dotnet-extension-*.zip"))
-    preset_zips = list(releases.glob("fx-to-dotnet-sdd-*.zip"))
+    bundle_zips = list(releases.glob("fx-to-dotnet-*.zip"))
     assert len(bundle_zips) == 1, f"expected 1 bundle zip, got {bundle_zips}"
-    assert len(ext_zips) == 1,    f"expected 1 extension zip, got {ext_zips}"
-    assert len(preset_zips) == 1, f"expected 1 preset zip, got {preset_zips}"
 
     ok, issues = _bundle_contents_ok(bundle_zips[0])
     assert ok, "bundle layout issues:\n  " + "\n  ".join(issues)
-
-    ok, issues = _single_subdir_ok(ext_zips[0], "fx-to-dotnet", "extension.yml")
-    assert ok, "extension zip layout issues:\n  " + "\n  ".join(issues)
-
-    ok, issues = _single_subdir_ok(preset_zips[0], "fx-to-dotnet-sdd", "preset.yml")
-    assert ok, "preset zip layout issues:\n  " + "\n  ".join(issues)

@@ -142,7 +142,7 @@ A simple, reviewable contract embedded in every `[MIG-*]` task line:
 
 ### Layer 4 — Companion Preset (closes the last gap on goal 1)
 
-New folder `presets/fx-to-dotnet-sdd/` (sibling to `fx-to-dotnet/` in repo root) shipped from the same repo, installable independently:
+New folder `fx-to-dotnet/` (sibling to `fx-to-dotnet/` in repo root) shipped from the same repo, installable independently:
 
 - `preset.yml` — manifest, `speckit_version: ">=0.7.2"`.
 - `templates/commands/tasks.md` (override) — adds: "If `.specify/extensions.yml` enables `fx-to-dotnet`, do NOT generate migration-themed tasks. Emit only a placeholder `## Phase N: .NET Framework Migration (extension-managed)` heading; the `after_tasks` hook will populate it."
@@ -284,10 +284,10 @@ speckit.implement
 | `fx-to-dotnet/README.md` | Edit (Layer 8) | Repath `analysis.md` references in lifecycle docs and gating-files list. |
 | `fx-to-dotnet/commands/plan/plan.md` | Edit (Layer 7) | Add `## Required Policies` preamble; convert soft policy references to mandatory `get_instructions` calls; add `## Policies Applied` to the plan output structure. |
 | `fx-to-dotnet/commands/workflows/library-update/workflow.yml` | New | Single-library multitarget+fix (Layer 5). |
-| `presets/fx-to-dotnet-sdd/preset.yml` | New (Layer 4, optional) | Preset manifest. |
-| `presets/fx-to-dotnet-sdd/templates/commands/tasks.md` | New (Layer 4) | Override of core tasks command. |
-| `presets/fx-to-dotnet-sdd/templates/commands/implement.md` | New (Layer 4) | Override of core implement command. |
-| `presets/fx-to-dotnet-sdd/templates/plan-template.md` | New (Layer 4) | Override with Migration Gate. |
+| `fx-to-dotnet/preset.yml` | New (Layer 4, optional) | Preset manifest. |
+| `fx-to-dotnet/templates/commands/tasks.md` | New (Layer 4) | Override of core tasks command. |
+| `fx-to-dotnet/templates/commands/implement.md` | New (Layer 4) | Override of core implement command. |
+| `fx-to-dotnet/templates/plan-template.md` | New (Layer 4) | Override with Migration Gate. |
 | `fx-to-dotnet/README.md` | Edit | Document the lifecycle and `[MIG]` task semantics. |
 | `docs/sdd-integration-plan.md` | Edit | Mark superseded. |
 | `docs/workflow-plan.md` | Edit | Mark superseded for `library-update` portions. |
@@ -309,7 +309,7 @@ No new scripts required. Existing `scripts/cross-reference-audit.ps1` and `scrip
 4. Update `extension.yml`: bump version, register 5 + 1 commands, add `hooks:` section with `optional: false` on `after_plan`, `after_tasks`, **and** `before_implement`.
 
 ### Phase 4 — Companion preset (depends on Phase 3; optional)
-5. Create `presets/fx-to-dotnet-sdd/preset.yml`.
+5. Create `fx-to-dotnet/preset.yml`.
 6. Create three template overrides.
 
 ### Phase 5 — Verification & docs
@@ -363,7 +363,7 @@ No new scripts required. Existing `scripts/cross-reference-audit.ps1` and `scrip
 ## Open Questions for Reviewer
 
 1. **Hook directory layout**: `commands/hooks/*.md` (recommended) vs flat `commands/*.md` (matches paths in the older `docs/sdd-integration-plan.md`)?
-2. **Preset packaging**: ship `presets/fx-to-dotnet-sdd/` in this repo (recommended), separate repo, or skip the preset entirely (Layers 1–3 + 5–6 only)?
+2. **Preset packaging**: ship `fx-to-dotnet/` in this repo (recommended), separate repo, or skip the preset entirely (Layers 1–3 + 5–6 only)?
 3. **`autoApprove-rest` persistence**: current-run-only (recommended) or persist to `.specify/migration/preferences.md` with a `--remember` opt-in?
 4. **Granularity of web slices**: emit one `[MIG]` per slice (recommended for true per-change review) or one `[MIG]` for the whole web migration with internal gates? The first is more reviewable but produces more tasks.
 5. **Version bump**: 0.3.0 → 0.4.0 (Layers 1–7 additive features) or 0.4.0 → 0.5.0 (Layer 8 adds breaking path change for `analysis.md`, recommended)?
@@ -399,6 +399,6 @@ No new scripts required. Existing `scripts/cross-reference-audit.ps1` and `scrip
 
 **Files relocated.** `analysis.md`, `plan.md`, `orchestration.md`, `package-updates.md`, `preferences.md`, `detection.md`, `implement-state.md`, `completion.md`, per-project `{ProjectName}.md` — all move from `.specify/migration/` to `{featureDir}/migration/`.
 
-**Updated touchpoints.** `extension.yml` (header comments + version 0.7.0); `commands/initialize/initialize.md` (path conventions + `featureDir` resolution); all five hooks under `commands/hooks/`; producers (`detect`, `assess`, `plan`, `orchestrate`); per-project state writers (`package-compat`, `build-fix`, `multitarget`, `web-migrate`, `sdk-convert`); workflow review-prompt strings; `presets/fx-to-dotnet-sdd/templates/plan-template.md` artifact table; `fx-to-dotnet/README.md` lifecycle and state-files sections.
+**Updated touchpoints.** `extension.yml` (header comments + version 0.7.0); `commands/initialize/initialize.md` (path conventions + `featureDir` resolution); all five hooks under `commands/hooks/`; producers (`detect`, `assess`, `plan`, `orchestrate`); per-project state writers (`package-compat`, `build-fix`, `multitarget`, `web-migrate`, `sdk-convert`); workflow review-prompt strings; `fx-to-dotnet/templates/plan-template.md` artifact table; `fx-to-dotnet/README.md` lifecycle and state-files sections.
 
 **Verification.** Workspace-wide grep for `\.specify/migration/` over `fx-to-dotnet/**` and `presets/**` returns zero matches. Each producer and consumer references `{featureDir}/migration/` instead. Smoke test on a Framework solution confirms each artifact lands under `specs/<branch>/migration/`.

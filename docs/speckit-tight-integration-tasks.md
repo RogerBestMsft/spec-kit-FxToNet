@@ -100,22 +100,22 @@ Each task lists the files it touches and the acceptance signal that proves it is
 ## Phase 4 — Companion preset (depends on Phase 3; optional / Layer 4)
 
 ### T009 [P] Create preset manifest
-- File: `presets/fx-to-dotnet-sdd/preset.yml`
+- File: `fx-to-dotnet/preset.yml`
 - Include `speckit_version: ">=0.7.2"` and a description tying it to `fx-to-dotnet` >= 0.4.0.
 - **Done when**: YAML loads cleanly.
 
 ### T010 [P] Override `tasks.md` core command
-- File: `presets/fx-to-dotnet-sdd/templates/commands/tasks.md`
+- File: `fx-to-dotnet/templates/commands/tasks.md`
 - Add directive: "If `.specify/extensions.yml` enables `fx-to-dotnet`, do NOT generate migration-themed tasks. Emit only a placeholder `## Phase N: .NET Framework Migration (extension-managed)` heading; the `after_tasks` hook will populate it."
 - **Done when**: file present and resolution order picks it up before core.
 
 ### T011 [P] Override `implement.md` core command
-- File: `presets/fx-to-dotnet-sdd/templates/commands/implement.md`
+- File: `fx-to-dotnet/templates/commands/implement.md`
 - Add directive: "Do not interpret or dispatch `[MIG-*]` tasks yourself; the `before_implement` hook handles them. Do not dispatch any non-`speckit.fx-to-dotnet.*` command for migration items."
 - **Done when**: file present.
 
 ### T012 [P] Override `plan-template.md`
-- File: `presets/fx-to-dotnet-sdd/templates/plan-template.md`
+- File: `fx-to-dotnet/templates/plan-template.md`
 - Add a "Migration Gate" subsection inside Constitution Check that lists the precondition artifacts required before `speckit.implement` may run.
 - **Done when**: file present.
 
@@ -168,7 +168,7 @@ Each task lists the files it touches and the acceptance signal that proves it is
 - **Done when**: second-run diff against first-run is empty.
 
 ### T021 Preset opt-in test (Layer 4)
-- Install `presets/fx-to-dotnet-sdd/`; run `/speckit.tasks` on a Framework solution.
+- Install `fx-to-dotnet/`; run `/speckit.tasks` on a Framework solution.
 - Confirm core emits only the placeholder `## Phase N: .NET Framework Migration (extension-managed)` heading; `tasks-hook` populates it.
 - **Done when**: pre-hook `tasks.md` contains placeholder only; post-hook contains populated `[MIG-*]` rows.
 
@@ -264,7 +264,7 @@ Each task lists the files it touches and the acceptance signal that proves it is
 - Workspace grep (regex) for `\.fx-to-dotnet[/\\]analysis` MUST return zero matches.
 - Workspace grep for `\.specify/migration/analysis\.md` MUST appear in producer (`assess.md`), consumers (`plan-hook.md`, `implement-hook.md`, `orchestrate.md`), and docs.
 - Update `scripts/cross-reference-audit.{ps1,py}` if it hard-codes the old path; confirm both variants exit 0.
-- Inspect `presets/fx-to-dotnet-sdd/**` and every `commands/workflows/**/workflow.yml` for stray references; clean up if found.
+- Inspect `fx-to-dotnet/**` and every `commands/workflows/**/workflow.yml` for stray references; clean up if found.
 - **Done when**: both greps satisfy the criteria; both audit scripts exit 0.
 
 ### T034 End-to-end relocation verification

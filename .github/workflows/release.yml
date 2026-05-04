@@ -67,7 +67,7 @@ jobs:
 
           ext_ver=$(grep -E '^\s+version:' fx-to-dotnet/extension.yml | head -1 \
             | sed -E 's/.*version:[[:space:]]*"?([^"[:space:]]+)"?.*/\1/')
-          preset_ver=$(grep -E '^\s+version:' presets/fx-to-dotnet-sdd/preset.yml | head -1 \
+          preset_ver=$(grep -E '^\s+version:' fx-to-dotnet/preset.yml | head -1 \
             | sed -E 's/.*version:[[:space:]]*"?([^"[:space:]]+)"?.*/\1/')
 
           echo "tag=$VERSION extension=$ext_ver preset=$preset_ver"

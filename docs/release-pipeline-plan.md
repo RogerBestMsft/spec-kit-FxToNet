@@ -8,15 +8,13 @@ Automate the build, validation, packaging, GitHub Release, and community-catalog
 
 ## Tag scheme & artifacts
 
-A single `v<MAJOR>.<MINOR>.<PATCH>` tag produces one GitHub Release with three zip assets:
+A single `v<MAJOR>.<MINOR>.<PATCH>` tag produces one GitHub Release with one zip asset:
 
-- **`fx-to-dotnet-<version>.zip`** — combined bundle with two top-level subfolders (`fx-to-dotnet/` + `fx-to-dotnet-sdd/`); convenient for users who want both. Not directly installable via `specify extension add`.
-- **`fx-to-dotnet-extension-<version>.zip`** — extension only, single `fx-to-dotnet/` subfolder. Installable via `specify extension add`.
-- **`fx-to-dotnet-sdd-<version>.zip`** — preset only, single `fx-to-dotnet-sdd/` subfolder. Installable via `specify preset add`.
+- **`fx-to-dotnet-<version>.zip`** — single `fx-to-dotnet/` subfolder containing both `extension.yml` and `preset.yml`. Installable as either an extension (`specify extension add`) or a preset (`specify preset add`) since both manifests live in the same single top-level subfolder.
 
-Dev install after unzipping the combined bundle: `specify extension add --dev <path>/fx-to-dotnet` and `specify preset add --dev <path>/fx-to-dotnet-sdd`.
+Dev install after unzipping: `specify extension add --dev <path>/fx-to-dotnet` and/or `specify preset add --dev <path>/fx-to-dotnet`.
 
-The numeric portion of the tag MUST equal `extension.version` in [fx-to-dotnet/extension.yml](../fx-to-dotnet/extension.yml) AND `preset.version` in [presets/fx-to-dotnet-sdd/preset.yml](../presets/fx-to-dotnet-sdd/preset.yml). The release workflow fails fast if these three values disagree.
+The numeric portion of the tag MUST equal `extension.version` in [fx-to-dotnet/extension.yml](../fx-to-dotnet/extension.yml) AND `preset.version` in [fx-to-dotnet/preset.yml](../fx-to-dotnet/preset.yml). The release workflow fails fast if these values disagree.
 
 ## Workflows
 
@@ -36,8 +34,8 @@ Static gates (run on both OSes):
 
 Smoke pack (Linux only, fast):
 - Run `support_scripts/package-extensions.sh` with `RELEASES_DIR=$GITHUB_WORKSPACE/releases`.
-- Assert exactly three archives exist: combined bundle + `fx-to-dotnet-extension-<v>.zip` + `fx-to-dotnet-sdd-<v>.zip`.
-- Unzip each and assert the manifests appear at the expected subfolder paths.
+- Assert exactly one archive exists: the combined `fx-to-dotnet-<v>.zip` bundle.
+- Unzip it and assert both `extension.yml` and `preset.yml` appear under `fx-to-dotnet/`.
 
 Test gates (conditional on `tests/` existing — guarded by `if: hashFiles('tests/**') != ''`):
 - `pytest tests/structural tests/scripts -n auto --maxfail=1` (both OSes).
@@ -67,7 +65,7 @@ Jobs:
    - `softprops/action-gh-release@v2`: `tag_name`, `name`, `files: releases/fx-to-dotnet-*.zip releases/SHA256SUMS.txt`, `generate_release_notes: true`, `draft: ${{ github.event_name == 'workflow_dispatch' }}`, `fail_on_unmatched_files: true`.
 5. **`catalog-pr`** (needs: release; conditional `if: secrets.SPECKIT_CATALOG_TOKEN && !github.event.release.prerelease`):
    - Checks out `github/spec-kit` using `SPECKIT_CATALOG_TOKEN` (a fine-grained PAT or GitHub App token with `pull_requests: write` on a fork).
-   - Runs `support_scripts/generate-catalog.py` from this repo and uses a small inline Python step to merge each emitted entry (matched on `id`) into `extensions/catalog.community.json` and `presets/catalog.community.json` — insert if missing, replace by `id` if present, keep `verified: false`. The extension entry points at `fx-to-dotnet-extension-<v>.zip` and the preset entry at `fx-to-dotnet-sdd-<v>.zip` (each is independently installable; the combined bundle is published for convenience but not referenced by the catalog).
+   - Runs `support_scripts/generate-catalog.py` from this repo and uses a small inline Python step to merge each emitted entry (matched on `id`) into `extensions/catalog.community.json` and `presets/catalog.community.json` — insert if missing, replace by `id` if present, keep `verified: false`. Both the extension entry and the preset entry point at the same combined `fx-to-dotnet-<v>.zip` (the manifests share the single `fx-to-dotnet/` subfolder, so one zip serves both install modes).
    - `peter-evans/create-pull-request@v6` opens a PR against `github/spec-kit:main` from a branch `update-fx-to-dotnet-${{ github.ref_name }}`; PR body links to the new release.
    - Skipped silently when the secret is unset (so forks and contributors don't fail builds).
 
@@ -81,9 +79,9 @@ Two ecosystems:
 
 | Script | Change |
 |---|---|
-| [support_scripts/package-extensions.ps1](../support_scripts/package-extensions.ps1) | Honor `$env:RELEASES_DIR`. Build three zips: combined bundle, extension-only, and preset-only. |
-| [support_scripts/package-extensions.sh](../support_scripts/package-extensions.sh) | Same three-zip behavior on Linux. |
-| [support_scripts/generate-catalog.py](../support_scripts/generate-catalog.py) | Emit `{ "extensions": [...], "presets": [...] }`; extension entry points at `fx-to-dotnet-extension-<v>.zip`, preset entry at `fx-to-dotnet-sdd-<v>.zip`. |
+| [support_scripts/package-extensions.ps1](../support_scripts/package-extensions.ps1) | Honor `$env:RELEASES_DIR`. Build the single combined `fx-to-dotnet-<v>.zip`. |
+| [support_scripts/package-extensions.sh](../support_scripts/package-extensions.sh) | Same single-zip behavior on Linux. |
+| [support_scripts/generate-catalog.py](../support_scripts/generate-catalog.py) | Emit `{ "extensions": [...], "presets": [...] }`; both entries point at the combined `fx-to-dotnet-<v>.zip`. |
 | [support_scripts/generate-catalog.ps1](../support_scripts/generate-catalog.ps1) | Same change for parity. |
 
 Out of scope for this round (tracked separately):
