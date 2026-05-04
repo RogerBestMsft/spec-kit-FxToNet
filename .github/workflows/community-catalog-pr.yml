@@ -1,0 +1,152 @@
+name: Community Catalog PR
+
+# Opens a PR against github/spec-kit to update the community catalog entries
+# for the fx-to-dotnet extension and fx-to-dotnet-sdd preset.
+#
+# Triggers:
+#   * Automatically after the `Release` workflow completes successfully on a
+#     tag push (skipped for workflow_dispatch / draft releases).
+#   * Manually via workflow_dispatch with an explicit tag (e.g. v1.2.3).
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish to the community catalog (e.g. v1.0.0).'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: community-catalog-pr-${{ github.event.inputs.tag || github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  catalog-pr:
+    name: Open community catalog PR
+    runs-on: ubuntu-latest
+    # Only run for tag-push releases that succeeded, or manual dispatch.
+    # Skips draft releases produced by workflow_dispatch on the Release workflow.
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'workflow_run' &&
+           github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.event == 'push' &&
+           startsWith(github.event.workflow_run.head_branch, 'v')) }}
+    steps:
+      - name: Resolve release tag
+        id: resolve
+        shell: bash
+        env:
+          DISPATCH_TAG: ${{ github.event.inputs.tag }}
+          RUN_BRANCH:   ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${DISPATCH_TAG}"
+          else
+            tag="${RUN_BRANCH}"
+          fi
+          if ! echo "$tag" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "ERROR: resolved tag '$tag' is not in v MAJOR.MINOR.PATCH form."
+            exit 1
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag=${tag}"
+
+      - name: Check for catalog token
+        id: token
+        env:
+          TOKEN: ${{ secrets.SPECKIT_CATALOG_TOKEN }}
+        run: |
+          if [ -z "${TOKEN:-}" ]; then
+            echo "SPECKIT_CATALOG_TOKEN is not set; skipping catalog PR step."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout this repo (for catalog generator)
+        if: steps.token.outputs.skip == 'false'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.resolve.outputs.tag }}
+          path: fx2dotnet
+
+      - name: Checkout github/spec-kit
+        if: steps.token.outputs.skip == 'false'
+        uses: actions/checkout@v4
+        with:
+          repository: github/spec-kit
+          token: ${{ secrets.SPECKIT_CATALOG_TOKEN }}
+          path: spec-kit
+
+      - name: Set up Python
+        if: steps.token.outputs.skip == 'false'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate catalog entries
+        if: steps.token.outputs.skip == 'false'
+        run: |
+          python fx2dotnet/support_scripts/generate-catalog.py > catalog-entries.json
+          cat catalog-entries.json
+
+      - name: Merge entries into community catalogs
+        if: steps.token.outputs.skip == 'false'
+        shell: python
+        run: |
+          import json, pathlib, sys
+
+          entries = json.loads(pathlib.Path("catalog-entries.json").read_text(encoding="utf-8"))
+
+          def merge(catalog_path: pathlib.Path, new_items: list[dict]) -> None:
+              data = []
+              if catalog_path.exists():
+                  try:
+                      data = json.loads(catalog_path.read_text(encoding="utf-8"))
+                  except json.JSONDecodeError:
+                      print(f"WARNING: {catalog_path} is not valid JSON; replacing with new array")
+                      data = []
+              if not isinstance(data, list):
+                  print(f"ERROR: {catalog_path} is not a JSON array (got {type(data).__name__})")
+                  sys.exit(1)
+              by_id = {e.get("id"): i for i, e in enumerate(data) if isinstance(e, dict)}
+              for item in new_items:
+                  i = by_id.get(item["id"])
+                  if i is None:
+                      data.append(item)
+                  else:
+                      data[i] = item
+              catalog_path.parent.mkdir(parents=True, exist_ok=True)
+              catalog_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+          base = pathlib.Path("spec-kit")
+          merge(base / "extensions" / "catalog.community.json", entries.get("extensions", []))
+          merge(base / "presets"    / "catalog.community.json", entries.get("presets",    []))
+          print("Catalog files updated.")
+
+      - name: Open pull request against github/spec-kit
+        if: steps.token.outputs.skip == 'false'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          path: spec-kit
+          token: ${{ secrets.SPECKIT_CATALOG_TOKEN }}
+          branch: update-fx-to-dotnet-${{ steps.resolve.outputs.tag }}
+          commit-message: |
+            chore(catalog): update fx-to-dotnet to ${{ steps.resolve.outputs.tag }}
+          title: "chore(catalog): update fx-to-dotnet to ${{ steps.resolve.outputs.tag }}"
+          body: |
+            Updates the community catalog entries for the `fx-to-dotnet` extension and
+            `fx-to-dotnet-sdd` preset to **${{ steps.resolve.outputs.tag }}**.
+
+            - Release: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.resolve.outputs.tag }}
+            - Verified: `false` (owner can flip after smoke install).
+
+            Generated automatically by the `community-catalog-pr.yml` workflow in
+            `${{ github.repository }}`.
