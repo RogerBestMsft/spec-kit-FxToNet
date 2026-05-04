@@ -2,8 +2,8 @@
 
 Companion Spec Kit preset for the [`fx-to-dotnet`](../../fx-to-dotnet/README.md) extension.
 
-- **Version**: `0.4.0`
-- **Requires**: `speckit_version >= 0.7.2`, extension `fx-to-dotnet >= 0.4.0`
+- **Version**: `0.8.0`
+- **Requires**: `speckit_version >= 0.7.2`, extension `fx-to-dotnet >= 0.8.0`
 - **License**: MIT
 
 ## What it does

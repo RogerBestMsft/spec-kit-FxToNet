@@ -46,7 +46,7 @@ schema_version: "1.0"
 extension:
   id: "fx-to-dotnet"
   name: ".NET Framework to Modern .NET Migration"
-  version: "0.7.0"
+  version: "0.8.0"
   description: "Orchestrate end-to-end .NET Framework to modern .NET migration across 7 phases, with SDD lifecycle integration"
   author: "Microsoft"
   repository: "https://github.com/AzureAD/fx-to-dotnet-extensions"

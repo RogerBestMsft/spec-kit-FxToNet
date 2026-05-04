@@ -2,8 +2,8 @@ schema_version: "1.0"
 preset:
   id: "fx-to-dotnet-sdd"
   name: ".NET Framework Migration SDD Preset"
-  version: "0.4.0"
-  description: "Companion preset for the fx-to-dotnet extension (>= 0.4.0). Overrides the core speckit.tasks, speckit.implement, and plan-template so migration content is owned end-to-end by fx-to-dotnet hooks and core never emits competing migration tasks or plan content. Layer 4 of the tight integration plan; opt-in."
+  version: "0.8.0"
+  description: "Companion preset for the fx-to-dotnet extension (>= 0.8.0). Overrides the core speckit.tasks, speckit.implement, and plan-template so migration content is owned end-to-end by fx-to-dotnet hooks and core never emits competing migration tasks or plan content. Layer 4 of the tight integration plan; opt-in."
   author: "Microsoft"
   repository: "https://github.com/AzureAD/fx-to-dotnet-extensions"
   license: "MIT"
@@ -12,7 +12,7 @@ requires:
   speckit_version: ">=0.7.2"
   extensions:
     - id: "fx-to-dotnet"
-      version: ">=0.4.0"
+      version: ">=0.8.0"
 
 provides:
   templates:

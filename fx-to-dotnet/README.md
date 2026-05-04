@@ -2,7 +2,7 @@
 
 A single Spec Kit extension that orchestrates migrating .NET Framework applications to modern .NET (e.g. .NET 10) through a 7-phase workflow, optionally driven end-to-end by Spec Kit lifecycle hooks.
 
-- **Version**: `0.7.0`
+- **Version**: `0.8.0`
 - **License**: MIT
 - **Repository**: https://github.com/AzureAD/fx-to-dotnet-extensions
 - **Default target framework**: `net10.0`

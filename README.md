@@ -4,8 +4,8 @@ This repository packages [`fx-to-dotnet`](fx-to-dotnet/README.md) — a single S
 
 The extension integrates tightly with the Spec Kit lifecycle (`/speckit.specify` → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement`) via five lifecycle hooks. Migration content is owned end-to-end by the extension; user-story implementation is gated behind completion of all migration tasks.
 
-- Extension version: `0.7.0` (see [fx-to-dotnet/extension.yml](fx-to-dotnet/extension.yml))
-- Preset version: `0.4.0` (see [presets/fx-to-dotnet-sdd/preset.yml](presets/fx-to-dotnet-sdd/preset.yml))
+- Extension version: `0.8.0` (see [fx-to-dotnet/extension.yml](fx-to-dotnet/extension.yml))
+- Preset version: `0.8.0` (see [presets/fx-to-dotnet-sdd/preset.yml](presets/fx-to-dotnet-sdd/preset.yml))
 - License: MIT
 - Author: Microsoft
 
