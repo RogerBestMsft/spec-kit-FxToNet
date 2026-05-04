@@ -90,18 +90,20 @@ validate_command_references() {
                 continue
             fi
 
-            local text
-            text=$(cat "$full_path")
-
-            if ! echo "$text" | grep -q 'policies/mcp-setup\.md'; then
+            # Grep the file directly. Avoid `echo "$text" | grep -q` because
+            # `set -o pipefail` + `grep -q` can return 141 (SIGPIPE from echo
+            # when grep closes its stdin early on first match), which the `!`
+            # then flips to success — yielding bogus "does not reference"
+            # errors for files larger than the pipe buffer.
+            if ! grep -q 'policies/mcp-setup\.md' "$full_path"; then
                 errors+=("${rel}: does not reference 'policies/mcp-setup.md'")
             fi
 
-            if ! echo "$text" | grep -q '\.mcp\.json'; then
+            if ! grep -q '\.mcp\.json' "$full_path"; then
                 errors+=("${rel}: does not reference '.mcp.json'")
             fi
 
-            if ! echo "$text" | grep -q 'MCP Server Pre-flight'; then
+            if ! grep -q 'MCP Server Pre-flight' "$full_path"; then
                 errors+=("${rel}: missing 'MCP Server Pre-flight' section")
             fi
         done

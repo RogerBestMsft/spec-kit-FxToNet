@@ -7,9 +7,10 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g. 1.0.0). Will create a draft release.'
-        required: true
+        description: 'Version to release (e.g. 1.0.0). Leave blank to use the current version from fx-to-dotnet/extension.yml. Will create a draft release.'
+        required: false
         type: string
+        default: ''
 
 permissions:
   contents: read
@@ -39,6 +40,11 @@ jobs:
           set -euo pipefail
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             version="${{ inputs.version }}"
+            if [ -z "${version}" ]; then
+              version=$(grep -E '^\s+version:' fx-to-dotnet/extension.yml | head -1 \
+                | sed -E 's/.*version:[[:space:]]*"?([^"[:space:]]+)"?.*/\1/')
+              echo "No version input provided; defaulting to extension.yml version: ${version}"
+            fi
             tag="v${version}"
           else
             tag="${GITHUB_REF##*/}"
