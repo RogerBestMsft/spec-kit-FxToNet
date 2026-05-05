@@ -356,7 +356,7 @@ If none, emit a single row: `| — | (none) | — | — | — |`.
 
 ## Execution State
 
-> **Extension-managed (execution state)** — this section is owned by `speckit.fx-to-dotnet.update-packages`. `speckit.fx-to-dotnet.assess` MUST NOT modify the body of this section once populated. To reset, delete this section's body and re-run `speckit.fx-to-dotnet.update-packages`.
+> **Extension-managed (execution state)** — this section is owned by `speckit.fx-to-dotnet.update-packages`. `speckit.fx-to-dotnet.assess` MUST NOT modify the body of this section once populated. To reset, delete this section's body and re-run `speckit.fx-to-dotnet.update-packages`. Schema: `chunkedUpdateQueue` is per-project (each entry binds chunks to a single csproj in dependency-layer order, leaf-first); `chunkResults` entries identify completed work via the `(project, chunkId)` pair. See `commands/package-compat/update.md` for the full YAML shape.
 
 (no execution state yet — `speckit.fx-to-dotnet.update-packages` has not run)
 ```

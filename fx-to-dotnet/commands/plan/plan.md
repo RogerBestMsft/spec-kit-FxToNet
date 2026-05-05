@@ -110,19 +110,24 @@ The ONLY goal of package updates is to reach versions that support .NET Core / .
 
 This step covers only packages that have a compatible version available. Packages resolved as unsupported in step 4 (replace, remove-rewrite, wrap-isolate, drop, or block) are NOT included here — their resolutions are already established.
 
-Using the compatibility cards from the assessment, build an ordered update plan:
+Using the compatibility cards from the assessment, build a **per-project** ordered update plan. Each project gets its own numbered chunk sequence — chunks are NEVER solution-wide. This makes the chunked update plan executable on a per-project basis (one `[MIG-*]` task per (project, chunk) pair).
 
 1. List every package whose current version already supports the target (marked `Supports Target: yes`) — these require NO changes and must appear in the "Packages Already Compatible" table in the plan output so reviewers can confirm nothing was missed
 2. Exclude packages already resolved as unsupported in step 4
-3. From the remaining packages, classify each update by risk:
-   - Minor updates: the minimum compatible version is a patch or minor bump from the current version
-   - Major updates: the minimum compatible version is a major version jump or has known API surface risk
-4. Order minor updates before major updates
-5. Within each risk level, order by dependency depth (leaf packages first)
-6. Each package appears exactly once
-7. Flag packages with `Legacy Content: yes` or `Install Script: yes` with manual review notes
+3. Build the per-project queue:
+   a. Iterate projects in **dependency-layer order** from `analysis.md` (Layer 1 / leaf projects first, then Layer 2, etc.). Use the `Projects` column on each compatibility card to determine which packages belong to which project.
+   b. For each project, collect the set of remaining packages (after excluding step-4 resolutions and packages already compatible at their current version).
+   c. **If a project has zero packages requiring update, skip it entirely** — it must NOT appear in the Chunked Update Plan section. It will already be reflected via the "Packages Already Compatible" table.
+   d. Within each project, classify each update by risk:
+      - Minor updates: the minimum compatible version is a patch or minor bump from the current version
+      - Major updates: the minimum compatible version is a major version jump or has known API surface risk
+   e. Order minor updates before major updates within the project.
+   f. Within each risk level, order by dependency depth (leaf packages first).
+   g. Group the ordered packages into one or more numbered chunks (`Chunk 1`, `Chunk 2`, …) restarting numbering for each project. A chunk contains packages of the same risk level that can be updated and validated together.
+4. Flag packages with `Legacy Content: yes` or `Install Script: yes` with manual review notes
+5. A package may appear under multiple projects (because it is referenced by each); each occurrence is independent for execution purposes. When the solution uses Central Package Management (`Directory.Packages.props`), the executor will no-op the second-and-subsequent updates of the shared `<PackageVersion>` automatically — the per-project task structure is preserved regardless.
 
-Produce numbered chunks, each containing a set of packages that can be updated and validated together.
+Produce, for each project that has at least one package requiring update, a numbered chunk sequence. Each chunk records its risk level (minor / major) and package count so the `tasks-hook` can embed them in the human-readable `[MIG-*]` description.
 
 ### 6. Produce the Migration Plan
 
@@ -180,10 +185,16 @@ These packages already support the target framework at their current version —
 | {packageId} | {currentVersion} |
 
 ### Chunked Update Plan
-Packages requiring update (only those that need a newer version for target framework support):
+Packages requiring update (only those that need a newer version for target framework support), organized **per project** in dependency-layer order. Projects with zero updates are omitted from this section (they appear only in "Packages Already Compatible"). Chunk numbers restart at 1 for each project.
 
-Chunk 1: {package list with current → min compatible versions}
-Chunk 2: ...
+#### Project {relative csproj path} (Layer {N})
+Chunk 1 ({count} {minor|major} updates): {package list with current → min compatible versions}
+Chunk 2 ({count} {minor|major} updates): ...
+
+#### Project {relative csproj path} (Layer {N})
+Chunk 1 ({count} {minor|major} updates): ...
+
+...
 
 ### Legacy Packaging Warnings
 Packages with `content/` folder or `install.ps1` requiring manual review:

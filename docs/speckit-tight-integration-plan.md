@@ -78,7 +78,7 @@ The most invasive hook. Edits `tasks.md`:
 3. **Granular `[MIG]` task emission**: one task per granular dispatch unit. Each line carries a machine-readable trailer (see Layer 3):
    ```
    - [ ] [MIG-001] [P0] Convert ProjectA.csproj to SDK-style — dispatch: speckit.fx-to-dotnet.convert(ProjectA.csproj)
-   - [ ] [MIG-002] [P0] Apply package chunk 1 (minor updates)   — dispatch: speckit.fx-to-dotnet.update-packages(chunk=1)
+   - [ ] [MIG-002] [P0] Apply package chunk 1 to LibraryA (3 minor updates)   — dispatch: speckit.fx-to-dotnet.update-packages(project=src/LibraryA/LibraryA.csproj, chunk=1)
    - [ ] [MIG-003] [P0] Multitarget LibraryA to net10.0         — dispatch: speckit.fx-to-dotnet.library-update(LibraryA.csproj)
    - [ ] [MIG-004] [P0] Web migrate WebApp (slice: bootstrap)   — dispatch: speckit.fx-to-dotnet.web-app-migration(WebApp.csproj, slice=bootstrap)
    ```

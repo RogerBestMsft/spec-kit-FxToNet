@@ -211,15 +211,21 @@ Run the **Phase Checkpoint Prompt** (see `<continuation-preferences>`) with head
 
 If the packageCompatFindings (from `{featureDir}/migration/package-updates.md`) contains low-confidence items, present them to the user and wait for approval before proceeding.
 
-Invoke `speckit.fx-to-dotnet.update-packages` with:
-- solutionPath
-- targetFramework
-- Chunked update plan from the Migration Planner's output (chunked update queue and compatibility cards — read from `{featureDir}/migration/package-updates.md`)
+Iterate **per project**, in dependency-layer order (Layer 1 / leaf projects first), using the per-project chunk sequences from the plan's `### Chunked Update Plan` section in `{featureDir}/migration/plan.md`:
 
-The command reads and updates its execution state in `{featureDir}/migration/package-updates.md`.
+For each layer:
+- For each project in the layer that has at least one chunk:
+  - Invoke `speckit.fx-to-dotnet.update-packages` with:
+    - solutionPath
+    - targetFramework
+    - `project` = relative csproj path
+    - The chunk sequence for that project (compatibility cards + chunked queue, scoped to this project) read from `{featureDir}/migration/package-updates.md`
+  - The command reads and updates its execution state in `{featureDir}/migration/package-updates.md` and appends one `chunkResults` entry per `(project, chunkId)` pair processed.
+  - Projects within the same layer are independent — process them in any order; they may be processed in parallel where the host supports it.
+- Wait for ALL projects in the current layer to complete before moving to the next layer.
+- If any project fails or stops with unresolved blockers, ask the user whether to continue, retry, or stop.
 
-Wait for completion.
-If it fails or stops with unresolved blockers, ask user whether to continue, retry, or stop.
+The phase completes when every `(project, chunkId)` pair listed in the per-project queues has a corresponding `chunkResults` entry.
 
 Update `packageCompatStatus` and `lastCompletedPhase: "package-compat"` in `{featureDir}/migration/orchestration.md` via the `edit` tool.
 
