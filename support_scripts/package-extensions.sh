@@ -12,9 +12,12 @@ SPEC_KIT="$SCRIPT_DIR/.."
 RELEASES="${RELEASES_DIR:-$SPEC_KIT/../releases}"
 
 # A single release artifact is produced:
-#   fx-to-dotnet-<version>.zip — extension + companion preset together,
-#                                with both extension.yml and preset.yml
-#                                inside the single fx-to-dotnet/ subfolder.
+#   fx-to-dotnet.zip — extension + companion preset together,
+#                      with both extension.yml and preset.yml inside the
+#                      single fx-to-dotnet/ subfolder.
+#
+# The archive name is unversioned; the release tag (e.g. v1.0.0) provides
+# the version namespace via the GitHub Releases download URL.
 #
 # `specify extension add` and `specify preset add` both accept a manifest
 # inside a single top-level subfolder, so this layout is installable as
@@ -36,8 +39,9 @@ mkdir -p "$RELEASES"
 RELEASES="$(cd "$RELEASES" && pwd)"
 
 version=$(grep 'version:' "$EXTENSION_DIR/extension.yml" | head -1 | sed 's/.*version:[[:space:]]*//' | tr -d '"')
+echo "Manifest version: ${version}"
 
-bundle_archive="$RELEASES/${BUNDLE_ID}-${version}.zip"
+bundle_archive="$RELEASES/${BUNDLE_ID}.zip"
 
 rm -f "$bundle_archive"
 

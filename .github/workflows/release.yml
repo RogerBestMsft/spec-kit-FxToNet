@@ -11,6 +11,11 @@ on:
         required: false
         type: string
         default: ''
+      prerelease:
+        description: 'Mark the GitHub Release as a prerelease. Prereleases are NOT published to the spec-kit community catalog.'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -145,10 +150,11 @@ jobs:
           tag_name: ${{ needs.version-equality.outputs.tag }}
           name: Release ${{ needs.version-equality.outputs.tag }}
           files: |
-            releases/fx-to-dotnet-*.zip
+            releases/fx-to-dotnet.zip
             releases/SHA256SUMS.txt
           generate_release_notes: true
           draft: ${{ github.event_name == 'workflow_dispatch' }}
+          prerelease: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease == true }}
           fail_on_unmatched_files: true
 
   update-changelog:
@@ -259,6 +265,42 @@ jobs:
           git commit -m "docs(changelog): update for ${{ needs.version-equality.outputs.tag }} [skip ci]"
           git push origin "HEAD:${{ github.event.repository.default_branch }}"
 
-  # Note: the community catalog PR is handled by the dedicated
-  # `community-catalog-pr.yml` workflow, which is triggered manually
-  # via workflow_dispatch with the release tag.
+  # ---------------------------------------------------------------------------
+  # Publish to the spec-kit community catalog (manual approval gate).
+  # ---------------------------------------------------------------------------
+  # The approval job uses a GitHub Environment (`publish`) configured with
+  # required reviewers. The release will pause here until a reviewer approves;
+  # only then does the `publish` job invoke the community-catalog-pr workflow
+  # to open a PR against github/spec-kit.
+  #
+  # Prereleases (workflow_dispatch with `prerelease: true`) skip both the
+  # approval gate and the catalog publish — prereleases are never pushed
+  # to the community catalog.
+  #
+  # Configure the environment under: Settings → Environments → publish.
+  # Add the maintainer(s) as required reviewers and (optionally) a wait timer.
+  await-publish-approval:
+    name: Await publish approval
+    runs-on: ubuntu-latest
+    needs: [release, version-equality]
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.prerelease == true) }}
+    environment:
+      name: publish
+      url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.version-equality.outputs.tag }}
+    steps:
+      - name: Approval recorded
+        run: |
+          echo "Publish approved for ${{ needs.version-equality.outputs.tag }}"
+
+  publish:
+    name: Publish to spec-kit community catalog
+    needs: [await-publish-approval, version-equality]
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.prerelease == true) }}
+    uses: ./.github/workflows/community-catalog-pr.yml
+    with:
+      tag: ${{ needs.version-equality.outputs.tag }}
+    secrets:
+      SPECKIT_CATALOG_TOKEN: ${{ secrets.SPECKIT_CATALOG_TOKEN }}
+
+  # Note: the community catalog PR is also reachable as a standalone manual
+  # workflow (`community-catalog-pr.yml`) for re-runs against an existing tag.

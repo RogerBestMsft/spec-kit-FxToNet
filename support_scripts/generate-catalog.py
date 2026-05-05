@@ -5,10 +5,10 @@ Outputs a single JSON object:
   { "extensions": [ { ...entry... } ], "presets": [ { ...entry... } ] }
 
 The extension and the companion preset now ship together inside the single
-`fx-to-dotnet-<version>.zip` bundle (both `extension.yml` and `preset.yml`
+`fx-to-dotnet.zip` bundle (both `extension.yml` and `preset.yml`
 live under the `fx-to-dotnet/` subfolder). Both catalog entries reference
 the same combined artifact:
-  {repository}/releases/download/v{version}/fx-to-dotnet-{version}.zip
+  {repository}/releases/download/v{version}/fx-to-dotnet.zip
 """
 
 import json
@@ -48,7 +48,7 @@ def _build_entry(
         "version": version,
         "description": _yaml_value(text, "description") or "",
         "author": _yaml_value(text, "author") or "Microsoft",
-        "url": f"{repo}/releases/download/v{version}/{artifact_zip}-{version}.zip",
+        "url": f"{repo}/releases/download/v{version}/{artifact_zip}.zip",
         "repository": repo,
         "tags": default_tags,
         "family": family,

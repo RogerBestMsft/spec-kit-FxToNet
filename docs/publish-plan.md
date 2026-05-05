@@ -129,7 +129,7 @@ Flow: prepare repo → bump versions → tag GitHub releases → submit two PRs 
 
 1. `version-check.ps1` reports `1.0.0` consistently across files.
 2. `cross-reference-audit.ps1` reports zero unresolved cross-refs.
-3. `unzip -l releases/fx-to-dotnet-1.0.0.zip` shows `extension.yml` at root
+3. `unzip -l releases/fx-to-dotnet.zip` shows `extension.yml` at root
    and `policies/` directory present.
 4. In a scratch repo: `specify extension add fx-to-dotnet --from <release-url>`
    succeeds; `specify extension list` shows it; running each top-level command

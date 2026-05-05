@@ -3,7 +3,9 @@ name: Community Catalog PR
 # Opens a PR against github/spec-kit to update the community catalog entries
 # for the fx-to-dotnet extension and fx-to-dotnet-sdd preset.
 #
-# Trigger: manual only via workflow_dispatch with an explicit tag (e.g. v1.2.3).
+# Triggers:
+#   - workflow_dispatch: manual run with an explicit tag (e.g. v1.2.3)
+#   - workflow_call:     invoked by release.yml after the publish-approval gate
 on:
   workflow_dispatch:
     inputs:
@@ -11,12 +13,22 @@ on:
         description: 'Release tag to publish to the community catalog (e.g. v1.0.0).'
         required: true
         type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Release tag to publish to the community catalog (e.g. v1.0.0).'
+        required: true
+        type: string
+    secrets:
+      SPECKIT_CATALOG_TOKEN:
+        description: 'PAT with permission to fork/PR github/spec-kit.'
+        required: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: community-catalog-pr-${{ github.event.inputs.tag || github.ref }}
+  group: community-catalog-pr-${{ inputs.tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -28,7 +40,7 @@ jobs:
         id: resolve
         shell: bash
         env:
-          DISPATCH_TAG: ${{ github.event.inputs.tag }}
+          DISPATCH_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
           tag="${DISPATCH_TAG}"

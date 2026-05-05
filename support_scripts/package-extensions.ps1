@@ -21,9 +21,12 @@ if ($env:RELEASES_DIR) {
 }
 
 # A single release artifact is produced:
-#   fx-to-dotnet-<version>.zip — extension + companion preset together,
-#                                with both extension.yml and preset.yml
-#                                inside the single fx-to-dotnet/ subfolder.
+#   fx-to-dotnet.zip — extension + companion preset together,
+#                      with both extension.yml and preset.yml inside the
+#                      single fx-to-dotnet/ subfolder.
+#
+# The archive name is unversioned; the release tag (e.g. v1.0.0) provides
+# the version namespace via the GitHub Releases download URL.
 #
 # `specify extension add` and `specify preset add` both accept a manifest
 # inside a single top-level subfolder, so this layout is installable as
@@ -47,7 +50,8 @@ if (-not (Test-Path $extensionYml)) { Write-Error "$extensionYml not found" }
 if (-not (Test-Path $presetYml))    { Write-Error "$presetYml not found" }
 
 $version       = Get-ManifestVersion -Path $extensionYml
-$bundleArchive = Join-Path $Releases "$BundleId-$version.zip"
+Write-Host "Manifest version: $version"
+$bundleArchive = Join-Path $Releases "$BundleId.zip"
 
 if (Test-Path $bundleArchive) { Remove-Item $bundleArchive -Force }
 

@@ -5,10 +5,10 @@
 .DESCRIPTION
     Outputs a single JSON object: { extensions: [...], presets: [...] }.
     The extension and the companion preset now ship together inside the
-    single fx-to-dotnet-<version>.zip bundle (both extension.yml and
-    preset.yml live under the fx-to-dotnet/ subfolder). Both catalog
-    entries reference the same combined artifact:
-      {repository}/releases/download/v{version}/fx-to-dotnet-{version}.zip
+    single fx-to-dotnet.zip bundle (both extension.yml and preset.yml
+    live under the fx-to-dotnet/ subfolder). Both catalog entries
+    reference the same combined artifact:
+      {repository}/releases/download/v{version}/fx-to-dotnet.zip
 #>
 
 $ErrorActionPreference = 'Stop'
@@ -61,7 +61,7 @@ function Build-Entry {
         version     = $version
         description = $description
         author      = $author
-        url         = "${repo}/releases/download/v${version}/${ZipBase}-${version}.zip"
+        url         = "${repo}/releases/download/v${version}/${ZipBase}.zip"
         repository  = $repo
         tags        = $DefaultTags
         family      = $Family

@@ -71,7 +71,7 @@ def test_package_extensions_produces_bundle(repo_root: Path, tmp_path: Path, she
     all_zips = sorted(releases.glob("*.zip"))
     assert len(all_zips) == 1, f"expected 1 zip, got {len(all_zips)}: {all_zips}"
 
-    bundle_zips = list(releases.glob("fx-to-dotnet-*.zip"))
+    bundle_zips = list(releases.glob("fx-to-dotnet.zip"))
     assert len(bundle_zips) == 1, f"expected 1 bundle zip, got {bundle_zips}"
 
     ok, issues = _bundle_contents_ok(bundle_zips[0])

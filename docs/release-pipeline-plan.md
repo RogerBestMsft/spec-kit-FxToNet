@@ -62,7 +62,7 @@ Jobs:
    - Uploads `releases/` as a workflow artifact.
 4. **`release`** (needs: package):
    - Downloads the `releases/` artifact.
-   - `softprops/action-gh-release@v2`: `tag_name`, `name`, `files: releases/fx-to-dotnet-*.zip releases/SHA256SUMS.txt`, `generate_release_notes: true`, `draft: ${{ github.event_name == 'workflow_dispatch' }}`, `fail_on_unmatched_files: true`.
+   - `softprops/action-gh-release@v2`: `tag_name`, `name`, `files: releases/fx-to-dotnet.zip releases/SHA256SUMS.txt`, `generate_release_notes: true`, `draft: ${{ github.event_name == 'workflow_dispatch' }}`, `fail_on_unmatched_files: true`.
 5. **`catalog-pr`** (needs: release; conditional `if: secrets.SPECKIT_CATALOG_TOKEN && !github.event.release.prerelease`):
    - Checks out `github/spec-kit` using `SPECKIT_CATALOG_TOKEN` (a fine-grained PAT or GitHub App token with `pull_requests: write` on a fork).
    - Runs `support_scripts/generate-catalog.py` from this repo and uses a small inline Python step to merge each emitted entry (matched on `id`) into `extensions/catalog.community.json` and `presets/catalog.community.json` — insert if missing, replace by `id` if present, keep `verified: false`. Both the extension entry and the preset entry point at the same combined `fx-to-dotnet-<v>.zip` (the manifests share the single `fx-to-dotnet/` subfolder, so one zip serves both install modes).
