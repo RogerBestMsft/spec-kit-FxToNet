@@ -157,20 +157,6 @@ jobs:
           prerelease: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease == true }}
           fail_on_unmatched_files: true
 
-  # ---------------------------------------------------------------------------
-  # Publish to the spec-kit community catalog (automatic, no approval gate).
-  # ---------------------------------------------------------------------------
-  # The `publish` job runs automatically after the GitHub Release is created
-  # and invokes the reusable community-catalog-pr workflow to open a PR
-  # against github/spec-kit. No manual approval is required.
-  publish:
-    name: Publish to spec-kit community catalog
-    needs: [release, version-equality]
-    uses: ./.github/workflows/community-catalog-pr.yml
-    with:
-      tag: ${{ needs.version-equality.outputs.tag }}
-    secrets:
-      SPECKIT_CATALOG_TOKEN: ${{ secrets.SPECKIT_CATALOG_TOKEN }}
-
-  # Note: the community catalog PR is also reachable as a standalone manual
-  # workflow (`community-catalog-pr.yml`) for re-runs against an existing tag.
+  # Note: publishing to the spec-kit community catalog is handled by the
+  # standalone `community-catalog-pr.yml` workflow, triggered manually via
+  # workflow_dispatch with the release tag.
