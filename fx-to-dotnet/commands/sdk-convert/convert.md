@@ -4,9 +4,9 @@ tools: [microsoft.githubcopilot.modernization.mcp/convert_project_to_sdk_style, 
 commands:
   - "speckit.fx-to-dotnet.fix"
 handoffs:
-  - label: "Modernize Packages"
-    agent: speckit.fx-to-dotnet.package-modernize
-    prompt: "Audit NuGet package compatibility and generate a chunked update plan"
+  - label: "Apply Package Updates"
+    agent: speckit.fx-to-dotnet.update-packages
+    prompt: "Apply the chunked package update plan from {featureDir}/migration/package-updates.md"
     send: false
   - label: "Convert Next Project"
     agent: speckit.fx-to-dotnet.convert

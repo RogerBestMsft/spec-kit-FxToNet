@@ -7,7 +7,7 @@ Automated test suite for the `fx-to-dotnet` Spec Kit extension.
 - `structural/` — L1 static validation of manifests, frontmatter, cross-references.
 - `scripts/` — L2 behavior tests for `support_scripts/` and `fx-to-dotnet/scripts/` helpers.
 - `runtime/` — L3 end-to-end with hand-rolled mock MCP responder.
-- `schemas/` — JSON schemas for `extension.yml`, `preset.yml`, `workflow.yml`, MCP config.
+- `schemas/` — JSON schemas for `extension.yml`, `preset.yml`, MCP config.
 - `fixtures/` — Minimal SDK-style csproj + a small layered fake-solution.
 
 ## Prerequisites

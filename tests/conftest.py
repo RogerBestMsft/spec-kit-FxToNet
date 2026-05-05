@@ -39,15 +39,6 @@ def preset_yml(preset_dir: Path) -> dict:
 
 
 @pytest.fixture(scope="session")
-def workflow_ymls(extension_dir: Path) -> list[tuple[Path, dict]]:
-    """All discovered workflow.yml files paired with their parsed contents."""
-    out: list[tuple[Path, dict]] = []
-    for path in sorted((extension_dir / "commands" / "workflows").glob("*/workflow.yml")):
-        out.append((path, yaml.safe_load(path.read_text(encoding="utf-8"))))
-    return out
-
-
-@pytest.fixture(scope="session")
 def fixtures_dir() -> Path:
     return Path(__file__).resolve().parent / "fixtures"
 

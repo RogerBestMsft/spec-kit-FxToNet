@@ -8,9 +8,9 @@ Last updated: 2026-05-01
 
 Build a layered automated test suite for the `fx-to-dotnet` Spec Kit extension that catches regressions in:
 
-1. **Manifests & cross-references** — `extension.yml`, `preset.yml`, workflow YAML, command frontmatter, README claims.
+1. **Manifests & cross-references** — `extension.yml`, `preset.yml`, command frontmatter, README claims.
 2. **Helper scripts** — the `scripts/` and `fx-to-dotnet/scripts/` PowerShell/Bash/Python utilities.
-3. **Runtime command behavior** — orchestrator phase ordering, hook lifecycle, resume semantics, workflow execution — exercised against a mock MCP server and a synthetic .NET Framework solution.
+3. **Runtime command behavior** — orchestrator phase ordering, hook lifecycle, resume semantics — exercised against a mock MCP server and a synthetic .NET Framework solution.
 
 LLM/agent reasoning steps are explicitly **out of scope** for CI; only the deterministic file-IO and MCP interactions of each command are exercised.
 
@@ -31,7 +31,6 @@ tests/
 ├── schemas/
 │   ├── extension.schema.json
 │   ├── preset.schema.json
-│   ├── workflow.schema.json
 │   └── mcp-config.schema.json
 ├── fixtures/
 │   ├── HelloLib.csproj          # minimal SDK-style project for build script tests
@@ -62,11 +61,10 @@ All Phase 2 items are independent and run in parallel under `pytest-xdist`.
 |---|---|---|
 | 5 | `structural/test_extension_yaml.py` | JSON-schema validity; semver `extension.version`; every `provides.commands[].file`, `scripts[]` exists; every `hooks[].command` is in `provides.commands`. |
 | 6 | `structural/test_preset_yaml.py` | Schema validity; `requires.extensions[].version` constraint satisfied by current `extension.yml`; every `provides.templates[].path` exists. |
-| 7 | `structural/test_workflow_yaml.py` | Discover all `commands/workflows/*/workflow.yml`; every `steps[].command` is declared; gate options non-empty; do-while has `condition` + `max_iterations`; `{{ inputs.X }}` references resolve. |
 | 8 | `structural/test_command_frontmatter.py` | Every `commands/**/*.md` parses; `description` present; `tools` is a list; referenced commands/scripts resolve. |
 | 9 | `structural/test_cross_references.py` | Wraps `scripts/cross-reference-audit.py` via subprocess (exit 0); also re-implements scan to snapshot resolved/unresolved sets. |
 | 10 | `structural/test_policy_links.py` | Grep command bodies for `policies/*.md` and `policies/**/POLICY.md`; assert each target exists. |
-| 11 | `structural/test_readme_claims.py` | README command/hook tables match `extension.yml` (catches drift like the known-stale `docs/workflow-plan.md`). |
+| 11 | `structural/test_readme_claims.py` | README command/hook tables match `extension.yml`. |
 | 12 | `structural/test_version_consistency.py` | Wraps `scripts/version-check.py` (exit 0). |
 | 13 | `structural/test_mcp_config.py` | Extract JSON block from `fx-to-dotnet/policies/mcp-setup.md`; validate against schema; also runs `mcp-config-validate.ps1` and `.sh` as subprocesses. |
 
@@ -92,7 +90,6 @@ Runs alongside Phase 2.
 | 22 | `runtime/test_orchestrator_phase_order.py` | Drive `commands/orchestrate/orchestrate.md`; inspect `plan.md` mutations to verify documented 7-phase order. |
 | 23 | `runtime/test_resume_semantics.py` | Pre-seed `plan.md` with `lastCompletedPhase: assess`; rerun driver; assert assess is skipped. |
 | 24 | `runtime/test_hook_lifecycle.py` | Simulate `after_specify → after_plan → after_tasks → before_implement → after_implement`; mandatory hooks fail-loud, optional hooks silent-exit. |
-| 25 | `runtime/test_workflow_executor.py` | Minimal interpreter for `workflow.yml` (gate / do-while / command); run `assess-and-plan` and `sdk-normalize` against mock MCP; assert step outputs and gate prompts. |
 
 ## Phase 5 — CI integration
 
@@ -107,12 +104,11 @@ Runs alongside Phase 2.
 - [fx-to-dotnet/extension.yml](../fx-to-dotnet/extension.yml) — source of truth for declared commands/hooks/scripts.
 - [fx-to-dotnet/preset.yml](../fx-to-dotnet/preset.yml) — preset version coupling.
 - `fx-to-dotnet/commands/**/*.md` — frontmatter + cross-reference targets.
-- `fx-to-dotnet/commands/workflows/*/workflow.yml` — schema + executor input.
 - [fx-to-dotnet/policies/mcp-setup.md](../fx-to-dotnet/policies/mcp-setup.md) — MCP JSON snippet.
 - [fx-to-dotnet/scripts/bash/dotnet-build.sh](../fx-to-dotnet/scripts/bash/dotnet-build.sh), [fx-to-dotnet/scripts/powershell/dotnet-build.ps1](../fx-to-dotnet/scripts/powershell/dotnet-build.ps1) — runtime scripts under test.
 - All `scripts/` helpers — wrapped via subprocess assertions; any pair drift surfaced gets fixed.
 - `policies/**/POLICY.md`, `fx-to-dotnet/policies/*.md` — link-check targets.
-- [README.md](../README.md), [docs/workflow-plan.md](workflow-plan.md) — claim-validation targets (workflow-plan.md is known-stale; tests will catch it).
+- [README.md](../README.md) — claim-validation target.
 
 ## Verification
 
@@ -124,7 +120,6 @@ Runs alongside Phase 2.
 6. **Mutation matrix** — five deliberate defects each fail exactly the expected test, no collateral:
    - Delete a command file → `test_extension_yaml` / `test_cross_references`.
    - Mismatch preset version → `test_preset_yaml`.
-   - Break a `steps[].command` name → `test_workflow_yaml`.
    - Malform `mcp-setup.md` JSON → `test_mcp_config`.
    - Bump only one extension version (when more are added) → `test_version_consistency`.
 7. Suite budget < 3 min per OS.
@@ -144,8 +139,6 @@ Runs alongside Phase 2.
 - **PR #1**: Phases 1–3 + CI step 26 (L1 + L2 with green CI). Smallest blast radius, fastest feedback.
 - **PR #2**: Phase 4 (L3 runtime/mock-MCP) + Phase 5 steps 27–28 (release + dependabot polish) + nightly workflow.
 
-The known-stale [docs/workflow-plan.md](workflow-plan.md) will be flagged by `test_readme_claims`; the test fails-loud and the doc is fixed in PR #1 (no warn-only suppression).
-
 ## Suggested execution order
 
 1. Phase 1 (scaffolding) → Phase 2 (structural) — fastest feedback.
@@ -164,11 +157,11 @@ Task IDs are stable across phases; `[P]` denotes tasks safe to run in parallel w
   - *Done when*: directories exist and are tracked.
 - **T002 [P]** Author `tests/requirements.txt` pinning `pytest>=8`, `pyyaml>=6`, `jsonschema>=4`, `pytest-xdist>=3`.
   - *Done when*: `pip install -r tests/requirements.txt` succeeds on a clean venv.
-- **T003 [P]** Author `tests/conftest.py` exposing `repo_root`, `extension_yml`, `preset_yml`, `workflow_ymls`, `tmp_solution_fixture`.
+- **T003 [P]** Author `tests/conftest.py` exposing `repo_root`, `extension_yml`, `preset_yml`, `tmp_solution_fixture`.
   - *Done when*: a smoke test consuming each fixture passes.
 - **T004 [P]** Author `tests/README.md` documenting `pytest -q`, `pytest -n auto`, and `Invoke-Pester tests/scripts/Scripts.Tests.ps1`.
   - *Done when*: file present; commands work locally.
-- **T005 [P]** Author JSON schemas under `tests/schemas/`: `extension.schema.json`, `preset.schema.json`, `workflow.schema.json`, `mcp-config.schema.json`.
+- **T005 [P]** Author JSON schemas under `tests/schemas/`: `extension.schema.json`, `preset.schema.json`, `mcp-config.schema.json`.
   - *Done when*: validating each live manifest against its schema returns zero errors.
 - **T006 [P]** Author `tests/fixtures/HelloLib.csproj` — minimal SDK-style `net8.0` library + one `Class1.cs`.
   - *Done when*: `dotnet build` succeeds locally.
@@ -179,14 +172,12 @@ Task IDs are stable across phases; `[P]` denotes tasks safe to run in parallel w
 
 - **T008 [P]** `tests/structural/test_extension_yaml.py` — schema validity; semver; every `provides.commands[].file` and `scripts[]` resolves; every `hooks[].command` is declared.
 - **T009 [P]** `tests/structural/test_preset_yaml.py` — schema; preset version constraint matches current `extension.yml`; templates resolve.
-- **T010 [P]** `tests/structural/test_workflow_yaml.py` — every `steps[].command` declared; gate `options` non-empty; do-while has `condition` + `max_iterations`; `{{ inputs.X }}` references resolve.
 - **T011 [P]** `tests/structural/test_command_frontmatter.py` — frontmatter parses; `description` present; `tools` is list; cross-refs resolve.
 - **T012 [P]** `tests/structural/test_cross_references.py` — wraps `support_scripts/cross-reference-audit.py` + snapshot of resolved/unresolved sets.
 - **T013 [P]** `tests/structural/test_policy_links.py` — `policies/*.md` and `policies/**/POLICY.md` targets exist.
 - **T014 [P]** `tests/structural/test_readme_claims.py` — README ↔ `extension.yml` drift check.
 - **T015 [P]** `tests/structural/test_version_consistency.py` — wraps `support_scripts/version-check.py`.
 - **T016 [P]** `tests/structural/test_mcp_config.py` — JSON in `mcp-setup.md` + validate scripts.
-- **T017** Fix [docs/workflow-plan.md](workflow-plan.md) staleness so T014 stays green without suppression.
 
 ### Phase 3 — L2 Script tests (parallel with Phase 2)
 
@@ -205,7 +196,7 @@ Task IDs are stable across phases; `[P]` denotes tasks safe to run in parallel w
 - **T027 [P]** `tests/runtime/test_orchestrator_phase_order.py` — 7-phase order in `plan.md`.
 - **T028 [P]** `tests/runtime/test_resume_semantics.py` — pre-seed `lastCompletedPhase: assess`; assess phase skipped.
 - **T029 [P]** `tests/runtime/test_hook_lifecycle.py` — mandatory hooks fail-loud, optional hooks silent-exit.
-- **T030 [P]** `tests/runtime/test_workflow_executor.py` — minimal interpreter; runs `assess-and-plan` and `sdk-normalize` against the mock MCP.
+- **T030 [P]** _(removed: workflow executor — YAML workflows have been removed from the extension.)_
 
 ### Phase 5 — CI integration
 

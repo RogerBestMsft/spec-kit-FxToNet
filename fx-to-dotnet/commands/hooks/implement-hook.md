@@ -11,7 +11,7 @@ You are the `before_implement` HOOK for the `fx-to-dotnet` extension — the gat
 - On non-Framework workspaces: **silent-exit success** with no prompts, no edits.
 - This hook is the **ONLY** mechanism that interprets `[MIG-*]` task `dispatch:` trailers. The core `speckit.implement` agent must never dispatch them itself.
 - Every dispatch target is validated against `^speckit\.fx-to-dotnet\.[a-z0-9-]+$` BEFORE invocation. Targets that fail this prefix check are rejected with an audit-log entry and the user is asked to abort or skip. **This is the technical enforcement of goal 5.**
-- Build failures inside an invoked workflow ALWAYS pause for user review, even if the user previously chose `autoApprove-rest`. (`autoApprove-rest` applies to the OUTER per-task gate, not to inner workflow gates.)
+- Build failures inside an invoked dispatch target ALWAYS pause for user review, even if the user previously chose `autoApprove-rest`. (`autoApprove-rest` applies to the OUTER per-task gate, not to inner build/fix loops.)
 - Resume state lives in `{featureDir}/migration/implement-state.md` and is read on entry, written on every state transition.
 </contract>
 
@@ -45,9 +45,6 @@ Remediation:
   1. Run `/speckit.plan` (the `after_plan` hook will run `assess` + `plan` automatically), then
   2. Run `/speckit.tasks` (the `after_tasks` hook will emit `[MIG-*]` tasks), then
   3. Re-run `/speckit.implement`.
-
-Alternatively, invoke `speckit.fx-to-dotnet.assess-and-plan` directly to populate
-`{featureDir}/migration/analysis.md` and `{featureDir}/migration/plan.md` in one step, then run `/speckit.tasks`.
 ```
 
 `speckit.implement` will NOT run.
@@ -104,7 +101,7 @@ Display:
 
 - Task ID and description
 - Dispatch target and args
-- A summary of what the target command/workflow will do (read from its `description:` frontmatter)
+- A summary of what the target command will do (read from its `description:` frontmatter)
 - Files likely to change (best-effort, e.g., the project file passed as args)
 
 ### 5c. Outer review prompt
@@ -124,8 +121,8 @@ If outer gate mode is `autoApprove-rest`, treat as `approve` automatically.
 ### 5d. Dispatch (on approve)
 
 - Append a pre-invocation entry to the audit log: `<timestamp> <MIG-NNN> dispatch <target> START`.
-- Invoke the mapped command/workflow with the parsed args.
-- Inner workflow `gate` steps continue to fire on build failure — they are NOT bypassed by the outer `autoApprove-rest`. **If a build failure pauses an inner gate, surface that gate to the user verbatim and wait for their response.**
+- Invoke the mapped command with the parsed args.
+- Inner build/fix loops continue to pause on build failure — they are NOT bypassed by the outer `autoApprove-rest`. **If a build failure pauses an inner prompt, surface that prompt to the user verbatim and wait for their response.**
 - On success: mark the row `[X]`; append `<timestamp> <MIG-NNN> dispatch <target> OK` to the audit log.
 - On failure: prompt `retry | skip | abort` and act accordingly. `skip` marks `[~]` with the failure summary; `abort` exits non-zero.
 

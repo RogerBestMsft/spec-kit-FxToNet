@@ -75,8 +75,8 @@ Granularity rules (per Layer 6):
 |---|---|---|
 | SDK conversion | legacy project | `speckit.fx-to-dotnet.convert` |
 | Package updates | planned chunk | `speckit.fx-to-dotnet.update-packages` |
-| Multitarget libraries | non-web project | `speckit.fx-to-dotnet.library-update` |
-| Web migration | slice (bootstrap, controllers, auth, …) | `speckit.fx-to-dotnet.web-app-migration` |
+| Multitarget libraries | non-web project | `speckit.fx-to-dotnet.multitarget-migrate` |
+| Web migration | slice (bootstrap, controllers, auth, …) | `speckit.fx-to-dotnet.web-migrate` |
 | Build verification | solution | `speckit.fx-to-dotnet.fix` |
 
 Examples (illustrative):
@@ -84,8 +84,8 @@ Examples (illustrative):
 ```
 - [ ] [MIG-001] [P0] Convert ProjectA.csproj to SDK-style — dispatch: speckit.fx-to-dotnet.convert(ProjectA.csproj)
 - [ ] [MIG-002] [P0] Apply package chunk 1 (minor updates) — dispatch: speckit.fx-to-dotnet.update-packages(chunk=1)
-- [ ] [MIG-003] [P0] Multitarget LibraryA to net10.0 — dispatch: speckit.fx-to-dotnet.library-update(LibraryA.csproj)
-- [ ] [MIG-004] [P0] Web migrate WebApp slice=bootstrap — dispatch: speckit.fx-to-dotnet.web-app-migration(WebApp.csproj, slice=bootstrap)
+- [ ] [MIG-003] [P0] Multitarget LibraryA to net10.0 — dispatch: speckit.fx-to-dotnet.multitarget-migrate(LibraryA.csproj)
+- [ ] [MIG-004] [P0] Web migrate WebApp slice=bootstrap — dispatch: speckit.fx-to-dotnet.web-migrate(WebApp.csproj, slice=bootstrap)
 - [ ] [MIG-005] [P0] Solution build verification — dispatch: speckit.fx-to-dotnet.fix(solution)
 ```
 

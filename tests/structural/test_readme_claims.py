@@ -25,21 +25,11 @@ def test_extension_readme_command_table_matches_manifest(
 def test_extension_readme_cites_all_core_commands(
     extension_dir: Path, extension_yml: dict
 ) -> None:
-    """The 11 core (non-hook, non-workflow) commands must appear in the README."""
+    """All non-hook commands must appear in the README."""
     readme = (extension_dir / "README.md").read_text(encoding="utf-8")
     cited = set(CMD_ROW_RE.findall(readme))
     declared = [c["name"] for c in extension_yml["provides"]["commands"]]
-    core = [
-        n for n in declared
-        if "-hook" not in n
-        and not any(
-            n.endswith(f".{w}")
-            for w in (
-                "assess-and-plan", "sdk-normalize", "package-modernize",
-                "package-update", "library-plan", "web-app-migration", "library-update",
-            )
-        )
-    ]
+    core = [n for n in declared if "-hook" not in n]
     missing = [n for n in core if n not in cited]
     assert not missing, "Core commands missing from README:\n  " + "\n  ".join(missing)
 

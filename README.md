@@ -18,7 +18,7 @@ graph LR
     Root --> Docs[docs/<br/>plans + integration]
     Root --> Sup[support_scripts/<br/>build + release tooling]
 
-    Ext --> Cmds[commands/<br/>11 core + 5 hooks + 7 workflows]
+    Ext --> Cmds[commands/<br/>12 core + 5 hooks]
     Ext --> Pol[policies/<br/>migration guidance]
     Ext --> Scr[scripts/<br/>bash + powershell]
     Ext --> Manifest[extension.yml]
@@ -31,7 +31,7 @@ graph LR
 
 | Path | Purpose |
 |------|---------|
-| [fx-to-dotnet/](fx-to-dotnet/README.md) | The Spec Kit extension itself — commands, hooks, workflows, policies, scripts — plus the companion `fx-to-dotnet-sdd` preset (manifest at [fx-to-dotnet/preset.yml](fx-to-dotnet/preset.yml), templates under [fx-to-dotnet/templates/](fx-to-dotnet/templates/)) |
+| [fx-to-dotnet/](fx-to-dotnet/README.md) | The Spec Kit extension itself — commands, hooks, policies, scripts — plus the companion `fx-to-dotnet-sdd` preset (manifest at [fx-to-dotnet/preset.yml](fx-to-dotnet/preset.yml), templates under [fx-to-dotnet/templates/](fx-to-dotnet/templates/)) |
 | [docs/](docs/) | Design plans: workflow, publish, release pipeline, automated tests, tight-integration plan + tasks |
 | [support_scripts/](support_scripts/) | Cross-platform helpers for version bumping, packaging, deploying, catalog generation, and cross-reference auditing |
 
@@ -189,7 +189,7 @@ Per-project state files (`{ProjectName}.md`) contain four sections written by di
 
 ## Commands Catalog
 
-The extension provides 11 core commands, 7 workflows, and 5 lifecycle hooks. See [fx-to-dotnet/README.md](fx-to-dotnet/README.md) for full details.
+The extension provides 12 core commands and 5 lifecycle hooks. See [fx-to-dotnet/README.md](fx-to-dotnet/README.md) for full details.
 
 | Group | Command(s) |
 |-------|------------|
@@ -197,7 +197,6 @@ The extension provides 11 core commands, 7 workflows, and 5 lifecycle hooks. See
 | Phase commands | `assess`, `plan`, `convert`, `update-packages`, `multitarget-migrate`, `web-migrate` |
 | Cross-cutting | `fix` (build/fix loop) |
 | Utilities | `detect`, `inventory`, `show-policy` |
-| Workflows | `assess-and-plan`, `sdk-normalize`, `package-modernize`, `package-update`, `library-plan`, `library-update`, `web-app-migration` |
 | Hooks | `specify-hook`, `plan-hook`, `tasks-hook`, `implement-hook`, `verify-hook` |
 
 ## `[MIG-*]` Dispatch Format and Validation
@@ -207,8 +206,8 @@ The `after_tasks` hook emits one row per granular dispatch unit. Each row carrie
 ```
 - [ ] [MIG-001] [P0] Convert ProjectA.csproj to SDK-style — dispatch: speckit.fx-to-dotnet.convert(ProjectA.csproj)
 - [ ] [MIG-002] [P0] Apply package chunk 1 (minor updates) — dispatch: speckit.fx-to-dotnet.update-packages(chunk=1)
-- [ ] [MIG-003] [P0] Multitarget LibraryA to net10.0       — dispatch: speckit.fx-to-dotnet.library-update(LibraryA.csproj)
-- [ ] [MIG-004] [P0] Web migrate WebApp slice=bootstrap    — dispatch: speckit.fx-to-dotnet.web-app-migration(WebApp.csproj, slice=bootstrap)
+- [ ] [MIG-003] [P0] Multitarget LibraryA to net10.0       — dispatch: speckit.fx-to-dotnet.multitarget-migrate(LibraryA.csproj)
+- [ ] [MIG-004] [P0] Web migrate WebApp slice=bootstrap    — dispatch: speckit.fx-to-dotnet.web-migrate(WebApp.csproj, slice=bootstrap)
 ```
 
 ```mermaid
@@ -274,7 +273,6 @@ Several commands work independently of the full migration suite:
 
 - [fx-to-dotnet extension README](fx-to-dotnet/README.md) — extension-level details, commands, hooks, state files (also covers the bundled `fx-to-dotnet-sdd` preset)
 - [docs/speckit-tight-integration-plan.md](docs/speckit-tight-integration-plan.md) — the integration design plan
-- [docs/workflow-plan.md](docs/workflow-plan.md) — workflow command design
 - [docs/release-pipeline-plan.md](docs/release-pipeline-plan.md) — release pipeline
 - [docs/publish-plan.md](docs/publish-plan.md) — publishing plan
 - [docs/automated-test-plan.md](docs/automated-test-plan.md) — automated test plan

@@ -44,16 +44,6 @@ graph TB
         Show[show-policy]
     end
 
-    subgraph Workflows[Workflows]
-        AP[assess-and-plan]
-        SN[sdk-normalize]
-        PM[package-modernize]
-        PU[package-update]
-        LP[library-plan]
-        LU[library-update]
-        WAM[web-app-migration]
-    end
-
     subgraph Pol[Policies]
         DL[dependency-layers]
         EF6[ef6-migration-policy]
@@ -71,7 +61,6 @@ graph TB
 
     H2 --> Assess
     H2 --> Plan
-    H4 --> Workflows
     H5 --> Fix
 
     Orch --> Assess
@@ -137,8 +126,8 @@ The `after_tasks` hook emits one row per granular dispatch unit. Each row carrie
 ```
 - [ ] [MIG-001] [P0] Convert ProjectA.csproj to SDK-style — dispatch: speckit.fx-to-dotnet.convert(ProjectA.csproj)
 - [ ] [MIG-002] [P0] Apply package chunk 1 (minor updates) — dispatch: speckit.fx-to-dotnet.update-packages(chunk=1)
-- [ ] [MIG-003] [P0] Multitarget LibraryA to net10.0 — dispatch: speckit.fx-to-dotnet.library-update(LibraryA.csproj)
-- [ ] [MIG-004] [P0] Web migrate WebApp slice=bootstrap — dispatch: speckit.fx-to-dotnet.web-app-migration(WebApp.csproj, slice=bootstrap)
+- [ ] [MIG-003] [P0] Multitarget LibraryA to net10.0 — dispatch: speckit.fx-to-dotnet.multitarget-migrate(LibraryA.csproj)
+- [ ] [MIG-004] [P0] Web migrate WebApp slice=bootstrap — dispatch: speckit.fx-to-dotnet.web-migrate(WebApp.csproj, slice=bootstrap)
 ```
 
 The `dispatch:` trailer is parsed and validated by the `before_implement` hook against the regex `^speckit\.fx-to-dotnet\.[a-z0-9-]+\(.*\)$`. Targets that do not match the `speckit.fx-to-dotnet.` prefix are rejected and the task is marked `[~]` with a `dispatch-rejected` audit-log entry — this is the technical enforcement that **migrations only run extension-owned commands**.
@@ -162,7 +151,7 @@ The `before_implement` hook walks each unchecked `[MIG-*]` row in document order
 - `abort` — stop the run; leave remaining rows unchecked
 - `autoApprove-rest` — invoke this and all subsequent rows without further outer prompts
 
-**Build failures inside an invoked workflow always pause for review**, even when `autoApprove-rest` is active. State is persisted to `{featureDir}/migration/implement-state.md` and the run is resumable.
+**Build failures inside an invoked dispatch target always pause for review**, even when `autoApprove-rest` is active. State is persisted to `{featureDir}/migration/implement-state.md` and the run is resumable.
 
 After all `[MIG-*]` rows are resolved the hook appends `## Migration Execution Summary` to `plan.md` and inserts a `> ✓ Migration Complete` checkpoint above the first `[US*]` task in `tasks.md`.
 
@@ -393,37 +382,6 @@ Per-project `{ProjectName}.md` contains four sections written by different comma
 | `## Build Fix` | `fix` (transient — reset each invocation) |
 | `## Multitarget` | `multitarget-migrate` |
 | `## Web Migration` | `web-migrate` |
-
-## Workflows
-
-The extension ships seven YAML workflows under `commands/workflows/` that compose the core commands into common scenarios:
-
-| Workflow | Purpose |
-|----------|---------|
-| `assess-and-plan` | Read-only: `initialize` → `detect` → `assess` → `plan`, then gate for review |
-| `sdk-normalize` | Convert all needs-sdk-conversion projects in dependency-layer order |
-| `package-modernize` | Apply the chunked package compatibility plan solution-wide |
-| `package-update` | Bump a single package across the solution and verify |
-| `library-plan` | Plan multitarget migration for one library project |
-| `library-update` | Execute multitarget migration for one library project |
-| `web-app-migration` | Phase 6 web migration in slices (bootstrap, controllers, etc.) |
-
-```mermaid
-graph LR
-    AP[assess-and-plan] -.feeds.-> SN[sdk-normalize]
-    SN --> PM[package-modernize]
-    PM --> LU[library-update]
-    LU --> WAM[web-app-migration]
-
-    LP[library-plan] -.feeds.-> LU
-    PU[package-update] -.standalone.-> PU
-
-    style AP fill:#1976d2,color:#fff
-    style SN fill:#1976d2,color:#fff
-    style PM fill:#1976d2,color:#fff
-    style LU fill:#1976d2,color:#fff
-    style WAM fill:#1976d2,color:#fff
-```
 
 ## Policies
 
