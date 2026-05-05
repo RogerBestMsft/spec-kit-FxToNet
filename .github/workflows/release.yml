@@ -12,10 +12,10 @@ on:
         type: string
         default: ''
       prerelease:
-        description: 'Mark the GitHub Release as a prerelease. Prereleases are NOT published to the spec-kit community catalog.'
+        description: 'Mark the GitHub Release as a prerelease.'
         required: false
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
@@ -266,36 +266,14 @@ jobs:
           git push origin "HEAD:${{ github.event.repository.default_branch }}"
 
   # ---------------------------------------------------------------------------
-  # Publish to the spec-kit community catalog (manual approval gate).
+  # Publish to the spec-kit community catalog (automatic, no approval gate).
   # ---------------------------------------------------------------------------
-  # The approval job uses a GitHub Environment (`publish`) configured with
-  # required reviewers. The release will pause here until a reviewer approves;
-  # only then does the `publish` job invoke the community-catalog-pr workflow
-  # to open a PR against github/spec-kit.
-  #
-  # Prereleases (workflow_dispatch with `prerelease: true`) skip both the
-  # approval gate and the catalog publish — prereleases are never pushed
-  # to the community catalog.
-  #
-  # Configure the environment under: Settings → Environments → publish.
-  # Add the maintainer(s) as required reviewers and (optionally) a wait timer.
-  await-publish-approval:
-    name: Await publish approval
-    runs-on: ubuntu-latest
-    needs: [release, version-equality]
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.prerelease == true) }}
-    environment:
-      name: publish
-      url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.version-equality.outputs.tag }}
-    steps:
-      - name: Approval recorded
-        run: |
-          echo "Publish approved for ${{ needs.version-equality.outputs.tag }}"
-
+  # The `publish` job runs automatically after the GitHub Release is created
+  # and invokes the reusable community-catalog-pr workflow to open a PR
+  # against github/spec-kit. No manual approval is required.
   publish:
     name: Publish to spec-kit community catalog
-    needs: [await-publish-approval, version-equality]
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.prerelease == true) }}
+    needs: [release, version-equality]
     uses: ./.github/workflows/community-catalog-pr.yml
     with:
       tag: ${{ needs.version-equality.outputs.tag }}
