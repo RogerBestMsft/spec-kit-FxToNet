@@ -21,10 +21,12 @@ def test_dotnet_build_sh_markers(repo_root: Path, fixtures_dir: Path) -> None:
     script = repo_root / "fx-to-dotnet" / "scripts" / "bash" / "dotnet-build.sh"
     target = fixtures_dir / "HelloLib.csproj"
     result = run([bash, str(script), str(target)])
+    # Assert returncode first so a build failure surfaces the actual dotnet
+    # output rather than being masked by a missing-marker assertion.
+    assert result.returncode == 0, f"build failed:\n{result.stdout}\n{result.stderr}"
     assert "::build-start::" in result.stdout
     assert "::build-end::" in result.stdout
     assert "exit-code:" in result.stdout
-    assert result.returncode == 0, f"build failed:\n{result.stdout}\n{result.stderr}"
 
 
 def test_dotnet_build_ps1_markers(repo_root: Path, fixtures_dir: Path) -> None:
@@ -33,10 +35,10 @@ def test_dotnet_build_ps1_markers(repo_root: Path, fixtures_dir: Path) -> None:
     script = repo_root / "fx-to-dotnet" / "scripts" / "powershell" / "dotnet-build.ps1"
     target = fixtures_dir / "HelloLib.csproj"
     result = run([pwsh, "-NoProfile", "-File", str(script), str(target)])
+    assert result.returncode == 0, f"build failed:\n{result.stdout}\n{result.stderr}"
     assert "::build-start::" in result.stdout
     assert "::build-end::" in result.stdout
     assert "exit-code:" in result.stdout
-    assert result.returncode == 0, f"build failed:\n{result.stdout}\n{result.stderr}"
 
 
 def test_dotnet_build_sh_propagates_failure(repo_root: Path, tmp_path: Path) -> None:
@@ -46,8 +48,8 @@ def test_dotnet_build_sh_propagates_failure(repo_root: Path, tmp_path: Path) -> 
     bogus = tmp_path / "DoesNotExist.csproj"
     bogus.write_text("<Project></Project>", encoding="utf-8")
     result = run([bash, str(script), str(bogus)])
-    # set -e causes early exit on dotnet failure; final marker may not fire,
-    # but exit code MUST propagate non-zero.
+    # Script disables -e around the dotnet invocation so structured markers
+    # always emit, but the captured exit code MUST propagate non-zero.
     assert result.returncode != 0
 
 
