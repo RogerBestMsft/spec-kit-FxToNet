@@ -38,7 +38,7 @@ fi
 mkdir -p "$RELEASES"
 RELEASES="$(cd "$RELEASES" && pwd)"
 
-version=$(grep 'version:' "$EXTENSION_DIR/extension.yml" | head -1 | sed 's/.*version:[[:space:]]*//' | tr -d '"')
+version=$(grep -E '^\s+version:' "$EXTENSION_DIR/extension.yml" | head -1 | sed -E 's/.*version:[[:space:]]*"?([^"[:space:]]+)"?.*/\1/')
 echo "Manifest version: ${version}"
 
 bundle_archive="$RELEASES/${BUNDLE_ID}.zip"

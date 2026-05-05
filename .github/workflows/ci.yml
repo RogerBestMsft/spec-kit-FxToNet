@@ -77,8 +77,8 @@ jobs:
             exit 1
           fi
 
-          bundle_zip=$(ls "$RELEASES_DIR"/fx-to-dotnet-[0-9]*.zip 2>/dev/null | head -1 || true)
-          if [ -z "$bundle_zip" ]; then echo "ERROR: combined bundle zip not produced"; exit 1; fi
+          bundle_zip="$RELEASES_DIR/fx-to-dotnet.zip"
+          if [ ! -f "$bundle_zip" ]; then echo "ERROR: combined bundle zip not produced at $bundle_zip"; ls -la "$RELEASES_DIR"; exit 1; fi
           echo "Found: $bundle_zip"
 
           tmp=$(mktemp -d)
