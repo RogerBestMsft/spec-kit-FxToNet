@@ -44,11 +44,14 @@ specify extension add fx-to-dotnet
 # 2. (Optional) Install the companion preset for deterministic core overrides
 specify preset add fx-to-dotnet-sdd
 
-# 3. Drive a full migration via the standard Spec Kit lifecycle
+# 3. Drive a full migration via the standard Spec Kit lifecycle.
+#    Each step fires a fx-to-dotnet hook (see "End-to-End Lifecycle" below).
 /speckit.specify  "Migrate MySolution.sln to net10.0"
-/speckit.plan                # after_plan hook runs assess + plan
-/speckit.tasks               # after_tasks hook emits [MIG-*] rows
-/speckit.implement           # before_implement gate executes [MIG-*] tasks first
+                             # after_specify    → speckit.fx-to-dotnet.specify-hook    (detect Framework projects, annotate spec.md)
+/speckit.plan                # after_plan       → speckit.fx-to-dotnet.plan-hook       (run assess + plan; write analysis.md + plan.md)
+/speckit.tasks               # after_tasks      → speckit.fx-to-dotnet.tasks-hook      (emit [MIG-*] rows with dispatch: trailers)
+/speckit.implement           # before_implement → speckit.fx-to-dotnet.implement-hook  THE GATE — run every [MIG-*] before [US*]
+                             # after_implement  → speckit.fx-to-dotnet.verify-hook     (optional: solution build verification + completion.md)
 ```
 
 Or invoke the orchestrator directly (no lifecycle hooks):
