@@ -48,8 +48,8 @@ extension:
   name: ".NET Framework to Modern .NET Migration"
   version: "0.8.0"
   description: "Orchestrate end-to-end .NET Framework to modern .NET migration across 7 phases, with SDD lifecycle integration"
-  author: "Microsoft"
-  repository: "https://github.com/AzureAD/fx-to-dotnet-extensions"
+  author: "RBest"
+  repository: "https://github.com/RogerBestMsft/spec-kit-FxToNet"
   license: "MIT"
 requires:
   speckit_version: ">=0.1.0"
