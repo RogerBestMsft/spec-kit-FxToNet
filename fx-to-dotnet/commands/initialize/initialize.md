@@ -91,7 +91,25 @@ Derive paths:
 - `solutionDir` = parent directory of the resolved `solutionPath`
 - `migrationDir` = `{featureDir}/migration/` (single root for all migration artifacts — shared and private)
 
-## 2. Resume Check
+## 2. MCP Server Pre-flight
+
+Configure the `Microsoft.GitHubCopilot.Modernization.Mcp` server now, before any downstream command (`assess`, `convert`) needs it. Setting up MCP up-front avoids interrupting later phases with an IDE-reload prompt mid-workflow.
+
+The exact config path and top-level JSON key are IDE-dependent — never hardcode them here.
+
+1. Apply the **Host Detection** rules in `policies/mcp-setup.md` to determine the active IDE. From the **Host Matrix** in that policy, derive `{configPath}` (workspace-relative) and `{topKey}` (`servers` for VS Code, `mcpServers` for every other host).
+2. Use the `read` tool to read `{configPath}`.
+3. If the read succeeds AND the JSON contains a `Microsoft.GitHubCopilot.Modernization.Mcp` key under `{topKey}`, the server is already configured — record `mcpStatus: "configured"` and continue to the Resume Check.
+4. Otherwise (file missing or entry absent):
+   - Reference `policies/mcp-setup.md` for the canonical configuration (it provides one snippet per `{topKey}` variant).
+   - Use the `ask-questions` tool to ask the user:
+     - **"Configure automatically"** — create or patch `{configPath}` with the snippet matching `{topKey}`
+     - **"I'll configure it manually"** — show the required snippet and stop initialization (downstream commands will re-check)
+   - If auto-configuring, use the `edit` tool to create or merge the entry into `{configPath}` (creating any parent directory such as `.vscode/` if needed). Preserve any existing server entries when merging.
+   - Tell the user: **"MCP server configured. Reload your IDE window (VS Code: `Ctrl+Shift+P` → `Developer: Reload Window`; otherwise restart the IDE) so the server starts, then re-run this command to continue initialization."**
+   - **Stop** — do not proceed to Resume Check or write `orchestration.md`. After the reload, re-running `initialize` will find the entry already present and pass straight through this step.
+
+## 3. Resume Check
 
 Before initializing fresh state, check for existing progress by reading `{migrationDir}/orchestration.md` with the `read` tool:
 
@@ -99,10 +117,10 @@ Before initializing fresh state, check for existing progress by reading `{migrat
    - Present the current state summary to the user (solutionPath, targetFramework, lastCompletedPhase, and any phase status fields present)
    - Use the `ask-questions` tool to ask whether to **resume from where it left off** or **start fresh** (which will overwrite existing state)
    - If resuming, report the phase to resume from (the phase after `lastCompletedPhase`) and stop — do not modify `orchestration.md`
-   - If starting fresh, proceed to step 3
-2. If the read fails (file does not exist) or `lastCompletedPhase` is `"none"`, proceed to step 3
+   - If starting fresh, proceed to step 4
+2. If the read fails (file does not exist) or `lastCompletedPhase` is `"none"`, proceed to step 4
 
-## 3. Fresh Initialization
+## 4. Fresh Initialization
 
 Create `{migrationDir}/orchestration.md` using the `edit` tool with:
 - solutionPath
@@ -111,12 +129,13 @@ Create `{migrationDir}/orchestration.md` using the `edit` tool with:
 - packageCompatStatus: "not-started"
 - multitargetStatus: "not-started"
 - aspnetMigrationStatus: "not-started"
+- mcpStatus: "configured"  (recorded by step 2 — downstream commands may use this to skip their own pre-flight)
 
 The `edit` tool creates parent directories on write, so writing `{migrationDir}/orchestration.md` provisions `migrationDir`. No other pre-creation is required.
 
 Do not duplicate data that lives in `{featureDir}/migration/analysis.md` (assessment report, project classifications), `{featureDir}/migration/plan.md` (migration plan), or in other `{featureDir}/migration/` files (package compatibility data). Downstream commands re-read those files when resuming.
 
-## 4. Report Output
+## 5. Report Output
 
 Return:
 - solutionPath (resolved absolute path)
