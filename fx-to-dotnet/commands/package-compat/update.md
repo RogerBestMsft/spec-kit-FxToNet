@@ -37,7 +37,7 @@ You are a PACKAGE COMPATIBILITY MIGRATION AGENT for .NET solutions. Your job is 
 - ALWAYS read project files and lock/props files before editing
 - All edits are **scoped to a single project at a time**. The caller passes either a specific `(project, chunk)` pair or a `project` whose remaining chunks should be applied; never iterate across projects in a single invocation.
 - When the solution uses Central Package Management (`Directory.Packages.props`), update the relevant `<PackageVersion>` entries there. If the target `<PackageVersion>` is already at-or-above the requested `toVersion` (because an earlier per-project run already bumped it), treat that package as a no-op for this chunk — do NOT downgrade and do NOT raise an error.
-- Otherwise update local project references in the targeted csproj only.
+- Otherwise update local project references in the targeted csproj only. The same no-downgrade rule applies: if the existing `<PackageReference>` `Version` is already at-or-above the requested `toVersion`, treat the package as a no-op for this chunk — do NOT downgrade and do NOT raise an error.
 - Apply chunks in the chunk order provided by the plan for the targeted project
 - After each chunk, invoke `speckit.fx-to-dotnet.fix` and evaluate outcome before proceeding
 - If `alwaysContinue` is false, ask the user whether to continue after each completed chunk
@@ -110,6 +110,7 @@ For each chunk in the work list:
 1. Read the targeted project's csproj and `Directory.Packages.props` (if present) before editing
 2. For each package in the chunk:
    - If a `Directory.Packages.props` `<PackageVersion>` for the package is already at-or-above `toVersion`, log a no-op for that package and continue — do NOT downgrade.
+   - Otherwise, if the targeted csproj's existing `<PackageReference>` `Version` for the package is already at-or-above `toVersion`, log a no-op for that package and continue — do NOT downgrade.
    - Otherwise apply the version update at the appropriate location (CPM `<PackageVersion>` or local `<PackageReference>` in the targeted csproj).
 3. Invoke `speckit.fx-to-dotnet.fix` scoped to the targeted project (and the solution where required for restore)
 4. Record build result and any code fixes from Build Fix in `chunkResults` — append a new entry `{ project, chunkId, status, packagesUpdated, buildFixOutcome }` to the `chunkResults:` list inside the `## Execution State` section of `stateFile` via the `edit` tool. Never touch the findings zone (header through `## Out-of-Scope Items`).
