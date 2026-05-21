@@ -105,7 +105,7 @@ The exact config path and top-level JSON key are IDE-dependent — never hardcod
    - Use the `ask-questions` tool to ask the user:
      - **"Configure automatically"** — create or patch `{configPath}` with the snippet matching `{topKey}`
      - **"I'll configure it manually"** — show the required snippet and stop initialization (downstream commands will re-check)
-   - If auto-configuring, use the `edit` tool to create or merge the entry into `{configPath}` (creating any parent directory such as `.vscode/` if needed). Preserve any existing server entries when merging.
+   - If auto-configuring, use the `edit` tool to create or merge the entry into `{configPath}` (creating any parent directory such as `.cursor/` if needed). Preserve any existing server entries when merging.
    - Tell the user: **"MCP server configured. Reload your IDE window (VS Code: `Ctrl+Shift+P` → `Developer: Reload Window`; otherwise restart the IDE) so the server starts, then re-run this command to continue initialization."**
    - **Stop** — do not proceed to Resume Check or write `orchestration.md`. After the reload, re-running `initialize` will find the entry already present and pass straight through this step.
 

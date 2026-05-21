@@ -75,7 +75,7 @@ Before any MCP tool calls, verify the workspace has the required MCP server conf
    - Ask the user:
      - **"Configure automatically"** — create or patch `{configPath}` with the snippet matching `{topKey}`
      - **"I'll configure it manually"** — show the required snippet and stop
-   - If auto-configuring, use the `edit` tool to create or merge the entry into `{configPath}` (creating any parent directory such as `.vscode/` if needed).
+   - If auto-configuring, use the `edit` tool to create or merge the entry into `{configPath}` (creating any parent directory such as `.cursor/` if needed).
    - Tell the user: **"Reload your IDE window (VS Code: `Ctrl+Shift+P` → `Developer: Reload Window`; otherwise restart the IDE), then retry this command."**
    - **Stop** — do not proceed until the MCP server is available
 4. If the entry is present, continue to Resume Check
