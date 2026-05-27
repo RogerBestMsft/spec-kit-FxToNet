@@ -11,7 +11,7 @@ The MCP config file location and top-level schema key depend on which IDE the us
 | Host | Workspace config path | Top-level key | Detection signal (workspace-relative) |
 |------|-----------------------|---------------|---------------------------------------|
 | Visual Studio 2022 (17.14+) | `<solutionDir>/.mcp.json` | `mcpServers` | `.vs/` directory, or `*.suo` next to `.sln` |
-| VS Code (1.102+) | `.vscode/mcp.json` | `servers` | `.vscode/` directory |
+| VS Code (1.102+) | `.mcp.json` (workspace root) | `servers` | `.vscode/` directory |
 | Cursor | `.cursor/mcp.json` | `mcpServers` | `.cursor/` directory |
 | Windsurf | `.windsurf/mcp.json` | `mcpServers` | `.windsurf/` or `.codeium/` directory |
 | JetBrains / Junie | `.junie/mcp.json` | `mcpServers` | `.idea/` directory or `*.iml` files |
@@ -44,6 +44,8 @@ The MCP config file location and top-level schema key depend on which IDE the us
 
 ## Canonical Server Entry — `servers` variant (VS Code only)
 
+> VS Code's `mcp.json` schema for stdio servers does not include a `tools` field; tool enablement is managed via the Agent Customizations editor / "Configure Tools" UI, not in `mcp.json`. Do not add `tools` here.
+
 ```json
 {
   "servers": {
@@ -56,9 +58,6 @@ The MCP config file location and top-level schema key depend on which IDE the us
         "--prerelease",
         "--source",
         "https://api.nuget.org/v3/index.json"
-      ],
-      "tools": [
-        "*"
       ]
     }
   }
@@ -96,7 +95,7 @@ If `{configPath}` does not exist or does not contain the required entry:
    - **"I'll configure it manually"** — display the canonical snippet for `{topKey}` above and stop
 2. If the user chooses automatic configuration:
    - Pick the snippet matching `{topKey}` (`servers` for VS Code, `mcpServers` otherwise).
-   - If `{configPath}` does not exist, create it (and any parent directory such as `.vscode/`) with the full canonical content for `{topKey}` using the `edit` tool.
+  - If `{configPath}` does not exist, create it with the full canonical content for `{topKey}` using the `edit` tool.
    - If `{configPath}` exists but lacks the `Microsoft.GitHubCopilot.Modernization.Mcp` entry, merge the server entry into the existing `{topKey}` object using the `edit` tool — preserve all other server entries.
 3. After writing, instruct the user: **"Reload your IDE window (VS Code: `Ctrl+Shift+P` → `Developer: Reload Window`; otherwise restart the IDE) so the MCP server starts, then re-run this command."**
 4. **Stop** — do not proceed to MCP tool calls until the server is available.

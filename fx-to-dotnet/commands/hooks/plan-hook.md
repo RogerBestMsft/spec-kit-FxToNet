@@ -92,6 +92,7 @@ Source: `{featureDir}/migration/plan.md`
 - Phase 3 — Multitarget libraries (per library)
 - Phase 4 — Web app migration (per slice)
 - Phase 5 — Build verification
+- Phase 6 — Deferred work (out-of-scope items, manual acknowledgment)
 
 ### Precondition gate
 Before `speckit.implement` may run, the `before_implement` hook will verify:

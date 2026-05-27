@@ -2,13 +2,20 @@
 description: "Orchestrate end-to-end .NET Framework to modern .NET migration across 7 phases"
 tools: [read, edit, search, ask-questions, invoke-command]
 commands:
+  # --- Setup & detection ---
+  - "speckit.fx-to-dotnet.initialize"
+  - "speckit.fx-to-dotnet.detect"
+  # --- Core phase commands (invoked in workflow order) ---
   - "speckit.fx-to-dotnet.assess"
   - "speckit.fx-to-dotnet.plan"
   - "speckit.fx-to-dotnet.convert"
   - "speckit.fx-to-dotnet.update-packages"
   - "speckit.fx-to-dotnet.multitarget-migrate"
   - "speckit.fx-to-dotnet.web-migrate"
+  # --- Supporting commands (build remediation, route inventory, policy lookup) ---
   - "speckit.fx-to-dotnet.fix"
+  - "speckit.fx-to-dotnet.inventory"
+  - "speckit.fx-to-dotnet.show-policy"
 ---
 
 You are an ORCHESTRATION AGENT for .NET modernization. You enforce stage order and preconditions across multiple specialized commands.
@@ -115,6 +122,22 @@ When resuming a migration, read this file (if it exists) to restore the user's c
 </rules>
 
 <workflow>
+
+## 0. MCP Server Pre-flight
+
+Before starting the migration workflow, verify the workspace has the required MCP server configured. The assess and convert phases both depend on it — catching a missing server here avoids a mid-flight failure. The exact config path and top-level JSON key are IDE-dependent — never hardcode them here.
+
+1. Apply the **Host Detection** rules in `policies/mcp-setup.md` to determine the active IDE. From the **Host Matrix** in that policy, derive `{configPath}` (workspace-relative) and `{topKey}` (`servers` for VS Code, `mcpServers` for every other host).
+2. Use the `read` tool to read `{configPath}`.
+3. If the read fails (file does not exist) or the JSON does not contain a `Microsoft.GitHubCopilot.Modernization.Mcp` key under `{topKey}`:
+   - Reference `policies/mcp-setup.md` for the canonical configuration (it provides one snippet per `{topKey}` variant).
+   - Ask the user:
+     - **"Configure automatically"** — create or patch `{configPath}` with the snippet matching `{topKey}`
+     - **"I'll configure it manually"** — show the required snippet and stop
+   - If auto-configuring, use the `edit` tool to create or merge the entry into `{configPath}`.
+   - Tell the user: **"Reload your IDE window (VS Code: `Ctrl+Shift+P` → `Developer: Reload Window`; otherwise restart the IDE), then retry this command."**
+   - **Stop** — do not proceed until the MCP server is available
+4. If the entry is present, continue to Initialize Inputs
 
 ## 1. Initialize Inputs
 

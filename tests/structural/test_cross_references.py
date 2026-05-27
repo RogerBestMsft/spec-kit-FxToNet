@@ -9,6 +9,9 @@ from pathlib import Path
 
 
 CROSS_REF_RE = re.compile(r"speckit\.fx-to-dotnet[\w-]*\.[\w-]+")
+DISPATCH_TARGET_RE = re.compile(
+    r"dispatch:\s*(speckit\.fx-to-dotnet\.[a-z0-9-]+)\(",
+)
 
 
 def test_cross_reference_audit_script_succeeds(repo_root: Path) -> None:
@@ -34,3 +37,20 @@ def test_resolved_unresolved_snapshot(extension_dir: Path, extension_yml: dict) 
             if ref not in declared:
                 unresolved.append(f"{md.relative_to(extension_dir)}: {ref}")
     assert not unresolved, "Unresolved cross-references:\n  " + "\n  ".join(unresolved)
+
+
+def test_tasks_hook_dispatch_targets_are_declared(
+    extension_dir: Path, extension_yml: dict
+) -> None:
+    declared = {c["name"] for c in extension_yml["provides"]["commands"]}
+    tasks_hook = extension_dir / "commands" / "hooks" / "tasks-hook.md"
+    text = tasks_hook.read_text(encoding="utf-8")
+
+    targets = {m.group(1) for m in DISPATCH_TARGET_RE.finditer(text)}
+    assert targets, "No dispatch targets were found in tasks-hook.md"
+
+    missing = sorted(t for t in targets if t not in declared)
+    assert not missing, (
+        "tasks-hook dispatch target(s) are not declared in extension.yml:\n  "
+        + "\n  ".join(missing)
+    )

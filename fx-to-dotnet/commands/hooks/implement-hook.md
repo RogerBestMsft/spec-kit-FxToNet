@@ -1,6 +1,13 @@
 ---
 description: "before_implement hook (mandatory — THE GATE). Verifies assessment + plan + [MIG-*] preconditions; refuses to proceed with speckit.implement otherwise. Then executes each unchecked [MIG-*] task in order with per-task user review (approve | skip | abort | autoApprove-rest), validating that every dispatch target matches ^speckit\\.fx-to-dotnet\\. Build failures always pause even under autoApprove-rest. Silent-exit on non-Framework solutions."
-tools: [read, edit, search, run]
+tools: [read, edit, search, ask-questions, invoke-command]
+commands:
+  - "speckit.fx-to-dotnet.detect"
+  - "speckit.fx-to-dotnet.convert"
+  - "speckit.fx-to-dotnet.update-packages"
+  - "speckit.fx-to-dotnet.multitarget-migrate"
+  - "speckit.fx-to-dotnet.web-migrate"
+  - "speckit.fx-to-dotnet.fix"
 ---
 You are the `before_implement` HOOK for the `fx-to-dotnet` extension — the gate that enforces goals 3, 4, 5, and 6 of the tight integration plan. You run automatically before `speckit.implement` begins. Your job is to (1) verify assessment + migration plan are complete, (2) execute every unchecked `[MIG-*]` task in order with per-task user review, and (3) only allow `speckit.implement` to proceed once all migration tasks are resolved.
 
@@ -9,7 +16,7 @@ You are the `before_implement` HOOK for the `fx-to-dotnet` extension — the gat
 <contract>
 - This hook is **MANDATORY** (`optional: false`). When it exits non-zero, `speckit.implement` MUST NOT run.
 - On non-Framework workspaces: **silent-exit success** with no prompts, no edits.
-- This hook is the **ONLY** mechanism that interprets `[MIG-*]` task `dispatch:` trailers. The core `speckit.implement` agent must never dispatch them itself.
+- This hook is the **ONLY** mechanism that interprets `[MIG-*]` task trailers (`dispatch:` for active migration work; `deferred:` for post-migration items requiring manual acknowledgment). The core `speckit.implement` agent must never process them itself.
 - Every dispatch target is validated against `^speckit\.fx-to-dotnet\.[a-z0-9-]+$` BEFORE invocation. Targets that fail this prefix check are rejected with an audit-log entry and the user is asked to abort or skip. **This is the technical enforcement of goal 5.**
 - Build failures inside an invoked dispatch target ALWAYS pause for user review, even if the user previously chose `autoApprove-rest`. (`autoApprove-rest` applies to the OUTER per-task gate, not to inner build/fix loops.)
 - Resume state lives in `{featureDir}/migration/implement-state.md` and is read on entry, written on every state transition.
@@ -72,23 +79,27 @@ Outer gate mode: prompt
 
 ## 4. Parse migration tasks
 
-Parse `tasks.md` and collect the ordered list of `[MIG-*]` tasks where the checkbox is `[ ]` (unchecked). For each, extract:
+Parse `tasks.md` and collect the ordered list of `[MIG-*]` tasks where the checkbox is `[ ]` (unchecked). For each task, first determine its **type** by examining the trailer:
 
+- **Dispatch task** — the line contains `— dispatch: `: extract the dispatch target (text after `— dispatch: ` up to the closing `)`), the dispatch command (text up to the first `(`), and the dispatch args (text inside the outermost parentheses).
+- **Deferred task** — the line contains `— deferred: `: extract the deferred description (text after `— deferred: `).
+- **Malformed** — the line contains neither `— dispatch: ` nor `— deferred: `: log a warning to the audit log (`<timestamp> <MIG-NNN> malformed — no trailer`) and mark `[~]` with comment `no-trailer`. Do NOT abort the run; continue to the next task.
+
+Also extract for every task regardless of type:
 - The task ID (`MIG-NNN`)
-- The human-readable description
-- The dispatch target — substring after `— dispatch: ` up to the closing `)`
-- The dispatch command (text up to first `(`)
-- The dispatch args (text inside the outermost parentheses)
+- The human-readable description (text between the priority tag and the `—` separator)
 
 If no unchecked `[MIG-*]` tasks remain, jump to step 6.
 
 ## 5. Per-task review loop (goals 4, 5, 6)
 
-For each unchecked `[MIG-*]` task in document order:
+For each unchecked `[MIG-*]` task in document order (skipping any already classified as `malformed` in step 4):
 
 ### 5a. Validate dispatch target (goal 5)
 
-Reject the task if the dispatch command does NOT match `^speckit\.fx-to-dotnet\.[a-z0-9-]+$`. On rejection:
+**Deferred tasks**: skip this step entirely — proceed directly to step 5b.
+
+**Dispatch tasks**: Reject the task if the dispatch command does NOT match `^speckit\.fx-to-dotnet\.[a-z0-9-]+$`. On rejection:
 
 - Append an entry to the audit log noting the rejected target.
 - Show the user: `Task <MIG-NNN> has dispatch target '<target>' which does not match the required prefix 'speckit.fx-to-dotnet.'. This task will be SKIPPED.`
@@ -97,16 +108,22 @@ Reject the task if the dispatch command does NOT match `^speckit\.fx-to-dotnet\.
 
 ### 5b. Show preview
 
-Display:
+**Dispatch tasks**: Display:
 
 - Task ID and description
 - Dispatch target and args
 - A summary of what the target command will do (read from its `description:` frontmatter)
 - Files likely to change (best-effort, e.g., the project file passed as args)
 
+**Deferred tasks**: Display:
+
+- Task ID, description, and `[P2]` priority
+- The post-migration action text (extracted from the `— deferred:` trailer)
+- Note: "This item requires manual post-migration action. No command will be dispatched."
+
 ### 5c. Outer review prompt
 
-If the current outer gate mode is `prompt`, ask:
+**Dispatch tasks** — if the current outer gate mode is `prompt`, ask:
 
 ```
 Review [MIG-NNN] <description>:
@@ -118,13 +135,31 @@ Review [MIG-NNN] <description>:
 
 If outer gate mode is `autoApprove-rest`, treat as `approve` automatically.
 
-### 5d. Dispatch (on approve)
+**Deferred tasks** — if the current outer gate mode is `prompt`, ask:
+
+```
+Deferred item [MIG-NNN] <description>:
+  acknowledge        — mark [X] and continue; no command dispatched
+  skip               — mark [~] and continue
+  abort              — stop the run; leave remaining tasks unchecked; exit non-zero
+```
+
+If outer gate mode is `autoApprove-rest`, treat deferred tasks as `acknowledge` automatically.
+
+### 5d. Dispatch (on approve) / Acknowledge (on acknowledge)
+
+**Dispatch tasks (on approve)**:
 
 - Append a pre-invocation entry to the audit log: `<timestamp> <MIG-NNN> dispatch <target> START`.
 - Invoke the mapped command with the parsed args.
 - Inner build/fix loops continue to pause on build failure — they are NOT bypassed by the outer `autoApprove-rest`. **If a build failure pauses an inner prompt, surface that prompt to the user verbatim and wait for their response.**
 - On success: mark the row `[X]`; append `<timestamp> <MIG-NNN> dispatch <target> OK` to the audit log.
 - On failure: prompt `retry | skip | abort` and act accordingly. `skip` marks `[~]` with the failure summary; `abort` exits non-zero.
+
+**Deferred tasks (on acknowledge)**:
+
+- Mark the row `[X]` immediately — no command is invoked.
+- Append to the audit log: `<timestamp> <MIG-NNN> deferred acknowledged`.
 
 ### 5e. Persist state after every transition
 

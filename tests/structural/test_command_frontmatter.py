@@ -46,9 +46,21 @@ def test_tools_field_is_list_when_present(extension_dir: Path) -> None:
     bad: list[str] = []
     for md in _command_md_files(extension_dir):
         fm = _frontmatter(md.read_text(encoding="utf-8")) or {}
-        if "tools" in fm and not isinstance(fm["tools"], list):
-            bad.append(str(md.relative_to(extension_dir)))
-    assert not bad, "tools must be a list:\n  " + "\n  ".join(bad)
+        if "tools" not in fm:
+            continue
+
+        tools = fm["tools"]
+        rel = str(md.relative_to(extension_dir))
+
+        if not isinstance(tools, list):
+            bad.append(f"{rel}: tools is {type(tools).__name__}, expected list")
+            continue
+
+        for idx, tool in enumerate(tools):
+            if not isinstance(tool, str) or not tool.strip():
+                bad.append(f"{rel}: tools[{idx}] must be a non-empty string")
+
+    assert not bad, "Invalid tools frontmatter:\n  " + "\n  ".join(bad)
 
 
 def test_referenced_commands_in_frontmatter_resolve(

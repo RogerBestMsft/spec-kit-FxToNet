@@ -22,7 +22,7 @@ Generate `[US*]` user-story tasks from `plan.md` exactly as core does, EXCLUDING
 
 ## 3. Migration phase placeholder
 
-If `EXTENSION_ACTIVE` is true, emit ONLY a placeholder migration phase heading at the position where the migration phase will appear (immediately before the first user-story phase):
+If `EXTENSION_ACTIVE` is true, emit ONLY a placeholder migration phase heading positioned AFTER the Setup phase and IMMEDIATELY BEFORE any Foundational (blocking-prerequisites) phase. Setup MUST always precede the migration placeholder — never demote it.
 
 ```
 ## Phase N: .NET Framework Migration (extension-managed)
@@ -30,7 +30,7 @@ If `EXTENSION_ACTIVE` is true, emit ONLY a placeholder migration phase heading a
 > **Extension-managed placeholder** — the `fx-to-dotnet` extension's `after_tasks` hook will replace this heading with a populated `## Phase N: .NET Framework Migration` block containing `[MIG-*]` tasks. Do not edit by hand.
 ```
 
-Do NOT emit any `[MIG-*]` tasks. Do NOT emit any task that the migration hook would dedupe.
+Number this placeholder sequentially based on its position (e.g., `Phase 2` when Setup is Phase 1). Do NOT emit any `[MIG-*]` tasks. Do NOT emit any task that the migration hook would dedupe.
 
 If `EXTENSION_ACTIVE` is false, omit the placeholder entirely and behave as core.
 
