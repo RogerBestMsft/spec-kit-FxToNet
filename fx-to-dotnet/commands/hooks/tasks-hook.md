@@ -1,15 +1,15 @@
 ---
-description: "after_tasks hook (mandatory). Dedupe migration-themed tasks, insert a `## Phase N: .NET Framework Migration` block (with six named sub-layers) after the Setup/Foundational phases and immediately before the first user-story phase (renumbering only the phases that follow), and emit granular [MIG-*] tasks — active tasks (Layers 1–5) carry a `dispatch:` trailer; deferred/out-of-scope items (Layer 6) carry a `deferred:` trailer for manual acknowledgment. Silent-exit on non-Framework solutions. Idempotent."
+description: "after_tasks hook (mandatory). Dedupe migration-themed tasks, insert a `## Phase N: .NET Framework Migration` block (with six named sub-layers) after the Setup phase and immediately before the Foundational phase (renumbering Foundational and all later phases), and emit granular [MIG-*] tasks — active tasks (Layers 1–5) carry a `dispatch:` trailer; deferred/out-of-scope items (Layer 6) carry a `deferred:` trailer for manual acknowledgment. Silent-exit on non-Framework solutions. Idempotent."
 tools: [read, edit, search]
 ---
-You are the `after_tasks` HOOK for the `fx-to-dotnet` extension. You run automatically after `speckit.tasks` completes. Your job is to (1) remove migration-themed tasks the core agent may have emitted, (2) insert an extension-owned `## Phase N: .NET Framework Migration` block (organized into six named sub-layers) immediately AFTER the Setup/Foundational phases and BEFORE the first user-story phase (renumbering only the phases that follow the insertion point), (3) emit one granular `[MIG-*]` task per work unit — active tasks carry a `dispatch:` trailer; deferred/out-of-scope items carry a `deferred:` trailer for manual acknowledgment — and (4) declare that all `[US*]` tasks depend on completion of all `[MIG-*]` tasks.
+You are the `after_tasks` HOOK for the `fx-to-dotnet` extension. You run automatically after `speckit.tasks` completes. Your job is to (1) remove migration-themed tasks the core agent may have emitted, (2) insert an extension-owned `## Phase N: .NET Framework Migration` block (organized into six named sub-layers) immediately AFTER the Setup phase and BEFORE the Foundational phase (renumbering Foundational and all phases that follow the insertion point), (3) emit one granular `[MIG-*]` task per work unit — active tasks carry a `dispatch:` trailer; deferred/out-of-scope items carry a `deferred:` trailer for manual acknowledgment — and (4) declare that all `[US*]` tasks depend on completion of all `[MIG-*]` tasks.
 
 `{featureDir}` is the active Spec Kit feature folder (`specs/<branch>/`). Resolve it from `SPECIFY_FEATURE` or the current git branch. If no active feature folder is detectable, **silent-exit success**.
 
 <contract>
 - This hook is **MANDATORY** (`optional: false`).
 - On non-Framework workspaces: **silent-exit success** with no edits.
-- Setup and Foundational phases ALWAYS come first. The Migration phase is inserted immediately AFTER the last non-user-story prerequisite phase (Setup, Foundational, and any other extension- or core-emitted prerequisite phase whose tasks are not `[US*]`) and immediately BEFORE the first user-story phase. Only the phases at or after the insertion point are renumbered (each by +1). Phases preceding it keep their existing numbers. Task IDs of the form `US*.T*` are NEVER renumbered (they are phase-relative).
+- The Setup phase ALWAYS comes first; Migration precedes Foundational. The Migration phase is inserted immediately AFTER the Setup phase and BEFORE the Foundational phase (or, if no Foundational phase exists, before the first user-story phase). Foundational and all phases at or after the insertion point are renumbered (each by +1). Phases preceding the insertion point keep their existing numbers. Task IDs of the form `US*.T*` are NEVER renumbered (they are phase-relative).
 - All edits are **idempotent**: re-running on an already-populated `tasks.md` MUST NOT produce duplicate `[MIG]` rows, MUST NOT renumber further, and MUST NOT re-trigger the dedupe pass on already-removed lines.
 - Active migration `[MIG-*]` tasks (Layers 1–5) carry a `dispatch:` trailer matching `^speckit\.fx-to-dotnet\.[a-z0-9-]+\(.*\)$`. The `before_implement` hook validates this prefix before invoking any command.
 - Deferred `[MIG-*]` tasks (Layer 6) carry a `deferred:` trailer containing the post-migration action text. The `before_implement` hook presents them for manual acknowledgment — no command is invoked.
@@ -50,16 +50,16 @@ Remove each matching line. Renumber the remaining tasks within their phase to cl
 
 ## 4. Locate insertion point
 
-The migration phase MUST follow Setup/Foundational and precede the first user-story phase.
+The migration phase MUST follow Setup and precede Foundational (and therefore all user-story phases).
 
 - Enumerate every heading matching `^## Phase (\d+): (.+)$` in `tasks.md`, preserving file order.
-- Classify each phase as a **user-story phase** if its heading title matches `/user[\s-]?stor(y|ies)/i` OR its body (the lines between this heading and the next `## ` heading) contains at least one task ID of the form `[US\d`. Otherwise classify it as a **prerequisite phase** (Setup, Foundational, Polish/Cross-Cutting placed before user stories, etc.).
-- The **insertion point** is the position immediately before the FIRST user-story phase heading.
+- Classify each phase as a **Setup phase** if its heading title matches `/setup/i`. Classify as a **Foundational phase** if its heading title matches `/foundational/i`. Classify as a **user-story phase** if its heading title matches `/user[\s-]?stor(y|ies)/i` OR its body (the lines between this heading and the next `## ` heading) contains at least one task ID of the form `[US\d`. All other phases retain their original position relative to the insertion point.
+- The **insertion point** is the position immediately AFTER the last Setup phase and BEFORE the Foundational phase (if one exists) or before the first user-story phase (if no Foundational phase exists). Only Setup precedes Migration; Foundational comes after Migration because SDK conversion, package updates, and multitargeting are mechanical prerequisites for Foundational tasks (which set up logging, DI, and config patterns on already-converted projects).
 - Renumber ONLY the phases at and after the insertion point: each becomes `N+1`. Phases preceding the insertion point keep their existing numbers. Never rewrite task IDs of the form `US1.T01` — those are phase-relative.
-- The new migration heading's number is `(number of prerequisite phases before the insertion point) + 1`. For the common Spec Kit shape (`Phase 1: Setup`, `Phase 2: Foundational`, `Phase 3: User Story 1`, …) this yields `## Phase 3: .NET Framework Migration` and renumbers the user-story phases from 3,4,5,… to 4,5,6,….
+- The new migration heading's number is `(Setup phase number) + 1`. For the common Spec Kit shape (`Phase 1: Setup`, `Phase 2: Foundational`, `Phase 3: User Story 1`, …) this yields `## Phase 2: .NET Framework Migration` and renumbers Foundational to Phase 3 and the user-story phases from 3,4,5,… to 4,5,6,….
 - If `tasks.md` contains no user-story phases (no headings classified as user-story), append the migration block AFTER the last existing `## Phase N:` heading's body, numbered `(last existing phase number) + 1`. Do not renumber anything.
 - If `tasks.md` contains no `## Phase \d+:` headings at all, insert the migration block as `## Phase 1: .NET Framework Migration` at the top of the tasks list section (after the file's front matter / intro but before any task rows). This is the only case where Migration may be Phase 1.
-- The preset's placeholder heading (`## Phase N: .NET Framework Migration (extension-managed)`) emitted by the `tasks.md` template override, if present, is REPLACED in place: use its position as the insertion point (do not double-insert, do not shift it), then assign it the correct sequential number per the rules above.
+- The preset's placeholder heading (`## Phase N: .NET Framework Migration (extension-managed)`) emitted by the `tasks.md` template override, if present, is REPLACED in place: use its position as the insertion point (do not double-insert, do not shift it), then assign it the correct sequential number per the rules above. The placeholder position MUST be after Setup and before Foundational; if it violates this order, treat it as a parse error and exit non-zero.
 
 ## 5. Emit the migration phase block
 
@@ -220,7 +220,7 @@ Exit 0 on success. Exit non-zero only on parse/validation failure.
 - Never renumber `US*.T*` IDs; renumber only `## Phase N:` heading numbers, and only for phases at or after the insertion point.
 - The dedupe pass operates on UNCHECKED non-`[MIG]` tasks only. Never remove a `[MIG]` row, a checked task, or anything from the user-story phases.
 - The `> **Extension-managed**` blockquote line is the section's identity anchor — preserve it verbatim.
-- The Setup phase (and any Foundational phase) MUST remain ahead of the Migration phase at all times. If a future run detects that Migration has somehow landed before Setup/Foundational, treat it as a parse error and exit non-zero rather than silently rewriting.
+- The Setup phase MUST remain ahead of the Migration phase, and the Migration phase MUST remain ahead of any Foundational phase, at all times. If a future run detects that Migration has landed before Setup or after Foundational, treat it as a parse error and exit non-zero rather than silently rewriting.
 </idempotency-rules>
 
 <silent-exit-rules>
