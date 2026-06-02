@@ -42,9 +42,10 @@ You receive from the calling command:
 
 The assessment content contains:
 - Project classifications (SDK-style status, web host classification, confidence, evidence per project)
-- Compatibility cards for every package (current version, whether it supports the target, minimum compatible version, legacy content/install script flags)
+- Compatibility cards for every package (current version, whether it supports the target, minimum compatible version, legacy content/install script flags, constraint adjusted flag)
 - Unsupported libraries (packages with no compatible version)
 - Out-of-scope items with post-migration actions
+- Package inventory warnings (e.g., duplicate PackageVersion entries in Directory.Packages.props)
 
 ## Workflow
 
@@ -126,6 +127,11 @@ Using the compatibility cards from the assessment, build a **per-project** order
    g. Group the ordered packages into one or more numbered chunks (`Chunk 1`, `Chunk 2`, …) restarting numbering for each project. A chunk contains packages of the same risk level that can be updated and validated together.
 4. Flag packages with `Legacy Content: yes` or `Install Script: yes` with manual review notes
 5. A package may appear under multiple projects (because it is referenced by each); each occurrence is independent for execution purposes. When the solution uses Central Package Management (`Directory.Packages.props`), the executor will no-op the second-and-subsequent updates of the shared `<PackageVersion>` automatically — the per-project task structure is preserved regardless.
+6. **Cross-package constraint validation**: After building the full per-project chunk plan, verify that the solution-wide set of recommended versions is version-compatible:
+   a. Check whether any compatibility card has `Constraint Adjusted: yes` (set by step 7d of the assessment). If so, the assessment's transitive constraint resolution already bumped the recommended version — use the adjusted `minimumCompatibleVersion` from the card.
+   b. For constraint-adjusted packages that appear in multiple projects (common with CPM), ensure the **earliest** chunk that touches the package uses the constraint-satisfying version. Later chunks for other projects will no-op the CPM entry since it's already at the correct version.
+   c. If a constraint-adjusted package is a dependency of another package in the same chunk, reorder so the dependency is updated first (or merge into the same chunk if both are minor-risk).
+   d. Emit a `## Constraint Adjustments` subsection in the plan output listing each adjusted package with its original and final version, the package that required the bump, and which chunk(s) are affected.
 
 Produce, for each project that has at least one package requiring update, a numbered chunk sequence. Each chunk records its risk level (minor / major) and package count so the `tasks-hook` can embed them in the human-readable `[MIG-*]` description.
 

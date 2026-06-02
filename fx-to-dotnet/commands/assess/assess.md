@@ -180,6 +180,15 @@ Build a normalized package inventory with:
 - Direct vs transitive context (when determinable)
 - Whether centrally managed
 
+**Duplicate PackageVersion detection** (Central Package Management only):
+- When scanning `Directory.Packages.props`, check for duplicate `<PackageVersion>` entries with the same `Include` attribute (case-insensitive).
+- If duplicates are found, record each duplicate pair in the assessment output with:
+  - Package ID
+  - Both version values
+  - Declaration locations (line numbers if available)
+- Emit a warning: `Duplicate PackageVersion entry for '{packageId}' in Directory.Packages.props. Remove the duplicate to avoid NU1506 warnings.`
+- Include duplicates in the `## Package Inventory Warnings` section of the assessment output.
+
 Classify project scope:
 - Exclude ASP.NET Framework application host projects
 - Include library projects (even those referencing ASP.NET Framework-related packages)
@@ -204,6 +213,20 @@ For each package, produce a compatibility card:
 - minimumCompatibleVersion (if current doesn't support target; null otherwise)
 - hasLegacyContentFolder, hasInstallScript
 - feedSourceUsed
+
+#### 7d. Cross-Package Constraint Validation
+
+After collecting per-package compatibility data in step 7c, validate that the recommended versions are **mutually compatible** across the solution-wide package set.
+
+1. Check the script output for a `constraintBumps` array (added by the transitive constraint resolution in the `nuget-package-compat` policy scripts).
+2. If `constraintBumps` is non-empty:
+   - For each bump entry, update the corresponding compatibility card:
+     - Set `minimumCompatibleVersion` to the bumped version (the `to` value) if it is higher than the current recommendation
+     - Set `constraintAdjusted` to `yes`
+     - Append a note to the card: `"Transitive constraint: {requiredBy} at version {requiredByVersion} requires this package >= {requiredVersion}"`
+   - If a bumped package was previously marked as `currentVersionSupportsTarget: yes` (no upgrade needed), change it to `no` and populate `minimumCompatibleVersion` with the bump target — the package now needs an upgrade due to a transitive constraint, even though its current version supports the target framework independently.
+3. If `constraintBumps` is empty, no cross-package adjustments are needed — all per-package recommendations are mutually compatible.
+4. If the script emitted a convergence warning (max iterations reached), surface this as a warning in the assessment output: `"Transitive constraint resolution did not fully converge. Review constraintBumps for potential circular dependencies."`
 
 ### 8. Unsupported Libraries
 
@@ -324,12 +347,13 @@ If no feeds resolved, emit a single row: `| — | (none) | — | — | — |` an
 
 One row per package reference discovered in the solution scope (excluding ASP.NET Framework application host projects per assess scope rules).
 
-| # | Package ID | Current Version | Target Framework | Current Supports Target | Minimum Compatible Version | Has Legacy Content Folder | Has Install Script | Feed Source | Projects |
-|---|------------|-----------------|------------------|-------------------------|----------------------------|---------------------------|--------------------|-------------|----------|
-| 1 | {id} | {version} | {tfm} | yes/no | {version or `—`} | yes/no | yes/no | {feed name} | {comma-separated project paths} |
+| # | Package ID | Current Version | Target Framework | Current Supports Target | Minimum Compatible Version | Constraint Adjusted | Has Legacy Content Folder | Has Install Script | Feed Source | Projects |
+|---|------------|-----------------|------------------|-------------------------|----------------------------|---------------------|---------------------------|--------------------|-------------|----------|
+| 1 | {id} | {version} | {tfm} | yes/no | {version or `—`} | yes/no | yes/no | yes/no | {feed name} | {comma-separated project paths} |
 
 Notes column conventions:
-- `Minimum Compatible Version` is `—` when `Current Supports Target` is `yes`.
+- `Minimum Compatible Version` is `—` when `Current Supports Target` is `yes` and `Constraint Adjusted` is `no`.
+- `Constraint Adjusted` is `yes` when the recommended version was raised by step 7d (transitive constraint resolution) beyond the per-package minimum. When `yes`, includes a note explaining which package required the bump.
 - `Has Legacy Content Folder` and `Has Install Script` are sourced from the NuGet metadata flags described in step 7c.
 
 ## Unsupported Libraries

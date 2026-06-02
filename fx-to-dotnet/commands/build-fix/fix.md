@@ -70,7 +70,33 @@ Create or update the `## Build Fix` section in `stateFile` using the `edit` tool
 
 ## 2. Parse & Group Errors
 
-Extract build errors from the output. Group them into **error groups** by:
+Extract build errors from the output. Separate errors into two categories:
+
+### NuGet Restore Errors (NU-prefixed)
+
+NuGet restore errors (error codes starting with `NU`) block compilation entirely and must be resolved **before** attempting compile-error fixes. Triage by error code:
+
+- **NU1605** (package downgrade detected): The error message contains the required minimum version. Fix by updating the lower-versioned package entry:
+  - If the solution uses Central Package Management (`Directory.Packages.props`), update the `<PackageVersion>` entry for the downgraded package to the version specified in the error message.
+  - If not using CPM, update the `<PackageReference>` in the affected project file.
+  - Parse the error message format: `"Detected package downgrade: {PackageId} from {RequiredVersion} to {CurrentVersion}"` — update to at least `{RequiredVersion}`.
+  - After fixing all NU1605 errors, re-run `dotnet build` to verify resolution before proceeding to compile errors.
+
+- **NU1506** (duplicate PackageVersion): The error identifies the duplicate package ID. Fix by removing the duplicate `<PackageVersion>` entry from `Directory.Packages.props`:
+  - Read the file to find both entries.
+  - Keep the entry that is in the more semantically appropriate section (e.g., keep the one in the main section, remove the one in a legacy/compatibility section).
+  - If both entries have the same version, remove either one.
+  - If they have different versions, keep the higher version and remove the lower one.
+
+- **NU1701** (framework fallback): Log as a warning but do NOT auto-fix. This indicates a package was restored using a .NET Framework target instead of the project's modern target — the package may need replacement rather than a version bump. Note the affected packages for the user.
+
+- **NU1902/NU1903/NU1904** (known vulnerabilities): Log as warnings but do NOT auto-fix. These are security advisories and are out of scope for build-fix. Note the severity and advisory URL for the user.
+
+After resolving all NU1605 and NU1506 errors, re-run `dotnet build` via the build script. If new restore errors appear (e.g., fixing one NU1605 reveals another), repeat the NuGet restore triage. Only proceed to compile error grouping when 0 NuGet restore errors remain.
+
+### Compile Errors (CS/BC/FS-prefixed)
+
+Group compile errors into **error groups** by:
 - **Same error code + same fix** — e.g., CS0246 (missing type) where the same `using` directive resolves all of them
 - **Same root cause** — e.g., a renamed class causing CS0246/CS0103 across multiple files
 - **Isolated errors** — unique errors that don't fit a pattern

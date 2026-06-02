@@ -111,9 +111,13 @@ For each chunk in the work list:
 2. For each package in the chunk:
    - If a `Directory.Packages.props` `<PackageVersion>` for the package is already at-or-above `toVersion`, log a no-op for that package and continue — do NOT downgrade.
    - Otherwise apply the version update at the appropriate location (CPM `<PackageVersion>` or local `<PackageReference>` in the targeted csproj).
-3. Invoke `speckit.fx-to-dotnet.fix` scoped to the targeted project (and the solution where required for restore)
-4. Record build result and any code fixes from Build Fix in `chunkResults` — append a new entry `{ project, chunkId, status, packagesUpdated, buildFixOutcome }` to the `chunkResults:` list inside the `## Execution State` section of `stateFile` via the `edit` tool. Never touch the findings zone (header through `## Out-of-Scope Items`).
-5. If Build Fix cannot complete without substantial risky changes, stop and ask the user
+3. **Post-chunk restore validation**: Before invoking the full build-fix loop, run `dotnet restore` (via the build script with `--restore-only` / `-RestoreOnly`) scoped to the solution and check for NuGet restore errors:
+   - **NU1605** (package downgrade): A transitive dependency of a package just updated requires a higher version of another package in the solution. Fix immediately by updating the lower-versioned `<PackageVersion>` in `Directory.Packages.props` (or `<PackageReference>` if not using CPM) to the version specified in the error message. Re-run restore until no NU1605 errors remain.
+   - **NU1506** (duplicate PackageVersion): Remove the duplicate entry from `Directory.Packages.props` (keep the higher version or the one in the more appropriate section).
+   - Log all restore-level fixes applied in the chunk result as `restoreFixes`.
+4. Invoke `speckit.fx-to-dotnet.fix` scoped to the targeted project (and the solution where required for restore)
+5. Record build result and any code fixes from Build Fix in `chunkResults` — append a new entry `{ project, chunkId, status, packagesUpdated, restoreFixes, buildFixOutcome }` to the `chunkResults:` list inside the `## Execution State` section of `stateFile` via the `edit` tool. Never touch the findings zone (header through `## Out-of-Scope Items`).
+6. If Build Fix cannot complete without substantial risky changes, stop and ask the user
 
 Checkpoint policy after each successful chunk:
 - If `alwaysContinue` is true, continue automatically

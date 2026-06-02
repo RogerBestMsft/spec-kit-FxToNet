@@ -7,7 +7,7 @@ description: "NuGet package compatibility analysis for .NET Framework to modern 
 
 Scripts that query the NuGet v3 REST API to analyze package compatibility for .NET migration scenarios. Two operations are provided:
 
-1. **Find Recommended Package Upgrades** — For each package, find the minimum version supporting modern .NET (netstandard, netcoreapp, net5.0+). Also checks for legacy package flags.
+1. **Find Recommended Package Upgrades** — For each package, find the minimum version supporting modern .NET (netstandard, netcoreapp, net5.0+). Also checks for legacy package flags. After finding per-package minimums, **resolves transitive dependency constraints** across the input set to ensure recommended versions are mutually compatible.
 2. **Get Minimal Package Set** — Given a set of packages, prune those that are transitively provided by other packages in the set.
 
 ## When to Use
@@ -147,6 +147,48 @@ Scripts resolve NuGet feeds in this order:
 1. If `nugetConfigPath` is provided and exists, parse that file's `<packageSources>` section
 2. Otherwise, search upward from `workspaceDirectory` for the nearest `nuget.config`
 3. If no config is found, fall back to `https://api.nuget.org/v3/index.json`
+
+## Transitive Constraint Resolution
+
+After finding per-package minimum compatible versions, the script performs **cross-package transitive constraint resolution** to ensure the recommended versions are mutually compatible.
+
+### Algorithm
+
+1. Build a map of `{ packageId -> recommendedVersion }` for all input packages (using the recommended minimum or current version if no upgrade is needed).
+2. For each package in the map, query the NuGet catalog entry for its recommended version and extract the `dependencyGroups[].dependencies[]` — specifically the version range lower bounds.
+3. For each dependency that is also in the input package set, check whether the current recommendation satisfies the required minimum. If not, bump the recommendation to the required minimum.
+4. Repeat steps 2–3 until no further bumps occur or **10 iterations** are reached (circular constraint guard).
+5. If the guard is triggered, emit a warning to stderr and return partial results.
+
+### Example
+
+Given input packages:
+- `Microsoft.Data.SqlClient` at 5.1.0 → minimum modern version: 6.0.1
+- `Microsoft.EntityFramework.SqlServer` at 6.2.0 → minimum modern version: 6.5.2
+
+EF.SqlServer 6.5.2 declares a dependency on `Microsoft.Data.SqlClient >= 6.1.4`. Since the independent recommendation for SqlClient is 6.0.1 (< 6.1.4), the constraint resolver bumps SqlClient to 6.1.4.
+
+Output includes:
+```json
+"constraintBumps": [
+  {
+    "packageId": "microsoft.data.sqlclient",
+    "from": "6.0.1",
+    "to": "6.1.4",
+    "requiredBy": "microsoft.entityframework.sqlserver",
+    "requiredVersion": "6.1.4"
+  }
+]
+```
+
+### Circular Constraint Guard
+
+The resolution loop is capped at 10 iterations. This prevents infinite loops in the rare case where package A requires B >= X and B requires A >= Y, with both bumps triggering further bumps. If the guard is triggered, the script:
+- Emits a warning to stderr
+- Returns the best-effort result with whatever bumps were applied
+- Sets the top-level `reason` to `null` (the warning is diagnostic, not fatal)
+
+Downstream consumers (e.g., `speckit.fx-to-dotnet.assess`) should surface the warning if `constraintBumps` is non-empty after max iterations.
 
 ## Framework Family Classification
 
