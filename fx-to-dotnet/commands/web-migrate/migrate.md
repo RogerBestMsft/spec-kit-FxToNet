@@ -93,9 +93,10 @@ Inventory the remaining surface area with search and read operations:
 
 - Application shape and scope: API-only, API plus MVC or Razor views, Web Forms rewrite needs, or staged coexistence.
 - Controllers, actions, minimal handler patterns, and route attributes.
+- **Routing pattern classification**: determine whether controllers use `[RoutePrefix]` with relative `[Route]` attributes, full per-action routes without a prefix, or a mix of both. This classification drives the route conversion strategy in Phase 3. Consult the `webapi-routing` policy for pattern definitions.
 - Convention routing from `WebApiConfig`, `RouteConfig`, OWIN startup, or custom bootstrapping.
 - Authentication and authorization attributes, filters, handlers, and middleware.
-- Dependency injection composition root.
+- **Dependency injection container type**: identify the DI framework in use (Autofac, Unity, Ninject, StructureMap, raw `Microsoft.Extensions.DependencyInjection`, or none). Locate the composition root (e.g., `Startup.ConfigureIoc`, `IocConfig`, `AutofacConfig`, `Global.asax`, Autofac `Module` subclasses). Record the approximate number of registrations and the lifetime patterns used (`InstancePerRequest`, `InstancePerLifetimeScope`, `SingleInstance`, etc.). This information drives the DI porting strategy in Phase 3.
 - Serialization settings, model binders, formatters, exception handling, and validation.
 - Configuration sources such as `web.config`, environment variables, transforms, and secrets providers.
 - Static files, Swagger/OpenAPI, health checks, CORS, background startup tasks, and hosted behaviors.
@@ -149,11 +150,11 @@ Port behavior in small vertical slices rather than sweeping rewrites.
 
 Recommended order:
 
-1. Host bootstrap, configuration, and dependency injection.
+1. Host bootstrap, configuration, and dependency injection. **For Autofac projects**: consult the `autofac-di-migration` policy. Locate the legacy composition root, copy registrations into the `ConfigureContainer<ContainerBuilder>` callback, replace `InstancePerRequest` with `InstancePerLifetimeScope`, and remove Web API / OWIN-specific registrations (`RegisterApiControllers`, `RegisterWebApiFilterProvider`, `DependencyResolver` assignment). After wiring DI, validate by starting the app and hitting a representative endpoint — a response (even an auth error) confirms DI is wired; an `Unable to resolve service` exception indicates a missed registration.
 2. Cross-cutting middleware and filters.
 3. Authentication and authorization.
 4. Serialization, validation, and exception handling.
-5. Controllers and endpoint mappings — migrate one controller (or one route group) at a time.
+5. Controllers and endpoint mappings — migrate one controller (or one route group) at a time. **Before porting controllers**, convert all `[RoutePrefix("...")]` attributes to `[Route("...")]` on the controller class. Replace `~` route overrides with `/`. Consult the `webapi-routing` policy for conversion rules, common patterns, and ambiguity detection. **After porting each batch of controllers**, validate Swagger by hitting `/swagger/v1/swagger.json` — a `SwaggerGeneratorException` with "Conflicting method/path combination" indicates unconverted route prefixes.
 6. OpenAPI, health checks, CORS, static files, and operational features.
 
 For each slice:
@@ -171,7 +172,9 @@ For each slice:
 - Translate `System.Web.Http` controllers to ASP.NET Core controllers or minimal APIs only when the resulting route and contract behavior stays explicit.
 - Convert `HttpConfiguration`, message handlers, and filters into ASP.NET Core middleware, filters, or options configuration as appropriate.
 - Move `web.config` application settings into ASP.NET Core configuration sources with environment-aware overrides.
-- Replace Autofac or OWIN-specific host setup only where required by the web project boundary. Preserve existing library contracts where practical.
+- **Route attribute conversion**: Replace `[RoutePrefix("...")]` with `[Route("...")]` on controller classes. Replace `~` route overrides with `/`. Failure to convert `RoutePrefix` causes `AmbiguousMatchException` at runtime and `SwaggerGeneratorException` from Swashbuckle. Consult the `webapi-routing` policy for conversion rules, common patterns, and ambiguity detection.
+- **Autofac DI migration**: When the legacy project uses Autofac, prefer keeping Autofac via `Autofac.Extensions.DependencyInjection` rather than rewriting to MS DI. Port registrations from the legacy composition root into `ConfigureContainer<ContainerBuilder>`, adjust lifetimes (`InstancePerRequest` → `InstancePerLifetimeScope`), and remove Web API / OWIN-specific registrations. Consult the `autofac-di-migration` policy for detailed steps and lifetime mapping.
+- For non-Autofac DI containers (Unity, Ninject, StructureMap), evaluate whether a native MS DI rewrite or a container-specific integration package is more practical. The same principle applies: preserve existing registrations where possible.
 - Consult the `systemweb-adapters` policy for System.Web adapter guidance.
 - Consult the `owin-identity` policy for OWIN/Identity migration guidance.
 

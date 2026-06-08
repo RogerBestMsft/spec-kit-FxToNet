@@ -65,11 +65,15 @@ Return a single structured report with these sections in this order:
 4. `Controllers`: bullet list of API controllers, MVC controllers, ASMX services, and routed ASPX pages discovered.
 5. `Endpoints`: one bullet per endpoint using this shape:
 
-   `- [HTTP verb or Unknown] [resolved or partial route] — [Controller/Service/Page].[Action/Method] — Request: [type or Unknown] — Response: [type or Unknown] — Auth: [requirement or Unknown] — Source: [path]`
+   `- [HTTP verb or Unknown] [resolved full route] — [Controller/Service/Page].[Action/Method] — Request: [type or Unknown] — Response: [type or Unknown] — Auth: [requirement or Unknown] — Source: [path]`
+
+   The resolved full route must combine the controller-level `RoutePrefix` (or `Route`) with the action-level `Route` to produce the effective path. For example, `[RoutePrefix("v1/products")]` + `[Route("{id}")]` → `v1/products/{id}`. If a `RoutePrefix` is present, always show the combined result rather than just the action-level template.
 
    For ASMX `[WebMethod]` operations, note `(ASMX)` after the route.
    For ASPX route pages, note `(ASPX)` after the route.
 
-6. `Gaps/Unknowns`: bullet list, or `None` if there are no unresolved items.
+6. `Routing Ambiguity Warnings`: after building the endpoint list, detect and report potential route collisions — cases where two or more endpoints from different controllers produce the same effective route template (same HTTP verb and same resolved full route). List each collision group with the conflicting controllers and the shared route template. If no collisions are detected, output `None`.
+
+7. `Gaps/Unknowns`: bullet list, or `None` if there are no unresolved items.
 
 Do not write files. Do not propose migrations. Do not edit code.

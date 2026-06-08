@@ -191,6 +191,12 @@ Exit 0. `speckit.implement` resumes and processes `[US*]` tasks only. Exit non-z
   - Any nested expansion or template variable that escapes the prefix at runtime
 - Every rejected target MUST be recorded in `{featureDir}/migration/implement-state.md` audit log with timestamp and the offending text.
 - A hand-edited `dispatch: speckit.evil.cmd(...)` MUST be rejected with no invocation.
+- **Dispatch-only rule**: This hook is a DISPATCHER, not an executor. It MUST NOT attempt to perform the work of any dispatch target itself — no manual csproj rewrites, no inline package updates, no code transformations. If `invoke-command` is unavailable or the target agent cannot be reached, the hook MUST fail-stop (see below), never fall back to doing the work inline.
+- **Fail-stop on dispatch failure**: If a dispatch invocation fails because the tool (`invoke-command`) is missing, the target agent is not loaded, or a required MCP tool (e.g., `convert_project_to_sdk_style`) is unavailable to the target agent, the hook MUST:
+  1. Log the failure to the audit log: `<timestamp> <MIG-NNN> DISPATCH FAILED — <reason>`.
+  2. Report the failure to the user with actionable remediation (e.g., "The `speckit.fx-to-dotnet.convert` agent requires the `convert_project_to_sdk_style` MCP tool. Ensure the Modernization MCP server is running, then retry.").
+  3. Prompt `retry | skip | abort` — same as any other dispatch failure.
+  4. NEVER silently degrade to manual file editing.
 </security-rules>
 
 <idempotency-rules>
