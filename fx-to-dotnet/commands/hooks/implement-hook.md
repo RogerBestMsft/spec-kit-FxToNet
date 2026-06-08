@@ -1,5 +1,5 @@
 ---
-description: "before_implement hook (mandatory — THE GATE). Verifies assessment + plan + [MIG-*] preconditions; refuses to proceed with speckit.implement otherwise. Then executes each unchecked [MIG-*] task in order with per-task user review (approve | skip | abort | autoApprove-rest), validating that every dispatch target matches ^speckit\\.fx-to-dotnet\\. Build failures always pause even under autoApprove-rest. Silent-exit on non-Framework solutions."
+description: "before_implement hook (mandatory — THE GATE). Defers to core for Phase 1 Setup tasks; activates [MIG-*] dispatch only after Setup is complete. Verifies assessment + plan + [MIG-*] preconditions; refuses to proceed with speckit.implement otherwise. Then executes each unchecked [MIG-*] task in order with per-task user review (approve | skip | abort | autoApprove-rest), validating that every dispatch target matches ^speckit\\.fx-to-dotnet\\. Build failures always pause even under autoApprove-rest. Silent-exit on non-Framework solutions."
 tools: [read, edit, search, ask-questions, invoke-command]
 commands:
   - "speckit.fx-to-dotnet.detect"
@@ -19,6 +19,7 @@ You are the `before_implement` HOOK for the `fx-to-dotnet` extension — the gat
 - This hook is the **ONLY** mechanism that interprets `[MIG-*]` task trailers (`dispatch:` for active migration work; `deferred:` for post-migration items requiring manual acknowledgment). The core `speckit.implement` agent must never process them itself.
 - Every dispatch target is validated against `^speckit\.fx-to-dotnet\.[a-z0-9-]+$` BEFORE invocation. Targets that fail this prefix check are rejected with an audit-log entry and the user is asked to abort or skip. **This is the technical enforcement of goal 5.**
 - Build failures inside an invoked dispatch target ALWAYS pause for user review, even if the user previously chose `autoApprove-rest`. (`autoApprove-rest` applies to the OUTER per-task gate, not to inner build/fix loops.)
+- This hook **defers to core for Phase 1 Setup `[US*]` tasks**. The `[MIG-*]` dispatch loop only activates once all Setup tasks under the Setup phase heading are marked `[X]`. When Setup is incomplete, the hook exits 0 (pass-through) so core can run Setup tasks first.
 - Resume state lives in `{featureDir}/migration/implement-state.md` and is read on entry, written on every state transition.
 </contract>
 
@@ -29,6 +30,14 @@ You are the `before_implement` HOOK for the `fx-to-dotnet` extension — the gat
 Read `{featureDir}/migration/detection.md`. If absent, invoke `speckit.fx-to-dotnet.detect`.
 
 If no .NET Framework projects are present, exit 0 with no output. The mandatory gate MUST silent-exit on non-migration workspaces.
+
+## 1.5. Setup-completion gate
+
+Scan `tasks.md` for the Setup phase heading — a line matching `^## Phase \d+:` whose title matches `/setup/i`.
+
+- If a Setup phase heading is found, collect all `[US*]` task rows under it (lines between this heading and the next `## Phase` heading or end of file).
+- If ANY Setup `[US*]` task is unchecked `[ ]`, **exit 0** immediately — no prompts, no edits. The hook steps aside so core `speckit.implement` can run Setup tasks first. This is not a failure; it is the expected first-invocation behavior.
+- If ALL Setup `[US*]` tasks are `[X]`, or if no Setup phase heading exists in `tasks.md`, proceed to step 2.
 
 ## 2. Precondition check (goal 3 — THE GATE)
 
@@ -75,7 +84,7 @@ Outer gate mode: prompt
 (populated as dispatches occur)
 ```
 
-`autoApprove-rest` is **current-run-only** by default; do not persist it across invocations.
+`autoApprove-rest` MAY be persisted to `implement-state.md` by the `implement.md` template override after Setup completes (see the template's graceful-stop prompt). On entry, if `implement-state.md` contains `Outer gate mode: autoApprove-rest`, start the `[MIG-*]` loop in `autoApprove-rest` mode. If the file is absent or contains `Outer gate mode: prompt`, start in `prompt` mode.
 
 ## 4. Parse migration tasks
 
@@ -180,6 +189,8 @@ Once every `[MIG-*]` is `[X]` or `[~]`:
 
 ## 7. Exit
 
+Reset `Outer gate mode: prompt` in `{featureDir}/migration/implement-state.md` — the `autoApprove-rest` preference is consumed once and MUST NOT carry forward to future re-runs.
+
 Exit 0. `speckit.implement` resumes and processes `[US*]` tasks only. Exit non-zero on `abort` or precondition failure.
 
 </workflow>
@@ -207,5 +218,6 @@ Exit 0. `speckit.implement` resumes and processes `[US*]` tasks only. Exit non-z
 
 <silent-exit-rules>
 - No Framework projects → exit 0 silently. Mandatory hook MUST NOT block ordinary workspaces.
+- Setup `[US*]` tasks incomplete → exit 0 (pass-through to core). Not a failure; Setup runs first by design.
 - All `[MIG]` already `[X]` on entry → emit completion summary if not present, exit 0.
 </silent-exit-rules>
