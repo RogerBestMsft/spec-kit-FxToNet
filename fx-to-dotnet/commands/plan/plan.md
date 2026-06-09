@@ -28,6 +28,10 @@ Before any work begins, you MUST load every policy listed below. These are the c
 
 - ⛔ MANDATORY: Call `get_instructions(kind='policy', query='dependency-layers')` to load the dependency-layer ordering algorithm used by Phase 1 and Phase 3.
 - ⛔ MANDATORY: Call `get_instructions(kind='policy', query='windows-service-migration')` to load the Windows Service → BackgroundService migration guidance applied in Phase 3.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='ef6-migration-policy')` to load the Entity Framework 6 retention policy. EF6 must be retained during migration — do NOT plan EF6 → EF Core replacement. EF Core migration is a separate post-migration effort.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='nuget-package-compat')` to load the NuGet package compatibility analysis scripts. Steps 4–5 consume the compatibility cards (`Supports Target`, `minimumCompatibleVersion`, `hasLegacyContentFolder`, `hasInstallScript`, `constraintBumps`) produced by this policy.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='systemweb-adapters')` to load the System.Web adapter migration guidance. When the assessment detects System.Web usage, plan MUST recommend System.Web adapters — do NOT plan rewriting to native ASP.NET Core types during migration.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='owin-identity')` to load the OWIN/Identity retention guidance. When the assessment detects OWIN/Identity usage, plan MUST recommend retaining ASP.NET Identity via the OWIN adapter package — do NOT plan migration to ASP.NET Core Identity during framework migration.
 
 Each policy loaded here MUST appear as a row in the `## Policies Applied` table emitted at the end of the migration plan output (see structure below). Policies with no matching code in the solution still emit a row with `Applied To = none — no matches in solution` and `Outcome = n/a` — the row's presence is the proof of loading.
 
@@ -242,6 +246,10 @@ Projects containing ServiceBase or TopShelf that will undergo service code migra
 |---|---|---|---|
 | `dependency-layers` | `policies/dependency-layers/POLICY.md` | {layers ordered for Phase 1/Phase 3, or `none — no matches in solution`} | {summary, or `n/a`} |
 | `windows-service-migration` | `policies/windows-service-migration/POLICY.md` | {Windows Service projects scheduled for BackgroundService migration, or `none — no matches in solution`} | {summary, or `n/a`} |
+| `ef6-migration-policy` | `policies/ef6-migration-policy/POLICY.md` | {projects with EF6 references, or `none — no matches in solution`} | {summary, or `n/a`} |
+| `nuget-package-compat` | `policies/nuget-package-compat/POLICY.md` | {packages analyzed via compatibility cards, or `none — no matches in solution`} | {summary, or `n/a`} |
+| `systemweb-adapters` | `policies/systemweb-adapters/POLICY.md` | {projects with System.Web usage, or `none — no matches in solution`} | {summary, or `n/a`} |
+| `owin-identity` | `policies/owin-identity/POLICY.md` | {projects with OWIN/Identity usage, or `none — no matches in solution`} | {summary, or `n/a`} |
 ```
 
 ## Output Format

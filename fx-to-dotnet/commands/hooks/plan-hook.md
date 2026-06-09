@@ -38,7 +38,7 @@ The canonical required-policies map (per command) is embedded inline here so the
 | Command | Output file | Required policies |
 |---|---|---|
 | `speckit.fx-to-dotnet.assess` | `{featureDir}/migration/analysis.md` | `dependency-layers`, `nuget-package-compat`, `ef6-migration-policy`, `systemweb-adapters`, `owin-identity`, `windows-service-migration` |
-| `speckit.fx-to-dotnet.plan` | `{featureDir}/migration/plan.md` | `dependency-layers`, `windows-service-migration` |
+| `speckit.fx-to-dotnet.plan` | `{featureDir}/migration/plan.md` | `dependency-layers`, `windows-service-migration`, `ef6-migration-policy`, `nuget-package-compat`, `systemweb-adapters`, `owin-identity` |
 
 For each row in the map:
 
