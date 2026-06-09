@@ -40,8 +40,12 @@ When the input is a solution file:
 - For `.sln` (legacy text format): extract project paths from `Project("{...}") = "Name", "RelativePath", "{Guid}"` lines, ignoring solution folder entries (the well-known solution-folder type GUID `2150E333-8FDC-42A3-9474-1A3956D46DE8`)
 - For `.slnx` (XML format): extract every `<Project Path="..." />` element
 - Resolve each relative project path against the solution directory to an absolute path
-- Filter to project files only (`.csproj`, `.vbproj`, `.fsproj`); skip shared-project (`.shproj`) and other non-buildable entries
+- Filter to project files only (`.csproj`, `.vbproj`, `.fsproj`); skip shared-project (`.shproj`), SQL Server database projects (`.sqlproj`), and other non-buildable entries
 - If no projects are found, stop and report that the solution has no classifiable projects
+
+> **SQL / SSDT projects are out of scope.** SQL Server database projects (`.sqlproj`) target database schema deployment (DACPACs), not a .NET runtime. They do not participate in .NET framework migration and must not be enumerated, classified, or included in any migration plan — even when present in the solution file.
+
+> **Test projects are excluded by default.** Projects classified as `test-project` are detected and reported in the detection output but are **excluded from migration scope** by default. Test projects are listed under a separate `## Test projects` summary section so they remain visible. They are not included in dependency-layer computation, SDK conversion, package updates, or multitargeting phases. If the user explicitly requests test project migration, they can be re-included.
 
 Then run steps 2 and 3 once per project.
 
@@ -89,6 +93,14 @@ Windows Service indicators:
 - References to TopShelf packages (`Topshelf`)
 - OutputType is Exe with ServiceBase but no web hosting stack
 
+Test project indicators:
+- References to test framework packages: `xunit`, `NUnit`, `MSTest.TestFramework`, `Microsoft.VisualStudio.TestPlatform`, `Microsoft.NET.Test.Sdk`
+- `<IsTestProject>true</IsTestProject>` in project file
+- Project SDK is `Microsoft.NET.Sdk` with test framework references and `Microsoft.NET.Test.Sdk`
+- Project name ends with `.Test`, `.Tests`, `.UnitTests`, `.IntegrationTests`, or `.LoadTest`
+- References to `Microsoft.VisualStudio.QualityTools.UnitTestFramework` assembly (legacy MSTest)
+- References to `Microsoft.VisualStudio.TestTools.WebTesting` or `Microsoft.VisualStudio.TestTools.LoadTesting` (legacy VS load/web test)
+
 ## 3. Classify
 
 Return one classification:
@@ -99,6 +111,7 @@ Return one classification:
 - `console-app` — console application (OutputType Exe, no UI or service framework)
 - `winforms-app` — Windows Forms application
 - `wpf-app` — WPF application
+- `test-project` — test project (unit tests, integration tests, load tests)
 - `uncertain` — mixed or insufficient signals
 
 Decision policy:
@@ -109,6 +122,7 @@ Decision policy:
 - `console-app`: OutputType is Exe with no web-host, service, WinForms, or WPF indicators
 - `winforms-app`: WinForms indicators present
 - `wpf-app`: WPF indicators present
+- `test-project`: test framework references or `<IsTestProject>true</IsTestProject>` present. Takes precedence over `class-library` or `console-app` when test indicators are found.
 - `uncertain`: mixed or insufficient signals
 
 Note: if a project has indicators for multiple categories (e.g. both web-host and Windows Service), classify as `uncertain` and include all sets of evidence.
@@ -206,7 +220,13 @@ After the `## Projects` section(s), emit two short bullet lists so hooks can ren
 - ...
 ```
 
-A project belongs to **Framework projects** if its `targetFramework` matches `net4*` (.NET Framework 4.x) or the project is legacy (non-SDK-style) without a modern TFM. All others go under **Modern projects**. If either list is empty, emit the heading with a single bullet `- (none)` so the section structure remains stable.
+A project belongs to **Framework projects** if its `targetFramework` matches `net4*` (.NET Framework 4.x) or the project is legacy (non-SDK-style) without a modern TFM. All others go under **Modern projects**. Projects classified as `test-project` are omitted from both lists and instead appear under **Test projects**. If any list is empty, emit the heading with a single bullet `- (none)` so the section structure remains stable.
+
+```markdown
+## Test projects
+- {project path} — test-project — targets {targetFramework}
+- ...
+```
 
 nextAction values:
 - proceed-as-web-host
@@ -216,6 +236,7 @@ nextAction values:
 - proceed-as-console
 - proceed-as-winforms
 - proceed-as-wpf
+- exclude-test-project
 - ask-user-to-confirm
 
 </workflow>

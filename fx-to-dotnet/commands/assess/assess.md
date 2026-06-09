@@ -152,9 +152,13 @@ Invoke `speckit.fx-to-dotnet.detect` for every project in the topological order.
 
 The command returns:
 - `sdkStyle` — whether the project uses SDK-style format (yes/no)
-- `classification` — `web-app-host`, `web-library`, `windows-service`, `class-library`, `console-app`, `winforms-app`, `wpf-app`, or `uncertain`
+- `classification` — `web-app-host`, `web-library`, `windows-service`, `class-library`, `console-app`, `winforms-app`, `wpf-app`, `test-project`, or `uncertain`
 - `confidence` — high, medium, or low
 - `evidence` — supporting indicators
+
+> **Skip SQL database projects.** If a `.sqlproj` (SQL Server / SSDT database project) appears in the project list, do NOT classify it. Omit it from the Project Classifications table and add a note under `## Skipped Projects` in `analysis.md`: `{project path} — SQL Server database project (.sqlproj) — excluded from .NET migration scope`.
+
+> **Exclude test projects.** Projects classified as `test-project` by `speckit.fx-to-dotnet.detect` are excluded from migration scope by default. List them in the Project Classifications table (so reviewers can see them) but do NOT include them in dependency-layer computation, package compatibility analysis, or any migration phase. Add each to `## Skipped Projects` in `analysis.md`: `{project path} — test project — excluded from migration scope (re-include with explicit user request)`.
 
 Collect all classification results and include them in the Project Classifications table in `{featureDir}/migration/analysis.md`. If any classification is `uncertain`, include it in the output for user review.
 

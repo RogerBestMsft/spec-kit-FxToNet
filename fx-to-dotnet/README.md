@@ -452,7 +452,7 @@ Some commands can be used independently outside the full migration suite:
 ## Known Limitations
 
 - **Single web-app-host per run** — Phase 6 (ASP.NET Core migration) handles one web host project at a time; solutions with multiple web applications require sequential runs or user selection
-- **No project filtering** — All projects in the solution are included in assessment and planning; there is no mechanism to exclude deprecated or out-of-scope projects
+- **Limited project filtering** — SQL Server database projects (`.sqlproj`) and shared projects (`.shproj`) are excluded during solution enumeration. Test projects (xUnit, NUnit, MSTest, VS Load Test) are detected but excluded from migration scope by default. Beyond that, all projects in the solution are included in assessment and planning; there is no mechanism to exclude specific projects by name or classification
 - **No cross-project failure recovery** — If a project fails during conversion, there is no defined strategy for whether to block the solution, skip the failed project, or continue with dependent layers
 - **No multi-solution / monorepo support** — The extension expects a single `.sln` file; repositories with multiple solutions require separate invocations
 - **Package updates are solution-global** — Package compatibility updates are applied across the entire solution with no per-project override for conflicting requirements

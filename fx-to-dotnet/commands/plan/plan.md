@@ -74,6 +74,8 @@ A project can have both `needs-sdk-conversion` and `windows-service` actions.
 Projects are excluded from SDK conversion if they are:
 - Already SDK-style (`skip-already-sdk`) — no conversion needed
 - `web-app-host` projects (projects that own the hosting entry point) — they are handled in Phase 4
+- SQL Server database projects (`.sqlproj`) — these target database schema deployment, not a .NET runtime, and are excluded from all migration phases
+- `test-project` projects — test projects are excluded from all migration phases by default; they can be re-included if the user explicitly requests it
 
 Web-library projects (libraries that reference web frameworks but do not host) SHOULD receive `needs-sdk-conversion` like any other library.
 
