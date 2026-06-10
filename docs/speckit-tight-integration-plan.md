@@ -73,7 +73,7 @@ Five new markdown command files under `fx-to-dotnet/commands/hooks/`. All idempo
 #### `tasks-hook.md`
 The most invasive hook. Edits `tasks.md`:
 
-1. **Dedupe pass**: scan unchecked non-`[MIG]` tasks for migration keywords (`SDK conversion`, `SDK-style`, `multitarget`, `package update`, `NuGet update`, `framework migration`, `migrate to .NET`, etc.). Remove matches and renumber following tasks.
+1. **Dedupe pass**: scan unchecked non-`[MIG]` tasks for migration keywords (`SDK conversion`, `SDK-style`, `multitarget`, `multi-target`, `package update`, `NuGet update`, `framework migration`, `migrate to .NET`, `convert to SDK`, `update target framework`, `web migration`, `web migrate`, `build verification`, `build fix`, `System.Web`, `OWIN`). Remove matches and renumber following tasks.
 2. **Insertion**: locate the first `## Phase N: ... User Story` heading and insert a new `## Phase N: .NET Framework Migration` block immediately before it; renumber subsequent phases. Fallback to append-at-end if no user-story phases exist.
 3. **Granular `[MIG]` task emission**: one task per granular dispatch unit. Each line carries a machine-readable trailer (see Layer 3):
    ```

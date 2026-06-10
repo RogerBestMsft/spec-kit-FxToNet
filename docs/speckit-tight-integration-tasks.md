@@ -37,7 +37,7 @@ Each task lists the files it touches and the acceptance signal that proves it is
 ### T004 [P] Author `tasks-hook.md` (after_tasks, mandatory)
 - File: `fx-to-dotnet/commands/hooks/tasks-hook.md`
 - Behavior (in order):
-  1. **Dedupe**: scan unchecked non-`[MIG]` tasks for migration keywords (`SDK conversion`, `SDK-style`, `multitarget`, `package update`, `NuGet update`, `framework migration`, `migrate to .NET`); remove matches; renumber following tasks.
+  1. **Dedupe**: scan unchecked non-`[MIG]` tasks for migration keywords (`SDK conversion`, `SDK-style`, `multitarget`, `multi-target`, `package update`, `NuGet update`, `framework migration`, `migrate to .NET`, `convert to SDK`, `update target framework`, `web migration`, `web migrate`, `build verification`, `build fix`, `System.Web`, `OWIN`); remove matches; renumber following tasks.
   2. **Insert** `## Phase N: .NET Framework Migration` immediately before the first `## Phase N: ... User Story` heading; renumber subsequent phases. Fallback to append-at-end if no user-story phases exist.
   3. **Emit** granular `[MIG-*]` tasks (one per dispatch unit per Layer 6 granularity table) each ending in a machine-readable trailer `— dispatch: speckit.fx-to-dotnet.<command>(<args>)`.
   4. Append `### Dependencies — All [US*] tasks depend on completion of all [MIG-*] tasks.`

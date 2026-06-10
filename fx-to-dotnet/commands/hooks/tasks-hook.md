@@ -39,12 +39,19 @@ Scan `tasks.md` for unchecked tasks (lines beginning with `- [ ]`) that are NOT 
 - `SDK conversion`
 - `SDK-style`
 - `multitarget`
+- `multi-target`
 - `package update`
 - `NuGet update`
 - `framework migration`
 - `migrate to .NET`
 - `convert to SDK`
 - `update target framework`
+- `web migration`
+- `web migrate`
+- `build verification`
+- `build fix`
+- `System.Web`
+- `OWIN`
 
 Remove each matching line. Renumber the remaining tasks within their phase to close the gap. Record removals in a comment at the top of the migration section so the user can audit the dedupe.
 

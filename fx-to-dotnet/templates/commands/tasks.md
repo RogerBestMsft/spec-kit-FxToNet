@@ -17,7 +17,7 @@ Inspect `.specify/extensions.yml`. If `fx-to-dotnet` is listed and enabled, set 
 
 Generate `[US*]` user-story tasks from `plan.md` exactly as core does, EXCLUDING any task that:
 
-- Mentions SDK conversion, SDK-style projects, multitarget, target framework upgrades, NuGet/package updates, framework migration, or "migrate to .NET"
+- Mentions any of the canonical migration keywords (case-insensitive): `SDK conversion`, `SDK-style`, `multitarget`, `multi-target`, `package update`, `NuGet update`, `framework migration`, `migrate to .NET`, `convert to SDK`, `update target framework`, `web migration`, `web migrate`, `build verification`, `build fix`, `System.Web`, `OWIN`
 - References any `## .NET Migration Plan` or `## Migration Assessment Summary` section in `plan.md` (these are extension-managed; never source tasks from them)
 
 ## 3. Migration phase placeholder

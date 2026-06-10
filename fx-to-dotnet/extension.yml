@@ -109,6 +109,13 @@ provides:
       file: "commands/hooks/tasks-hook.md"
     - name: "speckit.fx-to-dotnet.implement-hook"
       file: "commands/hooks/implement-hook.md"
+      scripts:
+        - "scripts/bash/dotnet-build.sh"
+        - "scripts/powershell/dotnet-build.ps1"
+        - "scripts/bash/find-recommended-package-upgrades.sh"
+        - "scripts/powershell/Find-RecommendedPackageUpgrades.ps1"
+        - "scripts/bash/get-minimal-package-set.sh"
+        - "scripts/powershell/Get-MinimalPackageSet.ps1"
     - name: "speckit.fx-to-dotnet.verify-hook"
       file: "commands/hooks/verify-hook.md"
 
