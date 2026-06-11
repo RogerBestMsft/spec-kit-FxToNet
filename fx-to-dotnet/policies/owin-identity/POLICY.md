@@ -1,6 +1,10 @@
 ---
 name: owin-identity
 description: Addressing ASP.NET Identity dependency while upgrading from ASP.NET (.NET Framework) to ASP.NET Core.
+scope: conditional
+applies-to: [assess, plan, multitarget, build-fix]
+detection:
+  packages: ["Microsoft.Owin.*", "Microsoft.AspNet.Identity.*", "Owin"]
 ---
 
 # Upgrading ASP.NET Identity

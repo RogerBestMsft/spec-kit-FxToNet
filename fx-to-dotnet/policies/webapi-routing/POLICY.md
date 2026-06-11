@@ -1,6 +1,11 @@
 ---
 name: webapi-routing
 description: Migrating ASP.NET Web API 2 routing attributes and conventions to ASP.NET Core endpoint routing.
+scope: conditional
+applies-to: [plan, web-migrate, build-fix]
+detection:
+  packages: ["Microsoft.AspNet.WebApi.*", "System.Web.Http"]
+  code-patterns: ["RoutePrefix", "ApiController"]
 ---
 
 # Web API Routing Migration

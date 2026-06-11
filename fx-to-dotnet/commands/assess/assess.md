@@ -47,18 +47,33 @@ You are a .NET migration assessment specialist. Your job is to gather informatio
 - DO NOT edit any project files or apply package updates
 - Ground all package compatibility decisions in actual NuGet metadata
 
-## Required Policies
+## Policy Discovery
 
-Before any work begins, you MUST load every policy listed below. These are the canonical required policies for `speckit.fx-to-dotnet.assess`; the `after_plan` hook verifies each is cited in `{featureDir}/migration/analysis.md` and will block `speckit.plan` until all are applied.
+Before any work begins, you MUST discover and load applicable policies. Policies are NOT hardcoded — they are discovered dynamically from the `policies/` directory and filtered by frontmatter metadata.
 
-- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='dependency-layers')` to load the dependency-layer computation algorithm.
-- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='nuget-package-compat')` to load the NuGet package compatibility analysis procedure.
-- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='ef6-migration-policy')` to load the Entity Framework 6 retention/migration policy.
-- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='systemweb-adapters')` to load the System.Web adapter migration guidance.
-- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='owin-identity')` to load the OWIN/Identity migration guidance.
-- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='windows-service-migration')` to load the Windows Service → BackgroundService migration guidance.
+### Discovery Procedure
 
-Each policy loaded here MUST appear as a row in the `## Policies Applied` table of `{featureDir}/migration/analysis.md` (see template below). Policies with no matching code in the solution still emit a row with `Applied To = none — no matches in solution` and `Outcome = n/a` — the row's presence is the proof of loading.
+1. **Enumerate**: List all `policies/*/POLICY.md` files (convention: each subfolder containing a `POLICY.md` is a domain policy; flat files like `mcp-setup.md` are extension-specific and excluded from discovery).
+2. **Read frontmatter**: For each discovered `POLICY.md`, parse its YAML frontmatter. Expected fields:
+   - `name` — policy identifier
+   - `scope` — `core` (always loaded) or `conditional` (loaded only when triggered). If `scope` is missing, treat as `core` for backward compatibility.
+   - `applies-to` — list of commands that should consume this policy (e.g., `[assess, plan]`). If missing, treat as `[assess, plan]`.
+   - `detection` — (required when `scope: conditional`) structured triggers: `packages` (list of package-name glob patterns), `classifications` (list of project classification values), `code-patterns` (list of type/attribute names to search for)
+3. **Filter**: Keep only policies where `applies-to` includes `assess`.
+4. **Load core policies**: For every policy with `scope: core`, call `get_instructions(kind='policy', query='<name>')` unconditionally. These are always required regardless of what the solution contains.
+5. **Evaluate conditional policies**: Conditional policy triggers are evaluated **after** steps 6–7b complete (project classification and package inventory are needed to match triggers). For each policy with `scope: conditional`, check its `detection` triggers against the collected data:
+   - `detection.packages` — match each glob pattern against the discovered package inventory. A match on any pattern triggers the policy.
+   - `detection.classifications` — match against the project classifications from step 6. A match on any classification triggers the policy.
+   - `detection.code-patterns` — match against code analysis signals and classification evidence. A match on any pattern triggers the policy.
+   - If **at least one** trigger matches, call `get_instructions(kind='policy', query='<name>')` to load the policy.
+   - If **no** triggers match, skip loading but record the policy for the `## Policies Evaluated — Not Applicable` table.
+6. **Apply**: For each loaded policy (core + triggered conditional), apply its rules and guidance throughout the relevant workflow steps below (steps 5b, 7c, 9, etc.).
+
+### Output Requirements
+
+- Every **loaded** policy (core + triggered conditional) MUST appear as a row in the `## Policies Applied` table of `{featureDir}/migration/analysis.md`. Policies with no matching code in the solution still emit a row with `Applied To = none — no matches in solution` and `Outcome = n/a` — the row's presence is the proof of loading.
+- Every **skipped** conditional policy (triggers evaluated but none matched) MUST appear as a row in the `## Policies Evaluated — Not Applicable` table. This proves discovery was exhaustive.
+- The `after_plan` hook dynamically verifies both tables against the discovered policy set and blocks `speckit.plan` if any policy is missing from both tables.
 
 ## Workflow
 
@@ -137,7 +152,7 @@ If no projects are returned or the tool errors, report the error.
 
 After obtaining the topological project order, call `get_project_dependencies` for all projects in parallel (passing the solution path and each project path) to collect their project references. From the returned dependencies, extract the project-type dependencies to build a dependency map.
 
-⛔ MANDATORY: Call `get_instructions(kind='policy', query='dependency-layers')` (if not already loaded in the Required Policies preamble) and apply its algorithm to compute dependency layers from the gathered project-dependency data:
+⛔ MANDATORY: Call `get_instructions(kind='policy', query='dependency-layers')` (if not already loaded in the Policy Discovery preamble) and apply its algorithm to compute dependency layers from the gathered project-dependency data:
 - Build the input list where each entry has: `projectPath` (workspace-relative path) and `dependencies` (list of in-solution project references)
 - Dependencies should only include projects that are in the topological project list (in-solution references)
 - Execute the algorithm described in the policy: normalize paths → build adjacency map → iterative reduction → cycle detection
@@ -201,7 +216,7 @@ Classify project scope:
 
 For each candidate package, collect real compatibility data. The assessment does NOT make update decisions or group packages — it only gathers facts for the Migration Planner.
 
-1. ⛔ MANDATORY: Call `get_instructions(kind='policy', query='nuget-package-compat')` (if not already loaded in the Required Policies preamble) and invoke the NuGet package compatibility analysis scripts it provides with a `findRecommendedUpgrades` operation, passing the effective feed context and the list of candidate packages as JSON input
+1. ⛔ MANDATORY: Call `get_instructions(kind='policy', query='nuget-package-compat')` (if not already loaded in the Policy Discovery preamble) and invoke the NuGet package compatibility analysis scripts it provides with a `findRecommendedUpgrades` operation, passing the effective feed context and the list of candidate packages as JSON input
 2. For each package, record:
    - Whether the current version already supports the target framework
    - If not, the **minimum version** that supports both .NET Framework and .NET Core/Standard/modern .NET
@@ -243,12 +258,10 @@ For each unsupported package, record:
 
 ### 9. Out-of-Scope Items Review
 
-After completing the package compatibility analysis, scan the solution for technologies and patterns that are explicitly **not** part of this migration. The migration domain policies define the rules and exclusions that drive this scan:
+After completing the package compatibility analysis, scan the solution for technologies and patterns that are explicitly **not** part of this migration. Apply the rules from every conditional policy that was loaded during Policy Discovery. For each loaded policy whose detection triggers matched, apply its rules to the relevant code patterns found in the assessment:
 
-- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='ef6-migration-policy')` (if not already loaded) and apply its rules to every detected EF6 reference.
-- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='systemweb-adapters')` (if not already loaded) and apply its guidance to every detected `System.Web` API/handler/module/property usage.
-- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='owin-identity')` (if not already loaded) and apply its guidance to every detected OWIN/Identity startup, middleware, or auth pipeline.
-- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='windows-service-migration')` (if not already loaded) and apply its guidance to every project containing `ServiceBase` subclasses or TopShelf hosts.
+- For each loaded policy, scan the solution for matching technologies and record findings per the policy's guidance.
+- Policies that were not loaded (detection triggers did not match) are skipped — they have no applicable code to scan for.
 
 For each out-of-scope item detected, record:
 - What was found (e.g. EF6 DbContext usage, specific package references)
@@ -257,7 +270,7 @@ For each out-of-scope item detected, record:
 
 Include these in the output as a dedicated section so the migration plan does not accidentally include them as work items.
 
-**Windows Service note**: When any project is classified as `windows-service`, ⛔ MANDATORY: apply the `windows-service-migration` policy (loaded via the Required Policies preamble) — Windows Service migration is an **in-scope** migration item; record it in the project classifications, not in out-of-scope items.
+**Windows Service note**: When any project is classified as `windows-service`, ⛔ MANDATORY: apply the `windows-service-migration` policy (if loaded via Policy Discovery) — Windows Service migration is an **in-scope** migration item; record it in the project classifications, not in out-of-scope items.
 
 ### 10. Persist Assessment Output
 
@@ -306,16 +319,19 @@ Unresolved/Cycles: ← omit section if none
 
 ## Policies Applied
 
-> Every policy listed in the `## Required Policies` preamble of `assess.md` MUST appear as a row below. Policies with no matching code in the solution still get a row with `Applied To = none — no matches in solution` and `Outcome = n/a` — the row's presence is the proof of loading. The `after_plan` hook parses this table and blocks `speckit.plan` if any required policy row is missing.
+> Every policy loaded during the `## Policy Discovery` step MUST appear as a row below. Core policies always appear. Conditional policies appear only when their detection triggers matched. Policies with no matching code in the solution still get a row with `Applied To = none — no matches in solution` and `Outcome = n/a` — the row's presence is the proof of loading. The `after_plan` hook dynamically discovers all policies and verifies this table is complete.
 
 | Policy | Source | Applied To | Outcome |
 |---|---|---|---|
-| `dependency-layers` | `policies/dependency-layers/POLICY.md` | {projects analyzed for layer computation, or `none — no matches in solution`} | {summary, or `n/a`} |
-| `nuget-package-compat` | `policies/nuget-package-compat/POLICY.md` | {packages analyzed, or `none — no matches in solution`} | {summary, or `n/a`} |
-| `ef6-migration-policy` | `policies/ef6-migration-policy/POLICY.md` | {projects with EF6 references, or `none — no matches in solution`} | {summary, or `n/a`} |
-| `systemweb-adapters` | `policies/systemweb-adapters/POLICY.md` | {projects with System.Web usage, or `none — no matches in solution`} | {summary, or `n/a`} |
-| `owin-identity` | `policies/owin-identity/POLICY.md` | {projects with OWIN/Identity usage, or `none — no matches in solution`} | {summary, or `n/a`} |
-| `windows-service-migration` | `policies/windows-service-migration/POLICY.md` | {projects with `ServiceBase`/TopShelf, or `none — no matches in solution`} | {summary, or `n/a`} |
+| {for each loaded policy, emit a row with: policy name, source path, what it was applied to, and outcome summary} |
+
+## Policies Evaluated — Not Applicable
+
+> Conditional policies whose detection triggers were evaluated but did not match any technology in the solution. Their presence here proves discovery was exhaustive — no policy was silently skipped.
+
+| Policy | Source | Detection Triggers | Reason Not Applicable |
+|---|---|---|---|
+| {for each skipped conditional policy, emit a row with: policy name, source path, trigger summary, and why no match was found} |
 ```
 
 ## package-updates.md Template

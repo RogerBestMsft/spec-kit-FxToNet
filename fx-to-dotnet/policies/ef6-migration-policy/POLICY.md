@@ -1,6 +1,10 @@
 ---
 name: ef6-migration-policy
 description: "EF6 to EF Core migration policy for .NET Framework to modern .NET upgrades. Use when: assessing EF6 usage, planning package compatibility, multitargeting projects with Entity Framework 6. EF Core is NOT supported on .NET Framework — EF6 packages must be retained during framework-to-modern-dotnet migration and only migrated to EF Core as a separate post-migration effort."
+scope: conditional
+applies-to: [assess, plan, multitarget, build-fix]
+detection:
+  packages: ["EntityFramework", "EntityFramework.*"]
 ---
 
 # EF6 Migration Policy

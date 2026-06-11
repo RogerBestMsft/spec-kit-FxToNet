@@ -1,6 +1,10 @@
 ---
 name: autofac-di-migration
 description: Migrating Autofac dependency injection from ASP.NET Framework (OWIN/Web API 2) to ASP.NET Core while preserving existing registrations.
+scope: conditional
+applies-to: [plan, web-migrate, build-fix]
+detection:
+  packages: ["Autofac", "Autofac.*"]
 ---
 
 # Autofac DI Migration

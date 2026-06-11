@@ -39,7 +39,7 @@ Search `spec.md` for the anchor line:
 ## Migration Context Detected
 ```
 
-If present, leave it in place and update only the bullet list inside it (replace the existing list with the current detection summary). **Do not** append a second copy.
+If present, leave it in place and update only the bullet list and policy constraints inside it (replace the existing content with the current detection summary and policy constraints from step 3a). **Do not** append a second copy.
 
 If absent, append to the END of `spec.md`:
 
@@ -53,8 +53,31 @@ The workspace contains the following .NET Framework projects that require migrat
 - <project path> — <classification>
 - ...
 
+<if policy constraints were discovered in step 3a, include the subsection below; otherwise omit it>
+
+### Migration Policy Constraints
+
+The following policy constraints apply to this migration and MUST be respected when generating the implementation plan. Do NOT generate migration targets, Technical Context tables, or phase descriptions that contradict these constraints — all migration technology decisions are owned by the `## .NET Migration Plan` extension-managed section.
+
+- **<policy name>** — <constraint summary from policy description>
+- ...
+
+</if>
+
 See `{featureDir}/migration/detection.md` for evidence and the full classification list.
 ```
+
+## 3a. Discover policy constraints for annotation
+
+After detection (step 1) succeeds and before writing the annotation (step 3), discover applicable migration policy constraints to include in the `spec.md` annotation. The core planner reads `spec.md` as input, so surfacing policy constraints here prevents the planner from generating content that contradicts extension policies.
+
+1. List all `policies/*/POLICY.md` files (same convention as other hooks: each subfolder containing a `POLICY.md` is a domain policy).
+2. For each, parse YAML frontmatter to extract: `name`, `scope` (`core` or `conditional`), `detection.packages` (list of package-name glob patterns).
+3. For **conditional** policies with `detection.packages`, match the glob patterns against package IDs found in the detected Framework projects. Use `packages.config` files or `.csproj` `<PackageReference>` entries from the detected projects listed in `{featureDir}/migration/detection.md`. A match on any pattern triggers the policy.
+4. For **core** policies (`scope: core`), always include them.
+5. For each triggered or core policy, extract the `description` field from its frontmatter as the constraint summary.
+6. Collect the triggered policies into a list for inclusion in the `### Migration Policy Constraints` subsection of step 3.
+7. If no policies are discovered or none trigger, omit the `### Migration Policy Constraints` subsection entirely — the annotation still contains the project list.
 
 ## 4. Exit
 

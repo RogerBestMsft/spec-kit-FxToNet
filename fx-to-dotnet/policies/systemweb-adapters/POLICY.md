@@ -1,6 +1,11 @@
 ---
 name: systemweb-adapters
 description: "System.Web adapters migration policy for ASP.NET Framework to ASP.NET Core. Use when: migrating System.Web.HttpContext, HttpRequest, HttpResponse, IHttpModule, IHttpHandler, HttpApplication, Global.asax, or other System.Web types to ASP.NET Core. Adapters are the DEFAULT approach during migration to minimize code changes. Covers adapter packages, property translations, incremental IHttpModule/IHttpHandler support, and behavioral differences (lifetime, threading, buffering). Native ASP.NET Core rewrite is a post-migration optimization."
+scope: conditional
+applies-to: [assess, plan, multitarget, build-fix, web-migrate]
+detection:
+  packages: ["System.Web", "Microsoft.AspNet.WebApi.*", "Microsoft.AspNet.Mvc"]
+  code-patterns: ["System.Web.HttpContext", "IHttpModule", "IHttpHandler"]
 ---
 
 # System.Web Adapters Migration Guide

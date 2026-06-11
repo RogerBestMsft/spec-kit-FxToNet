@@ -1,6 +1,11 @@
 ---
 name: windows-service-migration
 description: "Windows Service migration policy for .NET Framework ServiceBase to modern .NET BackgroundService. Use when: migrating System.ServiceProcess.ServiceBase, ServiceInstaller, ServiceProcessInstaller, or TopShelf-hosted services. The Generic Host + BackgroundService + Microsoft.Extensions.Hosting.WindowsServices pattern is the default approach. Both hosting packages target netstandard2.0 and .NET Framework 4.6.2+, enabling multitarget-first migration. Native rewrite from ServiceBase to BackgroundService can happen while still on net472."
+scope: conditional
+applies-to: [assess, plan, multitarget]
+detection:
+  classifications: ["windows-service"]
+  code-patterns: ["ServiceBase", "TopShelf"]
 ---
 
 # Windows Service Migration Guide

@@ -1,6 +1,8 @@
 ---
 name: dependency-layers
 description: "Compute dependency layers from a project dependency graph using iterative graph reduction. Use when: ordering projects for migration, computing build layers, determining parallel migration batches, or topological layer grouping of solution projects."
+scope: core
+applies-to: [assess, plan]
 ---
 
 # Dependency Layer Computation

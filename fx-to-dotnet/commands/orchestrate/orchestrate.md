@@ -16,6 +16,11 @@ commands:
   - "speckit.fx-to-dotnet.fix"
   - "speckit.fx-to-dotnet.inventory"
   - "speckit.fx-to-dotnet.show-policy"
+  # --- Validation commands (invoked after each phase) ---
+  - "speckit.fx-to-dotnet.validate-sdk"
+  - "speckit.fx-to-dotnet.validate-packages"
+  - "speckit.fx-to-dotnet.validate-multitarget"
+  - "speckit.fx-to-dotnet.validate-web"
 ---
 
 You are an ORCHESTRATION AGENT for .NET modernization. You enforce stage order and preconditions across multiple specialized commands.
@@ -106,6 +111,19 @@ alwaysContinue: true
 When resuming a migration, read this file (if it exists) to restore the user's continuation preference.
 
 </continuation-preferences>
+
+<validation-failure-handling>
+
+Validation commands are safety gates. Their failure behavior overrides continuation preferences:
+
+- **`fail` result**: ALWAYS pause regardless of `alwaysContinue`. Present failures and ask:
+  - "Fix and retry" — return to the failed phase and re-run the relevant migration command(s), then re-validate
+  - "Continue anyway" — proceed despite failures (user accepts risk; record acknowledgment in `validation.md`)
+  - "Stop here" — halt orchestration; progress is saved
+- **`warn` result**: Include warnings in the checkpoint summary. Continuation proceeds normally (respects `alwaysContinue`).
+- **`pass` result**: No interruption. Proceed to checkpoint prompt as normal.
+
+</validation-failure-handling>
 
 <rules>
 - Enforce phase order strictly; do not skip or reorder phases
@@ -226,6 +244,14 @@ For each layer:
 
 Do not proceed to phase 5 until all layers are successfully converted.
 
+### SDK Conversion Validation
+
+After all projects across all dependency groups are converted, invoke `speckit.fx-to-dotnet.validate-sdk` with:
+- `projects` = full list of project paths that were targeted for SDK conversion
+- `solutionPath`
+
+Evaluate the validation result using the rules in `<validation-failure-handling>`. If the result is `fail`, do NOT update `lastCompletedPhase` — handle the failure first. If the result is `pass` or `warn` (or the user chose "Continue anyway"), proceed.
+
 Update `lastCompletedPhase: "sdk-normalization"` in `{featureDir}/migration/orchestration.md` via the `edit` tool.
 
 Run the **Phase Checkpoint Prompt** (see `<continuation-preferences>`) with header "SDK Normalization Complete" unless continuation is enabled. If the user chose "Stop here", halt and save progress.
@@ -250,6 +276,14 @@ For each layer:
 
 The phase completes when every `(project, chunkId)` pair listed in the per-project queues has a corresponding `chunkResults` entry.
 
+### Package Updates Validation
+
+After all (project, chunk) pairs are complete, invoke `speckit.fx-to-dotnet.validate-packages` with:
+- `projects` = full list of project paths that had package updates
+- `solutionPath`
+
+Evaluate the validation result using the rules in `<validation-failure-handling>`. If the result is `fail`, do NOT update `lastCompletedPhase` — handle the failure first. If the result is `pass` or `warn` (or the user chose "Continue anyway"), proceed.
+
 Update `packageCompatStatus` and `lastCompletedPhase: "package-compat"` in `{featureDir}/migration/orchestration.md` via the `edit` tool.
 
 Run the **Phase Checkpoint Prompt** (see `<continuation-preferences>`) with header "Package Compatibility Complete" unless continuation is enabled. If the user chose "Stop here", halt and save progress.
@@ -269,6 +303,15 @@ For each layer:
 - Each completed layer is a natural checkpoint — record progress in `{featureDir}/migration/orchestration.md`
 - If there are more layers remaining, run the **Layer Checkpoint Prompt** (see `<continuation-preferences>`) unless continuation is enabled
 
+### Multitarget Validation
+
+After all projects across all dependency groups finish multitargeting, invoke `speckit.fx-to-dotnet.validate-multitarget` with:
+- `projects` = full list of project paths targeted for multitargeting
+- `solutionPath`
+- `targetFramework`
+
+Evaluate the validation result using the rules in `<validation-failure-handling>`. If the result is `fail`, do NOT update `lastCompletedPhase` — handle the failure first. If the result is `pass` or `warn` (or the user chose "Continue anyway"), proceed.
+
 Update `multitargetStatus` and `lastCompletedPhase: "multitarget"` in `{featureDir}/migration/orchestration.md` via the `edit` tool.
 
 Run the **Phase Checkpoint Prompt** (see `<continuation-preferences>`) with header "Multitarget Migration Complete" unless continuation is enabled. If the user chose "Stop here", halt and save progress.
@@ -286,6 +329,15 @@ Invoke `speckit.fx-to-dotnet.web-migrate` with:
 
 Wait for completion.
 If it fails or stops with unresolved blockers, ask user whether to continue, retry, or stop.
+
+### Web Migration Validation
+
+After web migration completes for all web hosts, invoke `speckit.fx-to-dotnet.validate-web` with:
+- `webProjects` = list of legacy web project paths that were migrated
+- `solutionPath`
+- `targetFramework`
+
+Evaluate the validation result using the rules in `<validation-failure-handling>`. If the result is `fail`, do NOT update `lastCompletedPhase` — handle the failure first. If the result is `pass` or `warn` (or the user chose "Continue anyway"), proceed.
 
 Update `aspnetMigrationStatus` and `lastCompletedPhase: "aspnet-migration"` in `{featureDir}/migration/orchestration.md` via the `edit` tool.
 

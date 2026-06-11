@@ -100,6 +100,15 @@ provides:
       file: "commands/route-inventory/inventory.md"
     - name: "speckit.fx-to-dotnet.show-policy"
       file: "commands/policies/show.md"
+    # --- Validation commands ---
+    - name: "speckit.fx-to-dotnet.validate-sdk"
+      file: "commands/validate-sdk/validate.md"
+    - name: "speckit.fx-to-dotnet.validate-packages"
+      file: "commands/validate-packages/validate.md"
+    - name: "speckit.fx-to-dotnet.validate-multitarget"
+      file: "commands/validate-multitarget/validate.md"
+    - name: "speckit.fx-to-dotnet.validate-web"
+      file: "commands/validate-web/validate.md"
     # --- Lifecycle hook commands ---
     - name: "speckit.fx-to-dotnet.specify-hook"
       file: "commands/hooks/specify-hook.md"

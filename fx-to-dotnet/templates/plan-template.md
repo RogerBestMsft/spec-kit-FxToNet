@@ -30,6 +30,19 @@ Before `speckit.implement` may run, the following artifacts MUST exist (the `bef
 
 If any gate criterion fails, the `before_implement` hook will block `speckit.implement` with a remediation message. Resolve the failing item and re-run `/speckit.plan` and/or `/speckit.tasks` to regenerate the missing artifact.
 
+### Migration Content Boundaries
+
+When `## Migration Context Detected` exists in `spec.md` and lists .NET Framework projects:
+
+- **Do NOT** generate a "Technical Context" table with "Current State → Target State" columns for migration-scoped technologies (ORM, identity provider, DI container, web framework, background services, logging stack). These decisions are owned by the extension's migration plan.
+- **Do NOT** prescribe specific replacement technologies (e.g., "EF6 → EF Core", "IdentityServer3 → Duende") in plan phases, summaries, or design sections.
+- **Do NOT** generate migration phases that overlap with the extension-managed phases (SDK conversion, package updates, multitarget, web migration, build verification, deferred work).
+- **DO** reference the `### Migration Policy Constraints` subsection in `spec.md` and respect every constraint listed there.
+- **DO** defer all migration technology decisions to the `## .NET Migration Plan` extension-managed section and the `{featureDir}/migration/plan.md` artifact.
+- **DO** focus the core plan on user-story functionality, architecture, and non-migration concerns.
+
+Content generated outside `> **Extension-managed**` blockquotes that contradicts these boundaries will be flagged and corrected by the `after_plan` hook.
+
 ---
 
 <!-- Remainder of the core plan template (Phases, Constitution alignment, etc.) follows unchanged. -->

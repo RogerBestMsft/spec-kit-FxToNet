@@ -102,6 +102,10 @@ graph TB
 | `speckit.fx-to-dotnet.detect` | Utility: Determine project type, SDK-style status, classification |
 | `speckit.fx-to-dotnet.inventory` | Utility: Extract route/endpoint inventory from legacy ASP.NET |
 | `speckit.fx-to-dotnet.show-policy` | Display a named migration policy document |
+| `speckit.fx-to-dotnet.validate-sdk` | Validate SDK-style conversion results (structural, completeness, regression checks) |
+| `speckit.fx-to-dotnet.validate-packages` | Validate package compatibility update results |
+| `speckit.fx-to-dotnet.validate-multitarget` | Validate multitarget migration results |
+| `speckit.fx-to-dotnet.validate-web` | Validate ASP.NET Core web migration results |
 
 ## Lifecycle Integration (v0.5.0+)
 

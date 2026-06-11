@@ -1,6 +1,8 @@
 ---
 name: nuget-package-compat
 description: "NuGet package compatibility analysis for .NET Framework to modern .NET migration. Use when: evaluating NuGet package upgrade recommendations, finding minimum modern .NET compatible versions, pruning transitive package references, computing minimal PackageReference sets during SDK-style project conversion, or checking for legacy NuGet package flags."
+scope: core
+applies-to: [assess, plan]
 ---
 
 # NuGet Package Compatibility Analysis

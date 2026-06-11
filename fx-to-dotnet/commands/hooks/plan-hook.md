@@ -33,25 +33,41 @@ Invoke `speckit.fx-to-dotnet.plan`. This produces `{featureDir}/migration/plan.m
 
 This step runs **after** the non-Framework silent-exit guard in step 1, so non-migration workspaces are unaffected.
 
-The canonical required-policies map (per command) is embedded inline here so the hook is self-contained:
+Policy verification is **dynamic** — the required policy set is discovered from the `policies/` directory, not hardcoded. This ensures new policies are automatically verified without updating this hook.
 
-| Command | Output file | Required policies |
+### 4a. Discover all domain policies
+
+1. List all `policies/*/POLICY.md` files (convention: each subfolder containing a `POLICY.md` is a domain policy; flat files like `mcp-setup.md` are extension-specific and excluded).
+2. For each discovered `POLICY.md`, parse its YAML frontmatter to extract: `name`, `scope` (`core` or `conditional`; default `core` if missing), `applies-to` (list of commands; default `[assess, plan]` if missing), and `detection` (trigger config for conditional policies).
+
+### 4b. Build per-command expected policy sets
+
+For each output file to verify:
+
+| Command | Output file | Filter |
 |---|---|---|
-| `speckit.fx-to-dotnet.assess` | `{featureDir}/migration/analysis.md` | `dependency-layers`, `nuget-package-compat`, `ef6-migration-policy`, `systemweb-adapters`, `owin-identity`, `windows-service-migration` |
-| `speckit.fx-to-dotnet.plan` | `{featureDir}/migration/plan.md` | `dependency-layers`, `windows-service-migration`, `ef6-migration-policy`, `nuget-package-compat`, `systemweb-adapters`, `owin-identity` |
+| `speckit.fx-to-dotnet.assess` | `{featureDir}/migration/analysis.md` | `applies-to` includes `assess` |
+| `speckit.fx-to-dotnet.plan` | `{featureDir}/migration/plan.md` | `applies-to` includes `plan` |
 
-For each row in the map:
+From the discovered policies, filter to those whose `applies-to` includes the command. Then classify:
+- **Core policies** (`scope: core`): MUST appear in `## Policies Applied` unconditionally.
+- **Conditional policies** (`scope: conditional`): Evaluate their `detection` triggers against the assessment data in `{featureDir}/migration/analysis.md` (package inventory, project classifications, code analysis signals). Each policy must appear in **either** `## Policies Applied` (trigger matched) **or** `## Policies Evaluated — Not Applicable` (trigger did not match).
+
+### 4c. Verify each output file
+
+For each row in the table above:
 
 1. Read the listed output file.
-2. Locate its `## Policies Applied` section and parse the table.
-3. For every required policy in the row, verify a matching table row exists (the policy name appears in the first column). Rows whose `Applied To` cell is `none — no matches in solution` still satisfy the check — presence is the proof of loading.
-4. On any miss, exit non-zero immediately with the exact message:
+2. Locate its `## Policies Applied` section and parse the table. Also locate the `## Policies Evaluated — Not Applicable` section if present.
+3. For every **core** policy in the expected set, verify a matching table row exists in `## Policies Applied` (the policy name appears in the first column). Rows whose `Applied To` cell is `none — no matches in solution` still satisfy the check — presence is the proof of loading.
+4. For every **conditional** policy in the expected set, verify a matching row exists in **either** `## Policies Applied` **or** `## Policies Evaluated — Not Applicable`. A conditional policy present in neither table means it was silently skipped — that is a failure.
+5. On any miss, exit non-zero immediately with the exact message:
 
    `Required policy '<name>' not cited in '<file>'. Re-run after ensuring 'speckit.fx-to-dotnet.<command>' loads and applies it.`
 
    Substitute `<name>`, `<file>`, and `<command>` with the missing policy, the offending output file (full path — e.g. `{featureDir}/migration/analysis.md` or `{featureDir}/migration/plan.md`), and the owning command (`assess` or `plan`).
 
-If both tables contain every required policy, continue to step 5.
+If both output files pass verification, continue to step 5.
 
 ## 5. Annotate `spec.md` (idempotent)
 
@@ -103,6 +119,54 @@ Before `speckit.implement` may run, the `before_implement` hook will verify:
 See `{featureDir}/migration/plan.md` for the full plan, ordering, and dispatch-unit breakdown.
 ```
 
+## 6a. Validate and correct competing migration content
+
+This step enforces the gate criterion: "No competing migration content appears outside extension-managed sections." It runs after the extension-managed annotation (step 6) so the authoritative content is already in place.
+
+### 6a-i. Identify extension-managed regions
+
+Read `plan.md`. Identify all regions that begin with a `> **Extension-managed**` blockquote line and end at the next heading of equal or higher level (or EOF). These regions are owned by the extension and excluded from validation. Collect all remaining (non-extension-managed) content as the "core-generated content" to scan.
+
+### 6a-ii. Build contradiction patterns from loaded policies
+
+Using the policies discovered in step 4a, build contradiction patterns for each policy that was **loaded** (appeared in `## Policies Applied` in `{featureDir}/migration/plan.md`).
+
+For each loaded policy:
+
+1. Read its `POLICY.md` file from `policies/<name>/POLICY.md`.
+2. Extract items from the `## What NOT to Do` section (if present). Each bullet becomes a contradiction pattern.
+3. Extract prohibitions from the `## Rules` section — items that begin with "Do not", "Never", or "must NOT".
+4. Convert each prohibition into a set of text-search patterns. Examples:
+
+| Policy | Prohibition | Search patterns |
+|---|---|---|
+| `ef6-migration-policy` | "Do not add Microsoft.EntityFrameworkCore packages" | `Entity Framework Core`, `EF Core`, `EntityFrameworkCore` as migration targets in tables or phase descriptions |
+| `ef6-migration-policy` | "Do not remove or replace EntityFramework references" | `EF6 → EF Core`, `Entity Framework 6 → Entity Framework Core`, rows mapping current ORM to EF Core |
+
+5. If a policy has no extractable prohibitions (no `## What NOT to Do` or `## Rules` section), skip it.
+
+### 6a-iii. Scan and correct
+
+For each contradiction pattern:
+
+1. Search the core-generated content (non-extension-managed regions of `plan.md`) for matches. Match case-insensitively. Look in:
+   - Table cells (especially "Target State", "Target", or right-hand columns in comparison tables)
+   - Phase/section headings and descriptions
+   - Bullet lists describing migration actions
+2. On match, locate the containing section (identified by its nearest parent `##` or `###` heading).
+3. Replace the **body** of the contradicting section (everything between the heading and the next heading of equal or higher level) with a corrective note:
+
+   ```
+   > ⚠️ **Corrected by fx-to-dotnet** — This section originally contained migration technology targets that contradict loaded migration policies (<list of violated policy names>). The authoritative migration plan is in `{featureDir}/migration/plan.md`. See the `## .NET Migration Plan` section below for the extension-managed summary.
+   ```
+
+4. Log each correction: `Corrected competing migration content under '<heading>' — contradicts policy '<policy name>'.`
+5. If multiple contradiction patterns match within the same section, apply the correction once (listing all violated policy names).
+
+If no contradictions are found, proceed silently to step 7.
+
+This step is **idempotent** — the corrective note itself contains no migration technology targets and will not re-trigger on subsequent runs.
+
 ## 7. Exit
 
 Exit 0 on success. Exit non-zero with a clear message if `assess`, `plan`, or policy-citation verification (step 4) failed — this is the mandatory gate that ensures assessment + plan are complete and policies were demonstrably applied before tasks/implement.
@@ -113,8 +177,10 @@ Exit 0 on success. Exit non-zero with a clear message if `assess`, `plan`, or po
 - Always look up the heading `## Migration Assessment Summary` (in `spec.md`) and `## .NET Migration Plan` (in `plan.md`) before appending.
 - Replace body content; never duplicate sections.
 - Wrap every generated section in the `> **Extension-managed**` blockquote anchor.
-- Never edit content outside these two sections.
+- Never edit content outside these two sections and the sections corrected by step 6a.
 - The `## Policies Applied` section (in `{featureDir}/migration/analysis.md` and `{featureDir}/migration/plan.md`) is also extension-managed: it is replaced (not appended) by `assess` and `plan` on every rerun, so the verification step in step 4 always reads the current set of citations.
+- The corrective note inserted by step 6a contains no migration technology targets, so it will not re-trigger on subsequent runs.
+- Step 6a only modifies content outside `> **Extension-managed**` blockquotes.
 </idempotency-rules>
 
 <silent-exit-rules>
