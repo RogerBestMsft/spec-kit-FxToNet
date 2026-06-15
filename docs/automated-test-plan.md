@@ -66,7 +66,7 @@ All Phase 2 items are independent and run in parallel under `pytest-xdist`.
 | 10 | `structural/test_policy_links.py` | Grep command bodies for `policies/*.md` and `policies/**/POLICY.md`; assert each target exists. |
 | 11 | `structural/test_readme_claims.py` | README command/hook tables match `extension.yml`. |
 | 12 | `structural/test_version_consistency.py` | Wraps `scripts/version-check.py` (exit 0). |
-| 13 | `structural/test_mcp_config.py` | Extract JSON block from `fx-to-dotnet/policies/mcp-setup.md`; validate against schema; also runs `mcp-config-validate.ps1` and `.sh` as subprocesses. |
+| 13 | `structural/test_mcp_config.py` | Extract JSON block from `fx-to-dotnet/policies/mcp-setup/POLICY.md`; validate against schema; also runs `mcp-config-validate.ps1` and `.sh` as subprocesses. |
 
 ## Phase 3 — L2: Script behavior with fixtures
 
@@ -104,7 +104,7 @@ Runs alongside Phase 2.
 - [fx-to-dotnet/extension.yml](../fx-to-dotnet/extension.yml) — source of truth for declared commands/hooks/scripts.
 - [fx-to-dotnet/preset.yml](../fx-to-dotnet/preset.yml) — preset version coupling.
 - `fx-to-dotnet/commands/**/*.md` — frontmatter + cross-reference targets.
-- [fx-to-dotnet/policies/mcp-setup.md](../fx-to-dotnet/policies/mcp-setup.md) — MCP JSON snippet.
+- [fx-to-dotnet/policies/mcp-setup/POLICY.md](../fx-to-dotnet/policies/mcp-setup/POLICY.md) — MCP JSON snippet.
 - [fx-to-dotnet/scripts/bash/dotnet-build.sh](../fx-to-dotnet/scripts/bash/dotnet-build.sh), [fx-to-dotnet/scripts/powershell/dotnet-build.ps1](../fx-to-dotnet/scripts/powershell/dotnet-build.ps1) — runtime scripts under test.
 - All `scripts/` helpers — wrapped via subprocess assertions; any pair drift surfaced gets fixed.
 - `policies/**/POLICY.md`, `fx-to-dotnet/policies/*.md` — link-check targets.
@@ -120,7 +120,7 @@ Runs alongside Phase 2.
 6. **Mutation matrix** — five deliberate defects each fail exactly the expected test, no collateral:
    - Delete a command file → `test_extension_yaml` / `test_cross_references`.
    - Mismatch preset version → `test_preset_yaml`.
-   - Malform `mcp-setup.md` JSON → `test_mcp_config`.
+   - Malform `mcp-setup/POLICY.md` JSON → `test_mcp_config`.
    - Bump only one extension version (when more are added) → `test_version_consistency`.
 7. Suite budget < 3 min per OS.
 
@@ -177,7 +177,7 @@ Task IDs are stable across phases; `[P]` denotes tasks safe to run in parallel w
 - **T013 [P]** `tests/structural/test_policy_links.py` — `policies/*.md` and `policies/**/POLICY.md` targets exist.
 - **T014 [P]** `tests/structural/test_readme_claims.py` — README ↔ `extension.yml` drift check.
 - **T015 [P]** `tests/structural/test_version_consistency.py` — wraps `support_scripts/version-check.py`.
-- **T016 [P]** `tests/structural/test_mcp_config.py` — JSON in `mcp-setup.md` + validate scripts.
+- **T016 [P]** `tests/structural/test_mcp_config.py` — JSON in `mcp-setup/POLICY.md` + validate scripts.
 
 ### Phase 3 — L2 Script tests (parallel with Phase 2)
 

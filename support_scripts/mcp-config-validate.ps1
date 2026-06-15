@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Validate that the canonical .mcp.json snippet in mcp-setup.md is well-formed
+    Validate that the canonical .mcp.json snippet in mcp-setup/POLICY.md is well-formed
     and contains the required MCP server entry with expected properties.
 #>
 
@@ -79,6 +79,12 @@ function Test-McpConfig {
     if ($args -notcontains '--prerelease') {
         $errors.Add("${SourceFile}: args missing '--prerelease' flag")
     }
+    if ($args -notcontains '--source') {
+        $errors.Add("${SourceFile}: args missing '--source' flag")
+    }
+    if ($args -notcontains 'https://api.nuget.org/v3/index.json') {
+        $errors.Add("${SourceFile}: args missing NuGet source URL 'https://api.nuget.org/v3/index.json'")
+    }
 
     # Validate tools
     $tools = @($server.tools)
@@ -93,7 +99,7 @@ function Test-CommandReferences {
     param([string]$RootPath)
 
     $errors = [System.Collections.Generic.List[string]]::new()
-    $policyPath = "policies/mcp-setup.md"
+    $policyPath = "policies/mcp-setup/POLICY.md"
 
     foreach ($ext in $Extensions) {
         foreach ($cmdFile in @("commands/assess/assess.md", "commands/sdk-convert/convert.md")) {
@@ -105,9 +111,11 @@ function Test-CommandReferences {
 
             $text = Get-Content -Path $fullPath -Raw -Encoding UTF8
 
-            # Check that the command references the policy doc
-            if ($text -notmatch 'policies/mcp-setup\.md') {
-                $errors.Add("${ext}/${cmdFile}: does not reference '${policyPath}'")
+            # Check that the command references the policy doc OR delegates to mcp-preflight
+            $refsPolicy = $text -match 'policies/mcp-setup/POLICY\.md'
+            $refsPreflight = $text -match 'mcp-preflight'
+            if (-not $refsPolicy -and -not $refsPreflight) {
+                $errors.Add("${ext}/${cmdFile}: does not reference '${policyPath}' or delegate to mcp-preflight")
             }
 
             # Check that the command has a pre-flight section
@@ -116,16 +124,16 @@ function Test-CommandReferences {
             }
         }
     }
-    return $errors
+    return ,$errors
 }
 
 # --- Main ---
 $allErrors = [System.Collections.Generic.List[string]]::new()
 
-# 1. Validate the canonical snippet in each extension's mcp-setup.md
+# 1. Validate the canonical snippet in each extension's mcp-setup/POLICY.md
 foreach ($ext in $Extensions) {
-    $policyFile = Join-Path $Root $ext "policies" "mcp-setup.md"
-    $rel = "${ext}/policies/mcp-setup.md"
+    $policyFile = Join-Path $Root $ext "policies" "mcp-setup" "POLICY.md"
+    $rel = "${ext}/policies/mcp-setup/POLICY.md"
 
     if (-not (Test-Path $policyFile)) {
         $allErrors.Add("${rel}: policy file not found")

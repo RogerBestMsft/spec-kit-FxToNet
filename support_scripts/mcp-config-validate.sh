@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validate that the canonical .mcp.json snippet in mcp-setup.md is well-formed
+# Validate that the canonical .mcp.json snippet in mcp-setup/POLICY.md is well-formed
 # and contains the required MCP server entry with expected properties.
 
 set -euo pipefail
@@ -67,8 +67,10 @@ else:
     if '--yes' not in args:
         errs.append(f'{source}: args missing \"--yes\" flag')
     if '--prerelease' not in args:
-        errs.append(f'{source}: args missing \"--prerelease\" flag')
-    tools = s.get('tools', [])
+        errs.append(f'{source}: args missing \"--prerelease\" flag')    if '--source' not in args:
+        errs.append(f'{source}: args missing "--source" flag')
+    if 'https://api.nuget.org/v3/index.json' not in args:
+        errs.append(f'{source}: args missing NuGet source URL "https://api.nuget.org/v3/index.json"')    tools = s.get('tools', [])
     if len(tools) == 0:
         errs.append(f'{source}: \"tools\" array is empty')
 
@@ -105,8 +107,9 @@ validate_command_references() {
             # when grep closes its stdin early on first match), which the `!`
             # then flips to success — yielding bogus "does not reference"
             # errors for files larger than the pipe buffer.
-            if ! grep -q 'policies/mcp-setup\.md' "$full_path"; then
-                errors+=("${rel}: does not reference 'policies/mcp-setup.md'")
+            # Check that the command references the policy doc OR delegates to mcp-preflight
+            if ! grep -q 'policies/mcp-setup/POLICY\.md' "$full_path" && ! grep -q 'mcp-preflight' "$full_path"; then
+                errors+=("${rel}: does not reference 'policies/mcp-setup/POLICY.md' or delegate to mcp-preflight")
             fi
 
             if ! grep -q 'MCP Server Pre-flight' "$full_path"; then
@@ -118,10 +121,10 @@ validate_command_references() {
 
 # --- Main ---
 
-# 1. Validate the canonical snippet in each extension's mcp-setup.md
+# 1. Validate the canonical snippet in each extension's mcp-setup/POLICY.md
 for ext in "${EXTENSIONS[@]}"; do
-    policy_file="${ROOT}/${ext}/policies/mcp-setup.md"
-    rel="${ext}/policies/mcp-setup.md"
+    policy_file="${ROOT}/${ext}/policies/mcp-setup/POLICY.md"
+    rel="${ext}/policies/mcp-setup/POLICY.md"
 
     if [ ! -f "$policy_file" ]; then
         errors+=("${rel}: policy file not found")

@@ -26,6 +26,6 @@ Extension-specific policies (live under `fx-to-dotnet/policies/`):
    - `owin-identity` → `policies/owin-identity/POLICY.md`
    - `systemweb-adapters` → `policies/systemweb-adapters/POLICY.md` (additional reference content under `policies/systemweb-adapters/references/`)
    - `windows-service` → `policies/windows-service-migration/POLICY.md`
-   - `mcp-setup` → `fx-to-dotnet/policies/mcp-setup.md`
+   - `mcp-setup` → `fx-to-dotnet/policies/mcp-setup/POLICY.md`
 3. Read and return the full contents of the file. For `systemweb-adapters`, also surface the `references/` filenames so the caller can request a specific reference if needed.
 4. If the requested name does not match any available policy, list the available policies and ask the user to choose

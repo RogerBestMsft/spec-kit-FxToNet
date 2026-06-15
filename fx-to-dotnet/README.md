@@ -102,6 +102,7 @@ graph TB
 | `speckit.fx-to-dotnet.detect` | Utility: Determine project type, SDK-style status, classification |
 | `speckit.fx-to-dotnet.inventory` | Utility: Extract route/endpoint inventory from legacy ASP.NET |
 | `speckit.fx-to-dotnet.show-policy` | Display a named migration policy document |
+| `speckit.fx-to-dotnet.mcp-preflight` | Verify MCP server configuration and runtime connectivity |
 
 ## Lifecycle Integration (v0.5.0+)
 
@@ -396,7 +397,7 @@ Domain policies under `policies/<name>/POLICY.md` encode migration rules that co
 | `systemweb-adapters` | Use `Microsoft.AspNetCore.SystemWebAdapters` to minimize code change during web migration |
 | `windows-service-migration` | Replace `System.ServiceProcess.ServiceBase` with `BackgroundService` + Generic Host |
 
-The `mcp-setup.md` document at `policies/mcp-setup.md` describes how to configure the required MCP servers.
+The `POLICY.md` document at `policies/mcp-setup/POLICY.md` describes how to configure the required MCP servers.
 
 ## Scripts
 

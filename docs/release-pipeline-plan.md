@@ -30,7 +30,7 @@ The numeric portion of the tag MUST equal `extension.version` in [fx-to-dotnet/e
 Static gates (run on both OSes):
 1. `support_scripts/version-check.py` — extension manifest version is parseable and consistent.
 2. `support_scripts/cross-reference-audit.py` — all `speckit.fx-to-dotnet.*` references in command markdown resolve to declared commands.
-3. `support_scripts/mcp-config-validate.sh` (Linux) / `mcp-config-validate.ps1` (Windows) — MCP JSON snippet in `policies/mcp-setup.md` is well-formed.
+3. `support_scripts/mcp-config-validate.sh` (Linux) / `mcp-config-validate.ps1` (Windows) — MCP JSON snippet in `policies/mcp-setup/POLICY.md` is well-formed.
 
 Smoke pack (Linux only, fast):
 - Run `support_scripts/package-extensions.sh` with `RELEASES_DIR=$GITHUB_WORKSPACE/releases`.

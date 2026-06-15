@@ -100,6 +100,11 @@ provides:
       file: "commands/route-inventory/inventory.md"
     - name: "speckit.fx-to-dotnet.show-policy"
       file: "commands/policies/show.md"
+    - name: "speckit.fx-to-dotnet.mcp-preflight"
+      file: "commands/mcp-preflight/preflight.md"
+      scripts:
+        - "scripts/bash/mcp-connectivity-check.sh"
+        - "scripts/powershell/Mcp-ConnectivityCheck.ps1"
     # --- Lifecycle hook commands ---
     - name: "speckit.fx-to-dotnet.specify-hook"
       file: "commands/hooks/specify-hook.md"

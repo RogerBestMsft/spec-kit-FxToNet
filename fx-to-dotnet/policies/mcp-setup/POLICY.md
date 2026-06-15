@@ -6,6 +6,20 @@ The `fx-to-dotnet-assess` and `fx-to-dotnet-sdk-convert` commands require the `M
 
 The MCP config file location and top-level schema key depend on which IDE the user is running. Auto-configuration is **always workspace-scoped** (per-repo); user-scoped paths are documented for reference but never written by this workflow.
 
+## Prerequisites
+
+Before the MCP server can start, the following must be in place:
+
+- **`dnx`**: The `dnx` CLI tool must be installed and on PATH. Install it with:
+  ```
+  dotnet tool install -g Microsoft.DotNet.Tools.Dnx
+  ```
+  Requires .NET SDK 8.0 or later.
+
+- **.NET SDK**: Version 8.0+ must be installed. Download from https://dot.net/download.
+
+- **Network access**: The workspace machine must be able to reach `https://api.nuget.org/v3/index.json` to download the MCP server package at runtime. If behind a corporate proxy, ensure the NuGet feed URL is allowlisted.
+
 ## Host Matrix
 
 | Host | Workspace config path | Top-level key | Detection signal (workspace-relative) |

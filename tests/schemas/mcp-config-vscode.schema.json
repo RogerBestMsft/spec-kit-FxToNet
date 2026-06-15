@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MCP config snippet (servers — VS Code variant)",
+  "type": "object",
+  "required": ["servers"],
+  "properties": {
+    "servers": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type", "command", "args"],
+        "properties": {
+          "type": { "type": "string", "enum": ["stdio"] },
+          "command": { "type": "string", "minLength": 1 },
+          "args": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "tools": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}
