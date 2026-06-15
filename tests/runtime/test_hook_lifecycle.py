@@ -8,7 +8,6 @@ from ._driver import find_command, parse_command
 
 
 HOOK_NAMES = {
-    "after_specify": "speckit.fx-to-dotnet.specify-hook",
     "after_plan": "speckit.fx-to-dotnet.plan-hook",
     "after_tasks": "speckit.fx-to-dotnet.tasks-hook",
     "before_implement": "speckit.fx-to-dotnet.implement-hook",
@@ -27,8 +26,8 @@ def test_mandatory_vs_optional_classification(extension_yml: dict) -> None:
     hooks = extension_yml["hooks"]
     # before_implement is THE gate — must be mandatory.
     assert hooks["before_implement"].get("optional", False) is False
-    # after_specify, after_plan, after_tasks are mandatory in v0.7.0.
-    for slot in ("after_specify", "after_plan", "after_tasks"):
+    # after_plan, after_tasks are mandatory.
+    for slot in ("after_plan", "after_tasks"):
         assert hooks[slot].get("optional", False) is False, (
             f"{slot} should be mandatory in v0.7.0"
         )

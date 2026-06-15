@@ -2,7 +2,7 @@
 
 A single Spec Kit extension that orchestrates migrating .NET Framework applications to modern .NET (e.g. .NET 10) through a 7-phase workflow, optionally driven end-to-end by Spec Kit lifecycle hooks.
 
-- **Version**: `0.8.0`
+- **Version**: `0.9.0`
 - **License**: MIT
 - **Repository**: https://github.com/AzureAD/fx-to-dotnet-extensions
 - **Default target framework**: `net10.0`
@@ -19,7 +19,6 @@ graph TB
     end
 
     subgraph Hooks[fx-to-dotnet hooks]
-        H1[specify-hook]
         H2[plan-hook]
         H3[tasks-hook]
         H4[implement-hook<br/>THE GATE]
@@ -106,13 +105,14 @@ graph TB
 
 ## Lifecycle Integration (v0.5.0+)
 
-From v0.4.0 the extension integrates tightly with the standard Spec Kit lifecycle (`specify → plan → tasks → implement`) via five lifecycle hooks. Migration content is owned end-to-end by the extension; user-story implementation is gated behind completion of all migration tasks.
+From v0.4.0 the extension integrates tightly with the standard Spec Kit lifecycle (`specify → plan → tasks → implement`) via four lifecycle hooks. Migration content is owned end-to-end by the extension; user-story implementation is gated behind completion of all migration tasks.
+
+When the companion **fx-to-dotnet-sdd preset** is installed, the core `speckit.specify` agent includes a `## Migration Context` section in `spec.md` with lightweight Framework project detection and upgrade strategy classification. This is a passive, read-only detection — full classification happens at plan time.
 
 **Path convention (v0.7.0+).** All migration artifacts live under the active Spec Kit feature folder at `{featureDir}/migration/` (i.e. `specs/<branch>/migration/`), colocated with `spec.md`, `plan.md`, and `tasks.md`. This makes migration state per-feature (each branch gets isolated state) and lets core Spec Kit (`/speckit.analyze`, `/speckit.verify`) discover them by convention since it already operates on the active feature dir. Hooks resolve `{featureDir}` from the `SPECIFY_FEATURE` env var or the current git branch and silent-exit if no active feature folder is detectable. (History: v0.5.0 introduced `.specify/migration/analysis.md` as a shared artifact; v0.6.0 added `plan.md` and `orchestration.md` alongside it; v0.7.0 relocated all migration files to the active feature folder.)
 
 | Event | Hook command | Optional? | Role |
 |---|---|---|---|
-| `after_specify` | `speckit.fx-to-dotnet.specify-hook` | **no** | Detect Framework projects; annotate `spec.md` with `## Migration Context Detected`. Silent-exit on non-Framework workspaces. |
 | `after_plan` | `speckit.fx-to-dotnet.plan-hook` | **no** | Run `assess` + `plan`; produce `{featureDir}/migration/analysis.md` and `{featureDir}/migration/plan.md` (both shared); annotate `plan.md` with `## .NET Migration Plan`. |
 | `after_tasks` | `speckit.fx-to-dotnet.tasks-hook` | **no** | Dedupe migration tasks the core agent emitted; insert `## Phase N: .NET Framework Migration` ahead of user stories; emit granular `[MIG-*]` rows with `dispatch:` trailers. |
 | `before_implement` | `speckit.fx-to-dotnet.implement-hook` | **no** | **The gate.** Verify preconditions; per-task review of every `[MIG-*]`; validate dispatch namespace; only then allow `speckit.implement` to run user-story tasks. |
@@ -161,7 +161,7 @@ After all `[MIG-*]` rows are resolved the hook appends `## Migration Execution S
 This package also ships a companion **`fx-to-dotnet-sdd`** preset (manifest at [preset.yml](preset.yml), templates under [templates/](templates/)) that overrides core `speckit.tasks`, `speckit.implement`, and the `plan-template` so the core agent never emits competing migration content (Layer 4 of the integration plan). Hooks alone work without the preset; the preset is the deterministic backstop.
 
 - **Preset id**: `fx-to-dotnet-sdd`
-- **Requires**: `speckit_version >= 0.7.2`, extension `fx-to-dotnet >= 0.8.0`
+- **Requires**: `speckit_version >= 0.7.2`, extension `fx-to-dotnet >= 0.9.0`
 
 #### What the preset overrides
 
@@ -254,7 +254,6 @@ sequenceDiagram
     autonumber
     participant U as User
     participant Core as Spec Kit Core
-    participant SH as specify-hook
     participant PH as plan-hook
     participant TH as tasks-hook
     participant IH as implement-hook
@@ -262,12 +261,11 @@ sequenceDiagram
     participant Cmd as fx-to-dotnet commands
 
     U->>Core: /speckit.specify "..."
-    Core->>SH: after_specify
-    SH->>SH: detect → write detection.md
-    SH-->>Core: annotate spec.md (## Migration Context Detected)
+    Note over Core: Preset template detects Framework projects,<br/>writes ## Migration Context to spec.md
 
     U->>Core: /speckit.plan
     Core->>PH: after_plan
+    PH->>Cmd: detect → write detection.md
     PH->>Cmd: assess
     Cmd-->>PH: analysis.md, package-updates.md
     PH->>Cmd: plan
@@ -342,9 +340,9 @@ graph TD
         PROJ[&#123;ProjectName&#125;.md]
     end
 
-    SH[specify-hook] --> DET
-    SH --> SP
-    PH[plan-hook] --> AN
+    SH[preset specify template] -.-> SP
+    PH[plan-hook] --> DET
+    PH --> AN
     PH --> MP
     PH --> PL
     TH[tasks-hook] --> TK

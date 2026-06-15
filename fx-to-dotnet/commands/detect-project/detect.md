@@ -120,12 +120,34 @@ Always include confidence:
 - medium: multiple supporting indicators but no direct SDK/host marker
 - low: ambiguous or conflicting evidence
 
+### Upgrade Strategy Derivation
+
+After classification, derive the `upgradeStrategy` field for each project:
+
+| Classification | upgradeStrategy |
+|---|---|
+| web-app-host | side-by-side |
+| web-library | in-place |
+| windows-service | in-place |
+| class-library | in-place |
+| console-app | in-place |
+| winforms-app | in-place |
+| wpf-app | in-place |
+| uncertain | uncertain |
+
+Override to `skip` when the project is already SDK-style AND its `targetFramework` does not match `net4*` (i.e., it already targets modern .NET exclusively with no Framework TFM).
+
+- **in-place**: The project will be multitargeted to add a modern TFM alongside the existing Framework TFM. Applies to libraries, console apps, Windows Services, web libraries, WinForms, and WPF apps.
+- **side-by-side**: A new ASP.NET Core project will be created alongside the legacy host and web artifacts will be ported in slices. Applies to web application host projects.
+- **skip**: The project already targets modern .NET and requires no migration action.
+- **uncertain**: Classification is ambiguous; full assessment at plan time will prompt for confirmation.
+
 ## 4. Report Output
 
 Write the classification results to `{featureDir}/migration/detection.md` using the `edit` tool. Also return the same content inline to the caller.
 
 This file is the **shared detection artifact** for the workspace. It is consumed by:
-- Spec Kit lifecycle hooks (`speckit.fx-to-dotnet.specify-hook`, `plan-hook`, `tasks-hook`, `implement-hook`, `verify-hook`) to decide whether the workspace is a Framework-migration workspace and to read the per-project classifications.
+- Spec Kit lifecycle hooks (`plan-hook`, `tasks-hook`, `implement-hook`, `verify-hook`) to decide whether the workspace is a Framework-migration workspace and to read the per-project classifications.
 - Other `fx-to-dotnet` extension commands (`assess`, `plan`, `orchestrate`, workflow commands) that need the project inventory and classifications.
 
 Treat `{featureDir}/migration/detection.md` as a **generated artifact**: overwrite the entire file on every run. Do not append. Do not preserve unrelated sections — this file is owned by `speckit.fx-to-dotnet.detect`.
@@ -160,6 +182,7 @@ When the input is a single project file, append one project block after the head
   - {bullet 2}
   - {bullet 3}
 - nextAction: {one of the values below}
+- upgradeStrategy: in-place | side-by-side | skip | uncertain
 ```
 
 ### Solution body
@@ -181,6 +204,7 @@ When the input is a solution, record the solution path and emit one block per pr
 - evidence:
   - ...
 - nextAction: ...
+- upgradeStrategy: ...
 
 ### {project 2 path}
 - sdkStyle: ...
@@ -190,6 +214,7 @@ When the input is a solution, record the solution path and emit one block per pr
 - evidence:
   - ...
 - nextAction: ...
+- upgradeStrategy: ...
 ```
 
 ### Consumer-friendly summary (always emitted at end of file)
@@ -198,11 +223,11 @@ After the `## Projects` section(s), emit two short bullet lists so hooks can ren
 
 ```markdown
 ## Framework projects
-- {project path} — {classification} — targets {targetFramework}
+- {project path} — {classification} — targets {targetFramework} — **{upgradeStrategy}**
 - ...
 
 ## Modern projects
-- {project path} — {classification} — targets {targetFramework}
+- {project path} — {classification} — targets {targetFramework} — **skip**
 - ...
 ```
 

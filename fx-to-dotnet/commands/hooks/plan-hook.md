@@ -17,7 +17,7 @@ You are the `after_plan` HOOK for the `fx-to-dotnet` extension. You run automati
 
 ## 1. Detect migration context
 
-Read `{featureDir}/migration/detection.md` if present; otherwise invoke `speckit.fx-to-dotnet.detect`.
+Invoke `speckit.fx-to-dotnet.detect` against the workspace. This produces (or overwrites) `{featureDir}/migration/detection.md` with the full classification report including per-project `upgradeStrategy`.
 
 If no .NET Framework projects are present, exit 0 immediately with no edits.
 

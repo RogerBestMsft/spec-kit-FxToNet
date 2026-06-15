@@ -4,8 +4,8 @@ This repository packages [`fx-to-dotnet`](fx-to-dotnet/README.md) — a single S
 
 The extension integrates tightly with the Spec Kit lifecycle (`/speckit.specify` → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement`) via five lifecycle hooks. Migration content is owned end-to-end by the extension; user-story implementation is gated behind completion of all migration tasks.
 
-- Extension version: `0.8.0` (see [fx-to-dotnet/extension.yml](fx-to-dotnet/extension.yml))
-- Preset version: `0.8.0` (see [fx-to-dotnet/preset.yml](fx-to-dotnet/preset.yml))
+- Extension version: `0.9.0` (see [fx-to-dotnet/extension.yml](fx-to-dotnet/extension.yml))
+- Preset version: `0.9.0` (see [fx-to-dotnet/preset.yml](fx-to-dotnet/preset.yml))
 - License: MIT
 - Author: Microsoft
 
@@ -47,7 +47,7 @@ specify preset add fx-to-dotnet-sdd
 # 3. Drive a full migration via the standard Spec Kit lifecycle.
 #    Each step fires a fx-to-dotnet hook (see "End-to-End Lifecycle" below).
 /speckit.specify  "Migrate MySolution.sln to net10.0"
-                             # after_specify    → speckit.fx-to-dotnet.specify-hook    (detect Framework projects, annotate spec.md)
+                             # preset template detects Framework projects, writes ## Migration Context to spec.md
 /speckit.plan                # after_plan       → speckit.fx-to-dotnet.plan-hook       (run assess + plan; write analysis.md + plan.md)
 /speckit.tasks               # after_tasks      → speckit.fx-to-dotnet.tasks-hook      (emit [MIG-*] rows with dispatch: trailers)
 /speckit.implement           # before_implement → speckit.fx-to-dotnet.implement-hook  THE GATE — run every [MIG-*] before [US*]
@@ -73,9 +73,7 @@ sequenceDiagram
     participant Cmds as fx-to-dotnet commands
 
     U->>Core: /speckit.specify
-    Core->>Hooks: after_specify → specify-hook
-    Hooks->>Hooks: detect Framework projects
-    Hooks-->>Core: annotate spec.md (## Migration Context Detected)
+    Note over Core: Preset template detects Framework projects,<br/>writes ## Migration Context to spec.md
 
     U->>Core: /speckit.plan
     Core->>Hooks: after_plan → plan-hook
@@ -104,7 +102,6 @@ sequenceDiagram
 
 | Event | Hook | Optional? | Role |
 |-------|------|-----------|------|
-| `after_specify` | `specify-hook` | no | Detect Framework projects; annotate `spec.md` |
 | `after_plan` | `plan-hook` | no | Run `assess` + `plan`; produce `analysis.md` + `plan.md`; annotate `plan.md` |
 | `after_tasks` | `tasks-hook` | no | Insert `## Phase N: .NET Framework Migration`; emit `[MIG-*]` rows with `dispatch:` trailers |
 | `before_implement` | `implement-hook` | **no — THE GATE** | Verify preconditions; per-task review of every `[MIG-*]`; validate `^speckit\.fx-to-dotnet\.` namespace |
@@ -197,7 +194,7 @@ The extension provides 12 core commands and 5 lifecycle hooks. See [fx-to-dotnet
 | Phase commands | `assess`, `plan`, `convert`, `update-packages`, `multitarget-migrate`, `web-migrate` |
 | Cross-cutting | `fix` (build/fix loop) |
 | Utilities | `detect`, `inventory`, `show-policy` |
-| Hooks | `specify-hook`, `plan-hook`, `tasks-hook`, `implement-hook`, `verify-hook` |
+| Hooks | `plan-hook`, `tasks-hook`, `implement-hook`, `verify-hook` |
 
 ## `[MIG-*]` Dispatch Format and Validation
 

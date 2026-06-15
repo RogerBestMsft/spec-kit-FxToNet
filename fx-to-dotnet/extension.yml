@@ -46,7 +46,7 @@ schema_version: "1.0"
 extension:
   id: "fx-to-dotnet"
   name: ".NET Framework to Modern .NET Migration"
-  version: "0.8.0"
+  version: "0.9.0"
   description: "Orchestrate end-to-end .NET Framework to modern .NET migration across 7 phases, with SDD lifecycle integration"
   author: "RBest"
   repository: "https://github.com/RogerBestMsft/spec-kit-FxToNet"
@@ -106,8 +106,6 @@ provides:
         - "scripts/bash/mcp-connectivity-check.sh"
         - "scripts/powershell/Mcp-ConnectivityCheck.ps1"
     # --- Lifecycle hook commands ---
-    - name: "speckit.fx-to-dotnet.specify-hook"
-      file: "commands/hooks/specify-hook.md"
     - name: "speckit.fx-to-dotnet.plan-hook"
       file: "commands/hooks/plan-hook.md"
     - name: "speckit.fx-to-dotnet.tasks-hook"
@@ -118,10 +116,6 @@ provides:
       file: "commands/hooks/verify-hook.md"
 
 hooks:
-  after_specify:
-    command: "speckit.fx-to-dotnet.specify-hook"
-    optional: false
-    description: "Augment specification with .NET migration context"
   after_plan:
     command: "speckit.fx-to-dotnet.plan-hook"
     optional: false
