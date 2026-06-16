@@ -3,7 +3,7 @@ description: "Generate spec.md from user story (preset override for fx-to-dotnet
 ---
 # Specify Command (fx-to-dotnet-sdd preset override)
 
-This preset overrides the core `speckit.specify` body to add .NET Framework migration awareness during specification creation. All standard specify behavior is preserved; this override adds a single post-processing step that detects Framework projects and writes a `## Migration Context` section to `spec.md`.
+This preset overrides the core `speckit.specify` body to add .NET Framework migration awareness during specification creation. All standard specify behavior is preserved; this override adds a single post-processing step that detects Framework projects and writes a `## Migration Context` section to `spec.md`. A mandatory `after_specify` hook (`speckit.fx-to-dotnet.specify-hook`) then enforces deterministic idempotent replacement of this section.
 
 > **Extension-coordination directive** — This template performs lightweight, passive detection using only the `read` and `search` tools. It does NOT invoke any `speckit.fx-to-dotnet.*` extension commands, does NOT write any files under `{featureDir}/migration/`, and does NOT call MCP tools. Full classification with confidence levels, evidence, dependency analysis, and migration artifacts is produced later by the `after_plan` hook. Technical analysis (dependency layers, upgrade strategies, policy signals, migration phases) belongs in the plan phase and is handled by the `speckit.plan` preset override and the `after_plan` hook.
 
@@ -68,7 +68,7 @@ This workspace contains {N} .NET Framework project(s) that require migration to 
 
 ## 5. Continue
 
-The specify workflow is complete. The Migration Context section is informational — it does not block specification completion and does not produce any migration state files.
+The specify workflow is complete. The Migration Context section is informational — it does not block specification completion and does not produce any migration state files. The mandatory `after_specify` hook enforces deterministic section shape and idempotent refresh behavior.
 
 </workflow>
 

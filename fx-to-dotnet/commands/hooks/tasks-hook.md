@@ -11,6 +11,7 @@ You are the `after_tasks` HOOK for the `fx-to-dotnet` extension. You run automat
 - On non-Framework workspaces: **silent-exit success** with no edits.
 - The Migration phase is ALWAYS inserted as `## Phase 1: .NET Framework Migration` at the top of the phase list. All pre-existing `## Phase N:` headings are renumbered to `N+1`. Task IDs of the form `US*.T*` are NEVER renumbered (they are phase-relative).
 - All edits are **idempotent**: re-running on an already-populated `tasks.md` MUST NOT produce duplicate `[MIG]` rows, MUST NOT renumber further, and MUST NOT re-trigger the dedupe pass on already-removed lines.
+- Dedupe strictness uses Option B: remove migration-themed non-`[MIG-*]` tasks using both keyword matching and path-overlap conflict resolution against emitted `[MIG-*]` dispatch scopes.
 - Every `[MIG-*]` task carries a `dispatch:` trailer matching the regex `^speckit\.fx-to-dotnet\.[a-z0-9-]+\(.*\)$`. The `before_implement` hook validates this prefix before invoking any command.
 - The Migration phase block is wrapped in a `> **Extension-managed**` blockquote anchor immediately under its heading.
 </contract>
@@ -31,11 +32,13 @@ Determine which source to use for dependency-layer ordering when emitting `[MIG-
 
 ## 2. Idempotency check
 
-If `tasks.md` already contains the heading `## Phase 1: .NET Framework Migration` followed by a `> **Extension-managed**` blockquote, AND every dispatch unit listed in `{featureDir}/migration/plan.md` already has a corresponding `[MIG-*]` row in that section, skip steps 3–6 and go straight to step 7 (dependency declaration check). Do NOT renumber other phases on re-run. This is what makes the hook re-run safe.
+If `tasks.md` already contains the heading `## Phase 1: .NET Framework Migration` followed by a `> **Extension-managed**` blockquote, AND every dispatch unit listed in `{featureDir}/migration/plan.md` already has a corresponding `[MIG-*]` row in that section, skip steps 3–6 and go straight to step 7 (phase-reference/dependency checks). Do NOT renumber other phases on re-run. This is what makes the hook re-run safe.
 
 ## 3. Dedupe pass
 
-Scan `tasks.md` for unchecked tasks (lines beginning with `- [ ]`) that are NOT `[MIG-*]` and whose text contains any of the migration keywords (case-insensitive):
+Scan `tasks.md` for unchecked tasks (lines beginning with `- [ ]`) that are NOT `[MIG-*]` and match either of the following criteria:
+
+1. Migration keyword match (case-insensitive):
 
 - `SDK conversion`
 - `SDK-style`
@@ -46,6 +49,13 @@ Scan `tasks.md` for unchecked tasks (lines beginning with `- [ ]`) that are NOT 
 - `migrate to .NET`
 - `convert to SDK`
 - `update target framework`
+
+2. Path-overlap conflict match against migration dispatch scope:
+
+- The task contains a `.csproj`, `.vbproj`, `.fsproj`, or `.sln` path referenced by any dispatch unit in `{featureDir}/migration/plan.md`.
+- AND the task text includes migration verbs such as `convert`, `upgrade`, `update packages`, `multitarget`, `web migrate`, or `framework migration`.
+
+If a non-`[MIG-*]` task conflicts by path overlap with a migration dispatch unit, remove it even when keyword matching is inconclusive.
 
 Remove each matching line. Renumber the remaining tasks within their phase to close the gap. Record removals in a comment at the top of the migration section so the user can audit the dedupe.
 
@@ -118,7 +128,13 @@ Before writing, validate every emitted line matches:
 
 If any line fails this regex, do not write — exit non-zero with the offending line.
 
-## 7. Dependency declaration
+## 7. Normalize phase references and dependency declaration
+
+After renumbering/insertion, normalize prose references to phases so narrative sections remain aligned with headings.
+
+- Update references like `Setup (Phase 1)` to reflect shifted numbering.
+- Update references like `Foundational (Phase 2)` and `User Stories (Phase 3+)` accordingly.
+- Do not rewrite task IDs or user-story labels (`US1`, `US2`, ...).
 
 After the last `[MIG-*]` row (still inside the migration phase block), append exactly once:
 
@@ -140,7 +156,8 @@ Exit 0 on success. Exit non-zero only on parse/validation failure.
 - Step 2 is the master idempotency gate; respect it.
 - If `## Phase 1: .NET Framework Migration` already exists, do NOT renumber other phases again on subsequent runs.
 - Never renumber `US*.T*` IDs; renumber only `## Phase N:` heading numbers.
-- The dedupe pass operates on UNCHECKED non-`[MIG]` tasks only. Never remove a `[MIG]` row, a checked task, or anything from the user-story phases.
+- The dedupe pass operates on UNCHECKED non-`[MIG]` tasks only. Never remove a `[MIG]` row, a checked task, or any non-migration user-story task.
+- Apply Option B conflict handling: remove non-`[MIG]` migration tasks when their file scope overlaps a migration dispatch unit.
 - The `> **Extension-managed**` blockquote line is the section's identity anchor — preserve it verbatim.
 </idempotency-rules>
 

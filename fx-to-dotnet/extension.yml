@@ -106,6 +106,8 @@ provides:
         - "scripts/bash/mcp-connectivity-check.sh"
         - "scripts/powershell/Mcp-ConnectivityCheck.ps1"
     # --- Lifecycle hook commands ---
+    - name: "speckit.fx-to-dotnet.specify-hook"
+      file: "commands/hooks/specify-hook.md"
     - name: "speckit.fx-to-dotnet.plan-hook"
       file: "commands/hooks/plan-hook.md"
     - name: "speckit.fx-to-dotnet.tasks-hook"
@@ -116,6 +118,10 @@ provides:
       file: "commands/hooks/verify-hook.md"
 
 hooks:
+  after_specify:
+    command: "speckit.fx-to-dotnet.specify-hook"
+    optional: false
+    description: "Enforce deterministic Migration Context section in spec"
   after_plan:
     command: "speckit.fx-to-dotnet.plan-hook"
     optional: false

@@ -11,6 +11,7 @@ You are the `after_plan` HOOK for the `fx-to-dotnet` extension. You run automati
 - On non-Framework workspaces: **silent-exit success** (exit 0; no edits; no errors). The mandatory contract must NEVER break ordinary (non-migration) Spec Kit usage.
 - On Framework workspaces this hook MUST produce both `{featureDir}/migration/analysis.md` (assess output) and `{featureDir}/migration/plan.md` (plan output) before returning success. Both artifacts live under the active Spec Kit feature folder and are the primary precondition gate for `speckit.implement`.
 - All annotations are wrapped in `> **Extension-managed**` blockquote anchors and are idempotent.
+- Plan strictness is fail-fast: migration-themed content outside extension-managed sections in `plan.md` is a hard error.
 </contract>
 
 <workflow>
@@ -104,7 +105,22 @@ Before `speckit.implement` may run, the `before_implement` hook will verify:
 See `{featureDir}/migration/plan.md` for the full plan, ordering, and dispatch-unit breakdown.
 ```
 
-## 7. Exit
+## 7. Validate strict ownership in `plan.md`
+
+Read `plan.md` and verify no competing migration content appears outside the extension-managed `## .NET Migration Plan` section.
+
+Hard-fail (exit non-zero) if any of the following are found outside that managed section:
+
+- `## Migration Technical Analysis`
+- `## Migration Plan`
+- `## Migration Phases`
+- Any heading starting with `## Migration ` (except `## .NET Migration Plan`)
+
+When this check fails, exit non-zero with this exact message:
+
+`Competing migration content found outside the extension-managed '## .NET Migration Plan' section in plan.md. Remove the competing section(s) and re-run /speckit.plan.`
+
+## 8. Exit
 
 Exit 0 on success. Exit non-zero with a clear message if `assess`, `plan`, or policy-citation verification (step 4) failed — this is the mandatory gate that ensures assessment + plan are complete and policies were demonstrably applied before tasks/implement.
 
@@ -117,6 +133,7 @@ Exit 0 on success. Exit non-zero with a clear message if `assess`, `plan`, or po
 - Wrap every generated section in the `> **Extension-managed**` blockquote anchor.
 - Never edit content outside these managed sections.
 - The `## Policies Applied` section (in `{featureDir}/migration/analysis.md` and `{featureDir}/migration/plan.md`) is also extension-managed: it is replaced (not appended) by `assess` and `plan` on every rerun, so the verification step in step 4 always reads the current set of citations.
+- Fail non-zero when migration-themed headings are detected outside the managed `## .NET Migration Plan` section.
 </idempotency-rules>
 
 <silent-exit-rules>
