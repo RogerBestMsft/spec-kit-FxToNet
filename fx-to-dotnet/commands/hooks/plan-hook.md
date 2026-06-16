@@ -79,6 +79,8 @@ Search `plan.md` for the heading `## .NET Migration Plan`. If present, replace i
 
 If absent, append:
 
+For backward compatibility with earlier preset versions: if a stale `## Migration Technical Analysis` section exists in `plan.md`, remove it before writing `## .NET Migration Plan`.
+
 ```
 ## .NET Migration Plan
 
@@ -111,8 +113,9 @@ Exit 0 on success. Exit non-zero with a clear message if `assess`, `plan`, or po
 <idempotency-rules>
 - Always look up the heading `## Migration Assessment Summary` (in `spec.md`) and `## .NET Migration Plan` (in `plan.md`) before appending.
 - Replace body content; never duplicate sections.
+- If a stale `## Migration Technical Analysis` section exists in `plan.md` (from older preset behavior), remove it before writing `## .NET Migration Plan`.
 - Wrap every generated section in the `> **Extension-managed**` blockquote anchor.
-- Never edit content outside these two sections.
+- Never edit content outside these managed sections.
 - The `## Policies Applied` section (in `{featureDir}/migration/analysis.md` and `{featureDir}/migration/plan.md`) is also extension-managed: it is replaced (not appended) by `assess` and `plan` on every rerun, so the verification step in step 4 always reads the current set of citations.
 </idempotency-rules>
 

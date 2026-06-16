@@ -51,7 +51,7 @@ def test_preset_extension_version_constraint_satisfied(
 def test_every_template_path_exists(preset_dir: Path, preset_yml: dict) -> None:
     missing: list[str] = []
     for tpl in preset_yml.get("provides", {}).get("templates") or []:
-        target = preset_dir / tpl["path"]
+        target = preset_dir / tpl["file"]
         if not target.is_file():
-            missing.append(tpl["path"])
+            missing.append(tpl["file"])
     assert not missing, "Missing preset templates:\n  " + "\n  ".join(missing)

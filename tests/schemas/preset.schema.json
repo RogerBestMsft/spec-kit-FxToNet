@@ -42,10 +42,14 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["path"],
+            "required": ["type", "name", "file"],
             "properties": {
-              "path": { "type": "string" },
-              "overrides": { "type": "string" }
+              "type": { "type": "string", "enum": ["command", "template", "script"] },
+              "name": { "type": "string", "minLength": 1 },
+              "file": { "type": "string", "minLength": 1 },
+              "description": { "type": "string" },
+              "replaces": { "type": "string" },
+              "strategy": { "type": "string", "enum": ["replace", "prepend", "append", "wrap"] }
             }
           }
         }

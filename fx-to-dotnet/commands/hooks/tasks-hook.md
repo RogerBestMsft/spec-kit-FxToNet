@@ -21,6 +21,14 @@ You are the `after_tasks` HOOK for the `fx-to-dotnet` extension. You run automat
 
 Read `{featureDir}/migration/detection.md` and `{featureDir}/migration/plan.md`. If either is missing, invoke `speckit.fx-to-dotnet.detect`. If no Framework projects, exit 0 with no edits.
 
+### Dependency-layer source resolution
+
+Determine which source to use for dependency-layer ordering when emitting `[MIG-*]` rows:
+
+1. **Primary**: Read `{featureDir}/migration/analysis.md`. If it exists and contains a `## Dependency Layers` section, use its layer assignments. This is the authoritative source (computed by `speckit.fx-to-dotnet.assess` using MCP tools).
+2. **Fallback**: If `analysis.md` does not exist or lacks a `## Dependency Layers` section, read `{featureDir}/spec.md`. If it contains a `## Migration Context` section with a `### Dependency Layers` table, parse the layer assignments from that table. These are preliminary layers computed by the specify template from `<ProjectReference>` elements.
+3. **No layers available**: If neither source provides layer data, emit `[MIG-*]` rows in the order projects appear in `{featureDir}/migration/plan.md` (no layer-based reordering).
+
 ## 2. Idempotency check
 
 If `tasks.md` already contains the heading `## Phase 1: .NET Framework Migration` followed by a `> **Extension-managed**` blockquote, AND every dispatch unit listed in `{featureDir}/migration/plan.md` already has a corresponding `[MIG-*]` row in that section, skip steps 3–6 and go straight to step 7 (dependency declaration check). Do NOT renumber other phases on re-run. This is what makes the hook re-run safe.
