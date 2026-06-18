@@ -51,8 +51,8 @@ Add `hooks:` section. **Four** hooks are mandatory (`optional: false`) so that a
 |---|---|---|---|
 | `after_specify` | `speckit.fx-to-dotnet.specify-hook` | **`false`** | **Mandatory.** Detect Framework projects; annotate `spec.md`. Idempotent and silent-exits on non-Framework workspaces, so it is safe to run unconditionally. Mandatory because spec-kit core only auto-executes hooks marked `optional: false`. |
 | `after_plan` | `speckit.fx-to-dotnet.plan-hook` | **`false`** | **Mandatory.** Run `assess` + `plan`; produce `.specify/migration/analysis.md` and `.specify/migration/plan.md`; annotate SDD docs. Silent-exit with success if no Framework project detected. |
-| `after_tasks` | `speckit.fx-to-dotnet.tasks-hook` | **`false`** | **Mandatory.** Insert `[MIG]` tasks **before** user-story phases; dedupe; declare dependencies. Silent-exit on non-Framework solutions. |
-| `before_implement` | `speckit.fx-to-dotnet.implement-hook` | **`false`** | **Mandatory gate.** Verify assessment+plan artifacts exist; refuse to proceed otherwise. Then dispatch each `[MIG]` task to its mapped extension command with per-task review. Do not return until all `[MIG]` resolved. |
+| `after_tasks` | `speckit.fx-to-dotnet.tasks-hook` | **`false`** | **Mandatory.** Insert the migration phase before user-story phases; move or synthesize prerequisite tasks that must run before migration dispatch; emit `[MIG]` rows in dependency-safe order; declare dependencies. Silent-exit on non-Framework solutions. |
+| `before_implement` | `speckit.fx-to-dotnet.implement-hook` | **`false`** | **Mandatory gate.** Verify assessment+plan artifacts exist; refuse to proceed otherwise. If prerequisite tasks still remain ahead of the first `[MIG]` row, defer migration dispatch so core can execute that prerequisite segment first. Then dispatch each `[MIG]` task to its mapped extension command with per-task review. Do not return until all `[MIG]` resolved. |
 | `after_implement` | `speckit.fx-to-dotnet.verify-hook` | `true` | Verify build; annotate plan.md/tasks.md with verification status. |
 
 The combination of mandatory `after_plan` + `after_tasks` + `before_implement` enforces **goal 3**: assessment and migration planning must be complete before any implementation begins. `before_implement` is the failsafe — even if a user skips `/speckit.plan` or `/speckit.tasks`, the implement hook detects missing artifacts and blocks.
@@ -75,7 +75,7 @@ The most invasive hook. Edits `tasks.md`:
 
 1. **Dedupe pass**: scan unchecked non-`[MIG]` tasks for migration keywords (`SDK conversion`, `SDK-style`, `multitarget`, `package update`, `NuGet update`, `framework migration`, `migrate to .NET`, etc.). Remove matches and renumber following tasks.
 2. **Insertion**: locate the first `## Phase N: ... User Story` heading and insert a new `## Phase N: .NET Framework Migration` block immediately before it; renumber subsequent phases. Fallback to append-at-end if no user-story phases exist.
-3. **Granular `[MIG]` task emission**: one task per granular dispatch unit. Each line carries a machine-readable trailer (see Layer 3):
+3. **Prerequisite-aware phase emission**: emit an optional `### Prerequisites` subsection for non-`[MIG]` tasks that must finish before migration dispatch begins, then emit one task per granular dispatch unit under `### Migration Tasks`. Each migration line carries a machine-readable trailer (see Layer 3):
    ```
    - [ ] [MIG-001] [P0] Convert ProjectA.csproj to SDK-style — dispatch: speckit.fx-to-dotnet.convert(ProjectA.csproj)
    - [ ] [MIG-002] [P0] Apply package chunk 1 to LibraryA (3 minor updates)   — dispatch: speckit.fx-to-dotnet.update-packages(project=src/LibraryA/LibraryA.csproj, chunk=1)
@@ -102,7 +102,7 @@ The most invasive hook. Edits `tasks.md`:
 
 3. Resume check from .specify/migration/implement-state.md
 
-4. Parse tasks.md → ordered list of unchecked [MIG-*] tasks
+4. Parse tasks.md → if unchecked prerequisite tasks remain ahead of the first [MIG-*] row, return so core can execute those first; otherwise collect the ordered list of unchecked [MIG-*] tasks
 
 5. For each task:
    a. Show task summary + planned-changes preview to user

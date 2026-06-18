@@ -51,6 +51,8 @@ extension:
   author: "RBest"
   repository: "https://github.com/RogerBestMsft/spec-kit-FxToNet"
   license: "MIT"
+  category: "integration"
+  effect: "read-write"
 requires:
   speckit_version: ">=0.1.0"
   tools:
@@ -65,10 +67,13 @@ provides:
     # --- Core migration commands ---
     - name: "speckit.fx-to-dotnet.initialize"
       file: "commands/initialize/initialize.md"
+      description: "Initialize migration state: resolve solution path, target framework, feature directory, and create the migration artifact directory"
     - name: "speckit.fx-to-dotnet.orchestrate"
       file: "commands/orchestrate/orchestrate.md"
+      description: "Orchestrate end-to-end .NET Framework to modern .NET migration across 7 phases"
     - name: "speckit.fx-to-dotnet.assess"
       file: "commands/assess/assess.md"
+      description: "Gather solution info, identify frameworks, dependencies, blockers; classify projects; audit package compatibility"
       scripts:
         - "scripts/bash/find-recommended-package-upgrades.sh"
         - "scripts/bash/get-minimal-package-set.sh"
@@ -76,8 +81,10 @@ provides:
         - "scripts/powershell/Get-MinimalPackageSet.ps1"
     - name: "speckit.fx-to-dotnet.plan"
       file: "commands/plan/plan.md"
+      description: "Synthesize assessment findings into actionable, layered migration plan with chunked package updates"
     - name: "speckit.fx-to-dotnet.convert"
       file: "commands/sdk-convert/convert.md"
+      description: "Convert legacy .NET Framework project file to SDK-style format; validate with build-fix"
       scripts:
         - "scripts/bash/find-recommended-package-upgrades.sh"
         - "scripts/bash/get-minimal-package-set.sh"
@@ -85,37 +92,50 @@ provides:
         - "scripts/powershell/Get-MinimalPackageSet.ps1"
     - name: "speckit.fx-to-dotnet.fix"
       file: "commands/build-fix/fix.md"
+      description: "Run iterative dotnet build, diagnose errors, and apply minimal fixes until build succeeds or user stops"
       scripts:
         - "scripts/bash/dotnet-build.sh"
         - "scripts/powershell/dotnet-build.ps1"
     - name: "speckit.fx-to-dotnet.update-packages"
       file: "commands/package-compat/update.md"
+      description: "Execute a per-project package update plan; invoke build-fix after each (project, chunk) pair"
     - name: "speckit.fx-to-dotnet.multitarget-migrate"
       file: "commands/multitarget/migrate.md"
+      description: "Add modern .NET target framework; identify and fix pre-migration API issues; validate with build-fix"
     - name: "speckit.fx-to-dotnet.web-migrate"
       file: "commands/web-migrate/migrate.md"
+      description: "Plan and execute ASP.NET Framework to ASP.NET Core migration; create side-by-side host; port artifacts in slices"
     - name: "speckit.fx-to-dotnet.detect"
       file: "commands/detect-project/detect.md"
+      description: "Read project file(s); determine SDK-style format, project classification, confidence level, and evidence"
     - name: "speckit.fx-to-dotnet.inventory"
       file: "commands/route-inventory/inventory.md"
+      description: "Extract route and endpoint inventory from legacy ASP.NET web project"
     - name: "speckit.fx-to-dotnet.show-policy"
       file: "commands/policies/show.md"
+      description: "Display a named migration policy document"
     - name: "speckit.fx-to-dotnet.mcp-preflight"
       file: "commands/mcp-preflight/preflight.md"
+      description: "Verify MCP server configuration and runtime connectivity before migration commands"
       scripts:
         - "scripts/bash/mcp-connectivity-check.sh"
         - "scripts/powershell/Mcp-ConnectivityCheck.ps1"
     # --- Lifecycle hook commands ---
     - name: "speckit.fx-to-dotnet.specify-hook"
       file: "commands/hooks/specify-hook.md"
+      description: "Enforce deterministic Migration Context section in spec.md for Framework solutions"
     - name: "speckit.fx-to-dotnet.plan-hook"
       file: "commands/hooks/plan-hook.md"
+      description: "Run assess + plan to produce analysis.md and plan.md, then annotate SDD documents with migration sections"
     - name: "speckit.fx-to-dotnet.tasks-hook"
       file: "commands/hooks/tasks-hook.md"
+      description: "Dedupe migration tasks, emit prerequisite tasks, and emit granular [MIG-*] rows with dispatch trailers"
     - name: "speckit.fx-to-dotnet.implement-hook"
       file: "commands/hooks/implement-hook.md"
+      description: "Verify preconditions; defer if prerequisites remain; execute each [MIG-*] with per-task review; validate dispatch namespace"
     - name: "speckit.fx-to-dotnet.verify-hook"
       file: "commands/hooks/verify-hook.md"
+      description: "Solution build verification; write completion.md; annotate plan and tasks with verification status"
 
 hooks:
   after_specify:
@@ -137,6 +157,7 @@ hooks:
   after_implement:
     command: "speckit.fx-to-dotnet.verify-hook"
     optional: true
+    prompt: "Run post-migration build verification?"
     description: "Verify .NET migration outcomes after implementation"
 
 tags:

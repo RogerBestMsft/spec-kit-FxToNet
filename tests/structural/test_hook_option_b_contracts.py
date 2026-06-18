@@ -28,4 +28,31 @@ def test_tasks_hook_documents_path_overlap_dedupe(extension_dir: Path) -> None:
     lower = text.lower()
     assert "dedupe strictness uses option b" in lower
     assert "path-overlap conflict" in lower
+    assert "### prerequisites" in lower
+    assert "must run before migration dispatch begins" in lower
+    assert "migration-task emission order is explicit and dependency-safe" in lower
     assert "normalize prose references to phases" in lower
+    assert "replace the extension-managed placeholder" in lower
+    assert "phase 1: .net framework migration" in lower
+
+
+def test_tasks_template_documents_placeholder_replacement(extension_dir: Path) -> None:
+    text = (extension_dir / "templates" / "commands" / "tasks.md").read_text(
+        encoding="utf-8"
+    )
+    lower = text.lower()
+    assert "extension-managed placeholder" in lower
+    assert "phase 1: .net framework migration (extension-managed placeholder)" in lower
+    assert "replace this heading with the populated `## phase 1: .net framework migration` block" in lower
+    assert "### prerequisites" in lower
+    assert "renumber the following user-story phases" in lower
+
+
+def test_implement_template_documents_prerequisite_boundary(extension_dir: Path) -> None:
+    text = (extension_dir / "templates" / "commands" / "implement.md").read_text(
+        encoding="utf-8"
+    )
+    lower = text.lower()
+    assert "execute prerequisite tasks ahead of migration" in lower
+    assert "stop at unresolved migration boundary" in lower
+    assert "re-run `/speckit.implement` so the hook can process migration" in lower

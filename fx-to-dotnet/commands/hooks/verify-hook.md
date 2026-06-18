@@ -1,6 +1,6 @@
 ---
 description: "after_implement hook (optional). Solution build verification; writes {featureDir}/migration/completion.md and appends Migration Verification status to plan.md and the migration phase of tasks.md. Silent-exit on non-Framework solutions. Idempotent."
-tools: [read, edit, search, run]
+tools: [read, edit, search, run, invoke-command, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/resolveMemoryFileUri, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/askQuestions, vscode/toolSearch, execute/runNotebookCell, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/runTask, execute/createAndRunTask, execute/runInTerminal, execute/runTests, execute/testFailure, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/readNotebookCellOutput, read/terminalSelection, read/terminalLastCommand, read/getTaskOutput, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, web/fetch, web/githubRepo, web/githubTextSearch, browser/openBrowserPage, browser/readPage, browser/screenshotPage, browser/navigatePage, browser/clickElement, browser/dragElement, browser/hoverElement, browser/typeInPage, browser/runPlaywrightCode, browser/handleDialog, todo]
 ---
 You are the `after_implement` HOOK for the `fx-to-dotnet` extension. You run automatically after `speckit.implement` completes. Your job is to perform a solution-level build verification and record the migration's verified state in the SDD docs.
 
@@ -12,6 +12,16 @@ You are the `after_implement` HOOK for the `fx-to-dotnet` extension. You run aut
 - All edits are idempotent and wrapped in the `> **Extension-managed**` blockquote anchor.
 </contract>
 
+<tool-usage>
+This hook requires the following tools. If any tool listed here is unavailable at runtime, exit non-zero immediately with: `"verify-hook: required tool '<tool>' is not available. Ensure it is provisioned before running this hook."`
+
+- `invoke-command` — call other Spec Kit extension commands (e.g., `speckit.fx-to-dotnet.fix`). This is the ONLY mechanism for invoking extension commands; do NOT attempt to inline their logic or use a subagent.
+- `read` — read file contents from the workspace.
+- `edit` — create or modify files in the workspace.
+- `search` — search for files or text in the workspace.
+- `run` — execute shell commands (e.g., build scripts).
+</tool-usage>
+
 <workflow>
 
 ## 1. Detect migration context
@@ -20,7 +30,7 @@ Read `{featureDir}/migration/detection.md`. If absent or no Framework projects, 
 
 ## 2. Solution build
 
-Invoke `speckit.fx-to-dotnet.fix` against the solution to perform the verification build. Capture:
+Use the `invoke-command` tool to run `speckit.fx-to-dotnet.fix` against the solution to perform the verification build. Capture:
 
 - Build result (`succeeded` / `failed`)
 - Error count, warning count
@@ -72,7 +82,7 @@ See `{featureDir}/migration/completion.md`.
 
 ## 5. Annotate `tasks.md`
 
-Inside the `## Phase N: .NET Framework Migration` section (the one wrapped in `> **Extension-managed**`), append (or replace) a final line at the bottom of the section:
+Inside the `## Phase 1: .NET Framework Migration` section (the one wrapped in `> **Extension-managed**`), append (or replace) a final line at the bottom of the section:
 
 ```
 ### Migration Verification — <succeeded|failed> on <ISO-8601> (<errors> errors, <warnings> warnings). See `{featureDir}/migration/completion.md`.

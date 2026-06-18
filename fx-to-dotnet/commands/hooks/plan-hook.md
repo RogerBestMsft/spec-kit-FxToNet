@@ -1,6 +1,6 @@
 ---
 description: "after_plan hook (mandatory). Run assess + plan to produce {featureDir}/migration/analysis.md and {featureDir}/migration/plan.md, then annotate spec.md and plan.md with extension-managed migration sections. Silent-exit success on non-Framework solutions. Idempotent."
-tools: [read, edit, search]
+tools: [read, edit, search, invoke-command, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/resolveMemoryFileUri, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/askQuestions, vscode/toolSearch, execute/runNotebookCell, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/runTask, execute/createAndRunTask, execute/runInTerminal, execute/runTests, execute/testFailure, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/readNotebookCellOutput, read/terminalSelection, read/terminalLastCommand, read/getTaskOutput, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, web/fetch, web/githubRepo, web/githubTextSearch, browser/openBrowserPage, browser/readPage, browser/screenshotPage, browser/navigatePage, browser/clickElement, browser/dragElement, browser/hoverElement, browser/typeInPage, browser/runPlaywrightCode, browser/handleDialog, todo]
 ---
 You are the `after_plan` HOOK for the `fx-to-dotnet` extension. You run automatically after `speckit.plan` completes. Your job is to drive the assessment + migration-plan side-effects that `speckit.implement` will later require, and to annotate the SDD documents with extension-managed summary sections.
 
@@ -14,21 +14,30 @@ You are the `after_plan` HOOK for the `fx-to-dotnet` extension. You run automati
 - Plan strictness is fail-fast: migration-themed content outside extension-managed sections in `plan.md` is a hard error.
 </contract>
 
+<tool-usage>
+This hook requires the following tools. If any tool listed here is unavailable at runtime, exit non-zero immediately with: `"plan-hook: required tool '<tool>' is not available. Ensure it is provisioned before running this hook."`
+
+- `invoke-command` — call other Spec Kit extension commands (e.g., `speckit.fx-to-dotnet.detect`, `speckit.fx-to-dotnet.assess`, `speckit.fx-to-dotnet.plan`). This is the ONLY mechanism for invoking extension commands; do NOT attempt to inline their logic or use a subagent.
+- `read` — read file contents from the workspace.
+- `edit` — create or modify files in the workspace.
+- `search` — search for files or text in the workspace.
+</tool-usage>
+
 <workflow>
 
 ## 1. Detect migration context
 
-Invoke `speckit.fx-to-dotnet.detect` against the workspace. This produces (or overwrites) `{featureDir}/migration/detection.md` with the full classification report including per-project `upgradeStrategy`.
+Use the `invoke-command` tool to run `speckit.fx-to-dotnet.detect` against the workspace. Do NOT attempt to perform detection manually or through any other mechanism — always delegate to the detect command via `invoke-command`. This produces (or overwrites) `{featureDir}/migration/detection.md` with the full classification report including per-project `upgradeStrategy`.
 
 If no .NET Framework projects are present, exit 0 immediately with no edits.
 
 ## 2. Run assessment
 
-Invoke `speckit.fx-to-dotnet.assess` against the solution. This produces `{featureDir}/migration/analysis.md` and `{featureDir}/migration/package-updates.md`. Wait for completion. If `assess` fails, exit non-zero with the failure message — `speckit.plan` will block.
+Use the `invoke-command` tool to run `speckit.fx-to-dotnet.assess` against the solution. This produces `{featureDir}/migration/analysis.md` and `{featureDir}/migration/package-updates.md`. Wait for completion. If `assess` fails, exit non-zero with the failure message — `speckit.plan` will block.
 
 ## 3. Run migration plan
 
-Invoke `speckit.fx-to-dotnet.plan`. This produces `{featureDir}/migration/plan.md` with phase sections. Wait for completion. If `plan` fails, exit non-zero.
+Use the `invoke-command` tool to run `speckit.fx-to-dotnet.plan`. This produces `{featureDir}/migration/plan.md` with phase sections. Wait for completion. If `plan` fails, exit non-zero.
 
 ## 4. Verify policy citations
 

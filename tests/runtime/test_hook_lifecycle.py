@@ -63,3 +63,5 @@ def test_implement_hook_documents_precondition_failure(extension_dir: Path) -> N
     assert any(marker in body for marker in ("precondition", "preconditions", "exit non-zero", "exit 1")), (
         "implement-hook should document fail-loud precondition behavior"
     )
+    assert "do not process any `[mig-*]` row on this invocation" in body
+    assert "prerequisite tasks still remain" in body

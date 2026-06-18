@@ -39,7 +39,7 @@ Each task lists the files it touches and the acceptance signal that proves it is
 - Behavior (in order):
   1. **Dedupe**: scan unchecked non-`[MIG]` tasks for migration keywords (`SDK conversion`, `SDK-style`, `multitarget`, `package update`, `NuGet update`, `framework migration`, `migrate to .NET`); remove matches; renumber following tasks.
   2. **Insert** `## Phase N: .NET Framework Migration` immediately before the first `## Phase N: ... User Story` heading; renumber subsequent phases. Fallback to append-at-end if no user-story phases exist.
-  3. **Emit** granular `[MIG-*]` tasks (one per dispatch unit per Layer 6 granularity table) each ending in a machine-readable trailer `— dispatch: speckit.fx-to-dotnet.<command>(<args>)`.
+  3. **Emit** an optional `### Prerequisites` subsection for any non-`[MIG-*]` work the migration plan depends on, then granular `[MIG-*]` tasks (one per dispatch unit per Layer 6 granularity table) each ending in a machine-readable trailer `— dispatch: speckit.fx-to-dotnet.<command>(<args>)`.
   4. Append `### Dependencies — All [US*] tasks depend on completion of all [MIG-*] tasks.`
 - Silent-exit success on non-Framework solutions.
 - **Done when**: rerun against an already-migrated `tasks.md` produces no duplicates and no further renumbering.
@@ -50,7 +50,7 @@ Each task lists the files it touches and the acceptance signal that proves it is
   1. Detect migration context; silent-exit success if none.
   2. **Precondition check** (goal 3): verify `.specify/migration/analysis.md`, `.specify/migration/plan.md`, and at least one `[MIG-*]` row in `tasks.md`. On failure, exit non-zero with the remediation message specified in the plan.
   3. Read resume state from `.specify/migration/implement-state.md`.
-  4. For each unchecked `[MIG-*]` task in order: preview → review prompt (`approve | skip | abort | autoApprove-rest`) → validate `dispatch:` target matches `^speckit\.fx-to-dotnet\.` → invoke mapped command/workflow → mark `[X]` / `[~]` / abort.
+  4. If unchecked prerequisite tasks remain ahead of the first `[MIG-*]` row, return so core can execute those first. Otherwise, for each unchecked `[MIG-*]` task in order: preview → review prompt (`approve | skip | abort | autoApprove-rest`) → validate `dispatch:` target matches `^speckit\.fx-to-dotnet\.` → invoke mapped command/workflow → mark `[X]` / `[~]` / abort.
   5. After all `[MIG]` resolved: append `## Migration Execution Summary` to `plan.md`; insert `> ✓ Migration Complete` checkpoint above first `[US*]` in `tasks.md`.
 - Build failures **always pause** even under `autoApprove-rest`.
 - **Done when**: precondition logic, dispatch validator regex, per-task review loop, and resume read/write are all present and documented.

@@ -1,6 +1,6 @@
 ---
 description: "after_specify hook (mandatory). Enforce deterministic Migration Context section in spec.md for Framework solutions. Silent-exit on non-Framework workspaces. Idempotent."
-tools: [read, edit, search]
+tools: [read, edit, search, invoke-command, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/resolveMemoryFileUri, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/askQuestions, vscode/toolSearch, execute/runNotebookCell, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/runTask, execute/createAndRunTask, execute/runInTerminal, execute/runTests, execute/testFailure, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/readNotebookCellOutput, read/terminalSelection, read/terminalLastCommand, read/getTaskOutput, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, web/fetch, web/githubRepo, web/githubTextSearch, browser/openBrowserPage, browser/readPage, browser/screenshotPage, browser/navigatePage, browser/clickElement, browser/dragElement, browser/hoverElement, browser/typeInPage, browser/runPlaywrightCode, browser/handleDialog, todo]
 ---
 You are the `after_specify` HOOK for the `fx-to-dotnet` extension. You run automatically after `speckit.specify` completes. Your job is to make the `## Migration Context` section deterministic and idempotent when .NET Framework projects are present.
 
@@ -13,14 +13,23 @@ You are the `after_specify` HOOK for the `fx-to-dotnet` extension. You run autom
 - The hook may fail non-zero only on true parse/write errors or missing required inputs after detection succeeds.
 </contract>
 
+<tool-usage>
+This hook requires the following tools. If any tool listed here is unavailable at runtime, exit non-zero immediately with: `"specify-hook: required tool '<tool>' is not available. Ensure it is provisioned before running this hook."`
+
+- `invoke-command` — call other Spec Kit extension commands (e.g., `speckit.fx-to-dotnet.detect`). This is the ONLY mechanism for invoking extension commands; do NOT attempt to inline their logic or use a subagent.
+- `read` — read file contents from the workspace.
+- `edit` — create or modify files in the workspace.
+- `search` — search for files or text in the workspace.
+</tool-usage>
+
 <workflow>
 
 ## 1. Detect migration context
 
-Invoke `speckit.fx-to-dotnet.detect` for the active feature and workspace.
+Use the `invoke-command` tool to run `speckit.fx-to-dotnet.detect` for the active feature and workspace. Do NOT attempt to perform detection manually or through any other mechanism — always delegate to the detect command via `invoke-command`.
 
 - If detection reports no .NET Framework projects, exit 0 with no edits.
-- Ensure `{featureDir}/migration/detection.md` exists (re-run detect if needed).
+- Ensure `{featureDir}/migration/detection.md` exists (re-run detect via `invoke-command` if needed).
 
 ## 2. Load source artifacts
 

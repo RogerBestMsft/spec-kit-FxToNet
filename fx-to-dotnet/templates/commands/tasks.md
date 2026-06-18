@@ -5,7 +5,7 @@ description: "Generate tasks.md from plan.md (preset override for fx-to-dotnet i
 
 This preset overrides the core `speckit.tasks` body to coordinate with the `fx-to-dotnet` extension (v0.4.0+).
 
-> **Extension-coordination directive** — If `.specify/extensions.yml` enables `fx-to-dotnet`, you MUST NOT generate migration-themed tasks. The `after_tasks` hook (`speckit.fx-to-dotnet.tasks-hook`) owns migration task emission and will populate the migration phase block. Emitting your own migration tasks here causes the hook to dedupe them, producing wasted work and confusing diffs.
+> **Extension-coordination directive** — If `.specify/extensions.yml` enables `fx-to-dotnet`, you MUST NOT generate migration-themed tasks. The `after_tasks` hook (`speckit.fx-to-dotnet.tasks-hook`) owns migration task emission and will populate the migration phase block, including any prerequisite tasks that must run before dispatchable migration work. Emitting your own migration tasks here causes the hook to dedupe them, producing wasted work and confusing diffs.
 
 <workflow>
 
@@ -25,9 +25,9 @@ Generate `[US*]` user-story tasks from `plan.md` exactly as core does, EXCLUDING
 If `EXTENSION_ACTIVE` is true, emit ONLY a placeholder migration phase heading at the position where the migration phase will appear (immediately before the first user-story phase):
 
 ```
-## Phase N: .NET Framework Migration (extension-managed)
+## Phase 1: .NET Framework Migration (extension-managed placeholder)
 
-> **Extension-managed placeholder** — the `fx-to-dotnet` extension's `after_tasks` hook will replace this heading with a populated `## Phase N: .NET Framework Migration` block containing `[MIG-*]` tasks. Do not edit by hand.
+> **Extension-managed placeholder** — the `fx-to-dotnet` extension's `after_tasks` hook will replace this heading with the populated `## Phase 1: .NET Framework Migration` block. That block may include a `### Prerequisites` subsection ahead of the dispatchable `[MIG-*]` rows, then renumber the following user-story phases when needed. Do not edit by hand.
 ```
 
 Do NOT emit any `[MIG-*]` tasks. Do NOT emit any task that the migration hook would dedupe.
@@ -41,7 +41,7 @@ After the placeholder (or directly, if no extension), continue with the standard
 </workflow>
 
 <contracts>
-- The `after_tasks` hook is the single source of truth for migration tasks.
+- The `after_tasks` hook is the single source of truth for migration tasks and any migration prerequisite tasks, and is responsible for replacing the placeholder when present.
 - Core never dispatches `[MIG-*]` tasks during `/speckit.implement`; the `before_implement` hook does.
 - This override is purely additive in behavior — it removes migration content and adds a placeholder; it does not change user-story task generation.
 </contracts>

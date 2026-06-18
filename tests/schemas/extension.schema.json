@@ -35,10 +35,11 @@
           "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["name", "file"],
+            "required": ["name", "file", "description"],
             "properties": {
               "name": { "type": "string", "minLength": 1 },
               "file": { "type": "string", "minLength": 1 },
+              "description": { "type": "string", "minLength": 1 },
               "scripts": { "type": "array", "items": { "type": "string" } }
             }
           }

@@ -105,7 +105,7 @@ graph TB
 
 ## Lifecycle Integration (v0.5.0+)
 
-From v0.4.0 the extension integrates tightly with the standard Spec Kit lifecycle (`specify → plan → tasks → implement`) via four lifecycle hooks. Migration content is owned end-to-end by the extension; user-story implementation is gated behind completion of all migration tasks.
+From v0.4.0 the extension integrates tightly with the standard Spec Kit lifecycle (`specify → plan → tasks → implement`) via four lifecycle hooks. Migration content is owned end-to-end by the extension; user-story implementation is gated behind completion of all migration tasks, and migration dispatch itself is gated behind any prerequisite tasks emitted ahead of the first `[MIG-*]` row.
 
 When the companion **fx-to-dotnet-sdd preset** is installed, the core `speckit.specify` agent includes a `## Migration Context` section in `spec.md` with lightweight Framework project detection and upgrade strategy classification. This is a passive, read-only detection — full classification happens at plan time.
 
@@ -114,15 +114,20 @@ When the companion **fx-to-dotnet-sdd preset** is installed, the core `speckit.s
 | Event | Hook command | Optional? | Role |
 |---|---|---|---|
 | `after_plan` | `speckit.fx-to-dotnet.plan-hook` | **no** | Run `assess` + `plan`; produce `{featureDir}/migration/analysis.md` and `{featureDir}/migration/plan.md` (both shared); annotate `plan.md` with `## .NET Migration Plan`. |
-| `after_tasks` | `speckit.fx-to-dotnet.tasks-hook` | **no** | Dedupe migration tasks the core agent emitted; insert `## Phase N: .NET Framework Migration` ahead of user stories; emit granular `[MIG-*]` rows with `dispatch:` trailers. |
-| `before_implement` | `speckit.fx-to-dotnet.implement-hook` | **no** | **The gate.** Verify preconditions; per-task review of every `[MIG-*]`; validate dispatch namespace; only then allow `speckit.implement` to run user-story tasks. |
+| `after_tasks` | `speckit.fx-to-dotnet.tasks-hook` | **no** | Dedupe migration tasks the core agent emitted; replace the placeholder with `## Phase 1: .NET Framework Migration` when present, or insert that phase ahead of user stories and renumber existing phases; emit any prerequisite tasks that must run before migration dispatch; then emit granular `[MIG-*]` rows with `dispatch:` trailers. |
+| `before_implement` | `speckit.fx-to-dotnet.implement-hook` | **no** | **The gate.** Verify preconditions; defer migration dispatch while prerequisite tasks remain ahead of the first `[MIG-*]` row; then do per-task review of every `[MIG-*]`; validate dispatch namespace; only then allow `speckit.implement` to run user-story tasks. |
 | `after_implement` | `speckit.fx-to-dotnet.verify-hook` | yes | Solution build verification; write `{featureDir}/migration/completion.md`; annotate plan + tasks with verification status. |
 
 All mandatory hooks **silent-exit success** on non-Framework workspaces, so they never block ordinary (non-migration) Spec Kit usage.
 
-### `[MIG-*]` Task Format
+### Migration Phase Format
 
-The `after_tasks` hook emits one row per granular dispatch unit. Each row carries a machine-readable trailer:
+The `after_tasks` hook emits a migration phase with two ordered segments:
+
+1. `### Prerequisites` — optional plain tasks that must complete before migration dispatch is safe.
+2. `### Migration Tasks` — one `[MIG-*]` row per granular dispatch unit.
+
+Each `[MIG-*]` row carries a machine-readable trailer:
 
 ```
 - [ ] [MIG-001] [P0] Convert ProjectA.csproj to SDK-style — dispatch: speckit.fx-to-dotnet.convert(ProjectA.csproj)
@@ -132,6 +137,8 @@ The `after_tasks` hook emits one row per granular dispatch unit. Each row carrie
 ```
 
 The `dispatch:` trailer is parsed and validated by the `before_implement` hook against the regex `^speckit\.fx-to-dotnet\.[a-z0-9-]+\(.*\)$`. Targets that do not match the `speckit.fx-to-dotnet.` prefix are rejected and the task is marked `[~]` with a `dispatch-rejected` audit-log entry — this is the technical enforcement that **migrations only run extension-owned commands**.
+
+`### Migration Tasks` are emitted in dependency-safe order: SDK conversion by dependency layer, then package-update chunks by dependency layer and chunk index, then multitargeting by dependency layer, then web slices, then build verification last.
 
 ### Precondition Gate
 
@@ -145,6 +152,8 @@ If any precondition is missing, the `before_implement` hook exits non-zero with 
 
 ### Per-Task Review
 
+If unchecked prerequisite tasks still appear ahead of the first `[MIG-*]` row, the `before_implement` hook does not start migration dispatch on that invocation. It exits successfully so the preset `speckit.implement` flow can execute that prerequisite segment first.
+
 The `before_implement` hook walks each unchecked `[MIG-*]` row in document order. For every row the user is shown a preview and one of four choices:
 
 - `approve` — invoke the dispatch target now
@@ -155,6 +164,8 @@ The `before_implement` hook walks each unchecked `[MIG-*]` row in document order
 **Build failures inside an invoked dispatch target always pause for review**, even when `autoApprove-rest` is active. State is persisted to `{featureDir}/migration/implement-state.md` and the run is resumable.
 
 After all `[MIG-*]` rows are resolved the hook appends `## Migration Execution Summary` to `plan.md` and inserts a `> ✓ Migration Complete` checkpoint above the first `[US*]` task in `tasks.md`.
+
+With the companion preset installed, the first `/speckit.implement` pass may therefore execute only prerequisite tasks and stop at the unresolved migration boundary. Re-running `/speckit.implement` then triggers the hook-owned `[MIG-*]` dispatch loop, and only after migration completion do user-story tasks proceed.
 
 ### Companion Preset (optional)
 
@@ -168,7 +179,7 @@ This package also ships a companion **`fx-to-dotnet-sdd`** preset (manifest at [
 | Override | Path | Effect |
 |----------|------|--------|
 | `commands/tasks.md` | [templates/commands/tasks.md](templates/commands/tasks.md) | Core `speckit.tasks` no longer emits migration tasks; the `tasks-hook` owns `[MIG-*]` rows |
-| `commands/implement.md` | [templates/commands/implement.md](templates/commands/implement.md) | Core `speckit.implement` defers all `[MIG-*]` rows to the `before_implement` hook |
+| `commands/implement.md` | [templates/commands/implement.md](templates/commands/implement.md) | Core `speckit.implement` executes only prerequisite tasks before the first unresolved `[MIG-*]` row, then defers all `[MIG-*]` rows to the `before_implement` hook |
 | `templates/plan-template.md` | [templates/plan-template.md](templates/plan-template.md) | Plan template reserves the `## .NET Migration Plan` section for the `plan-hook` |
 
 #### How it fits
