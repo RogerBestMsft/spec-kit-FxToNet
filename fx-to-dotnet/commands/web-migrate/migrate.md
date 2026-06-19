@@ -38,7 +38,7 @@ Your default strategy is:
 - Assume supporting libraries are already available on ASP.NET Core unless the code proves otherwise.
 - Prefer a side-by-side replacement project over editing the legacy web project in place.
 - Keep changes incremental and reversible.
-- If shared libraries must remain dual-targeted, preserve compatibility using the legacy app's actual framework compilation symbol (for example, `NET48` or `NET472`) and modern-target guards (for example, `#if NET48 / #else / #endif`). Do not hardcode `NET462` unless the project actually targets it. Do not use warning suppressions or `NoWarn` as a migration shortcut.
+- If shared libraries must remain dual-targeted, preserve compatibility using `#if` conditional compilation guards per the `conditional-compilation` policy. Use the legacy app's actual framework compilation symbol (for example, `NET48` or `NET472`) and modern-target guards (for example, `#if NET10_0_OR_GREATER`). Do not hardcode `NET462` unless the project actually targets it. Do not use warning suppressions or `NoWarn` as a migration shortcut.
 
 ## Inputs
 

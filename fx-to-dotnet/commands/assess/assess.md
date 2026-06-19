@@ -57,6 +57,7 @@ Before any work begins, you MUST load every policy listed below. These are the c
 - ⛔ MANDATORY: Call `get_instructions(kind='policy', query='systemweb-adapters')` to load the System.Web adapter migration guidance.
 - ⛔ MANDATORY: Call `get_instructions(kind='policy', query='owin-identity')` to load the OWIN/Identity migration guidance.
 - ⛔ MANDATORY: Call `get_instructions(kind='policy', query='windows-service-migration')` to load the Windows Service → BackgroundService migration guidance.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='conditional-compilation')` to load the conditional compilation policy for multi-targeted projects. Used to flag APIs likely requiring `#if` directives during multitarget migration.
 
 Each policy loaded here MUST appear as a row in the `## Policies Applied` table of `{featureDir}/migration/analysis.md` (see template below). Policies with no matching code in the solution still emit a row with `Applied To = none — no matches in solution` and `Outcome = n/a` — the row's presence is the proof of loading.
 
@@ -277,6 +278,7 @@ Unresolved/Cycles: ← omit section if none
 | `systemweb-adapters` | `policies/systemweb-adapters/POLICY.md` | {projects with System.Web usage, or `none — no matches in solution`} | {summary, or `n/a`} |
 | `owin-identity` | `policies/owin-identity/POLICY.md` | {projects with OWIN/Identity usage, or `none — no matches in solution`} | {summary, or `n/a`} |
 | `windows-service-migration` | `policies/windows-service-migration/POLICY.md` | {projects with `ServiceBase`/TopShelf, or `none — no matches in solution`} | {summary, or `n/a`} |
+| `conditional-compilation` | `policies/conditional-compilation/POLICY.md` | {projects with framework-specific APIs likely requiring `#if` guards during multitargeting, or `none — no matches in solution`} | {summary, or `n/a`} |
 ```
 
 ## package-updates.md Template

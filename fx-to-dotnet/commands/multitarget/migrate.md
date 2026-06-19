@@ -40,6 +40,11 @@ You are a MULTITARGET MIGRATION AGENT for .NET projects. Your job is to prepare 
 - When build errors involve `System.Web` types (HttpContext, HttpRequest, HttpResponse, IHttpModule, IHttpHandler, HttpApplication), consult the `systemweb-adapters` policy. Replace `System.Web.dll` references with `Microsoft.AspNetCore.SystemWebAdapters` packages — do NOT rewrite to native ASP.NET Core types.
 - When build errors involve Entity Framework 6 types, consult the `ef6-migration-policy` policy. Retain EF6 packages — do NOT replace with EF Core.
 - When build errors involve `System.ServiceProcess` types (ServiceBase, ServiceController, ServiceInstaller) or the project is classified as a Windows Service, consult the `windows-service-migration` policy. Replace `System.ServiceProcess.ServiceBase` with `BackgroundService` from `Microsoft.Extensions.Hosting` and configure hosting with `Microsoft.Extensions.Hosting.WindowsServices`. Both packages support .NET Framework 4.6.2+ so this migration is safe during multitargeting.
+- When an API is available on only one target framework and no adapter package exists, use `#if` conditional compilation to provide framework-specific implementations. Consult the `conditional-compilation` policy for symbol naming and code patterns.
+- Prefer `_OR_GREATER` preprocessor symbols (e.g., `#if NET10_0_OR_GREATER`) over exact-version symbols for forward compatibility.
+- Do NOT define custom `<DefineConstants>` for framework detection — SDK-style projects auto-define framework symbols (`NETFRAMEWORK`, `NET472`, `NET10_0_OR_GREATER`, etc.).
+- Keep `#if` blocks small and local. If more than ~20 lines diverge in a single method, extract platform-specific logic into partial classes per the `conditional-compilation` policy.
+- The goal is a dual-targeted project (`net472;net10.0`) where both targets compile and pass build verification. Do NOT remove the .NET Framework code path.
 </rules>
 
 <workflow>
@@ -131,7 +136,9 @@ Process API-change groups in refinedPlan order only:
    - For `System.Web` errors: follow the `systemweb-adapters` policy migration procedure (swap references to adapter packages, register modules, stabilize with Build Fix).
    - For Entity Framework 6 errors: follow the `ef6-migration-policy` policy (retain EF6, upgrade to EF6 6.5+ for target framework compatibility).
    - For `System.ServiceProcess`/Windows Service errors: follow the `windows-service-migration` policy (replace ServiceBase with BackgroundService, swap references to hosting packages, rewrite Program.cs entry point).
-2. Rebuild to verify whether the group is resolved.
+   - For all other framework-specific API incompatibilities (types, methods, or namespaces that exist on one target but not the other): apply `#if NETFRAMEWORK` / `#else` / `#endif` or `#if NET10_0_OR_GREATER` / `#endif` guards following the `conditional-compilation` policy. Keep both implementations — do NOT remove the .NET Framework code path. Use `#if` guards on `using` directives at the top of the file when the required namespaces differ by target.
+2. When tagging error groups from the probing build, record which target framework produced each error. Errors that appear only under one target are prime candidates for `#if` conditional compilation fixes.
+3. Rebuild to verify whether the group is resolved.
 3. If unresolved, retry with a distinct minimal strategy up to 3 total attempts.
 4. After successful resolution of the group:
    - If alwaysContinue is true or the applied fix is small/non-substantial, continue directly to the next group.
@@ -155,11 +162,14 @@ Execution guardrail:
 ## 4. Apply Multitargeting
 
 Update the project file with the smallest change:
-- If TargetFramework exists, convert it to TargetFrameworks
-- Append requested frameworks, preserving existing framework and order when practical
+- Convert `<TargetFramework>` to `<TargetFrameworks>` (plural)
+- Preserve the original .NET Framework target as the first entry and append the requested modern target: e.g., `<TargetFrameworks>net472;net10.0</TargetFrameworks>`
+- For Windows Service projects requiring platform-specific APIs, use `net10.0-windows` instead of `net10.0` per the `windows-service-migration` policy
+- Do NOT add `<DefineConstants>` entries for framework symbols — SDK-style projects auto-define `NETFRAMEWORK`, `NET472`, `NET10_0_OR_GREATER`, and all other framework symbols per target
 - Avoid unrelated project file changes
+- Use conditional `<PackageReference>` with MSBuild `Condition` attributes for packages that differ by target (see `conditional-compilation` policy Pattern 5)
 
-Rebuild once after project file update.
+Rebuild for ALL target frameworks after the project file update (not just the new target). Both targets must compile successfully.
 
 ## 5. Verify with Build Fix
 

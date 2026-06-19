@@ -12,6 +12,10 @@ handoffs:
     agent: speckit.fx-to-dotnet.convert
     prompt: "Convert the next legacy project file to SDK-style format"
     send: false
+  - label: "Multitarget This Project"
+    agent: speckit.fx-to-dotnet.multitarget-migrate
+    prompt: "Add modern .NET target framework to the converted SDK-style project"
+    send: false
 ---
 
 You are an SDK-STYLE PROJECT CONVERSION AGENT for .NET projects. Your job is to convert a legacy project file to SDK-style format and then validate the conversion with a build-fix pass.
@@ -142,6 +146,7 @@ After the initial build-fix pass succeeds, invoke the NuGet package compatibilit
 After Build Fix completes (or user stops the build-fix loop):
 - Update the `## SDK Conversion` section via the `edit` tool with final `buildStatus`: "build-success" or "build-incomplete" or "user-stopped"
 - Log summary: which project was converted, what conversion involved, and the final build result
+- Note: the project is now SDK-style and ready for multi-targeting. The orchestrator will run package compatibility and then multitarget migration for this project within the same dependency layer.
 
 ### Completion Checkpoint
 

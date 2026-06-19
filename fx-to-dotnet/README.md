@@ -1,11 +1,12 @@
 # fx-to-dotnet — .NET Framework to Modern .NET Migration
 
-A single Spec Kit extension that orchestrates migrating .NET Framework applications to modern .NET (e.g. .NET 10) through a 7-phase workflow, optionally driven end-to-end by Spec Kit lifecycle hooks.
+A Spec Kit extension that orchestrates migrating .NET Framework applications to modern .NET (e.g. .NET 10) using **multi-targeting as the default strategy**. Projects retain both framework targets (e.g., `net472;net10.0`) with `#if` conditional compilation for framework-specific code paths, ensuring both targets compile throughout the migration. The extension drives a per-layer workflow — SDK conversion, package compatibility, and multi-targeting complete for each dependency layer before the next begins — optionally integrated end-to-end via Spec Kit lifecycle hooks.
 
 - **Version**: `0.9.0`
 - **License**: MIT
 - **Repository**: https://github.com/AzureAD/fx-to-dotnet-extensions
 - **Default target framework**: `net10.0`
+- **Default migration strategy**: `multi-target` — both Framework and modern .NET targets coexist
 
 ## Architecture at a Glance
 

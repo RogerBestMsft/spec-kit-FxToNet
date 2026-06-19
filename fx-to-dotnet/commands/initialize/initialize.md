@@ -107,9 +107,11 @@ Before initializing fresh state, check for existing progress by reading `{migrat
 Create `{migrationDir}/orchestration.md` using the `edit` tool with:
 - solutionPath
 - targetFramework
+- migrationStrategy: "multi-target"
 - lastCompletedPhase: "none"
-- packageCompatStatus: "not-started"
-- multitargetStatus: "not-started"
+- layerMigrationStatus: "not-started"
+- lastCompletedLayer: 0
+- layerProgress: [] (each entry: `{ layer, sdkConvert, packageCompat, multitarget }` with values `not-started|in-progress|complete|failed`)
 - aspnetMigrationStatus: "not-started"
 
 The `edit` tool creates parent directories on write, so writing `{migrationDir}/orchestration.md` provisions `migrationDir`. No other pre-creation is required.
@@ -126,4 +128,4 @@ Return:
 - targetFramework
 - mode: `fresh` | `resume`
 - lastCompletedPhase (only when mode is `resume`)
-- nextPhase (the phase a downstream command should pick up — e.g., `assessment`, `planning`, `sdk-normalization`, `package-compat`, `multitarget`, `aspnet-migration`, `complete`)
+- nextPhase (the phase a downstream command should pick up — e.g., `assessment`, `planning`, `layer-migration`, `aspnet-migration`, `complete`)

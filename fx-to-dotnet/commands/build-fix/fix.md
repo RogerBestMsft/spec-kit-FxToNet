@@ -74,7 +74,7 @@ Extract build errors from the output. Group them into **error groups** by:
 - **Same error code + same fix** — e.g., CS0246 (missing type) where the same `using` directive resolves all of them
 - **Same root cause** — e.g., a renamed class causing CS0246/CS0103 across multiple files
 - **Isolated errors** — unique errors that don't fit a pattern
-
+When the target project uses `<TargetFrameworks>` (plural), `dotnet build` produces errors for each target framework. Tag each error group with the target framework(s) that produced it. Errors that appear only under one target framework are candidates for `#if` conditional compilation fixes — consult the `conditional-compilation` policy.
 Order groups by: errors that are likely root causes first (missing types/namespaces before downstream errors), then by file order.
 
 Persist the grouped errors to the `## Build Fix` section of the state file via the `edit` tool before entering the loop.
@@ -111,6 +111,7 @@ Wait for the user's choice before proceeding.
 - Read the relevant file(s) to understand context
 - Apply the smallest change that resolves the error group
 - For identical fixes across files (e.g., adding the same `using`), batch them into a single operation
+- For errors that occur only under one target framework in a multi-targeted project, prefer wrapping the affected code in `#if` conditional compilation guards (consult the `conditional-compilation` policy) rather than removing or rewriting the code for both targets
 
 ### 3c. Verify
 
@@ -165,8 +166,8 @@ Options:
 Use this as a lightweight starter set, not a complete catalog. Keep about 8-15 high-frequency codes here and infer fixes for everything else from compiler output and file context.
 
 Common .NET build error codes and typical fixes:
-- **CS0246** (type or namespace not found) — add a `using` directive or fix a typo
-- **CS0103** (name does not exist in current context) — missing `using`, misspelled variable, or removed declaration
+- **CS0246** (type or namespace not found) — add a `using` directive or fix a typo. In multi-targeted builds, if this error appears only for one target framework, resolve with a `#if` guard rather than removing the reference.
+- **CS0103** (name does not exist in current context) — missing `using`, misspelled variable, or removed declaration. In multi-targeted builds, if this error appears only for one target, resolve with a `#if` guard.
 - **CS1061** (type does not contain a definition) — wrong method/property name, missing extension method `using`
 - **CS0029 / CS0266** (cannot convert type) — type mismatch, needs a cast or API change
 - **CS0535** (does not implement interface member) — add missing interface method implementations

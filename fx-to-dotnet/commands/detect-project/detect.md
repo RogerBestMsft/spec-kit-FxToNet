@@ -127,17 +127,17 @@ After classification, derive the `upgradeStrategy` field for each project:
 | Classification | upgradeStrategy |
 |---|---|
 | web-app-host | side-by-side |
-| web-library | in-place |
-| windows-service | in-place |
-| class-library | in-place |
-| console-app | in-place |
-| winforms-app | in-place |
-| wpf-app | in-place |
+| web-library | multi-target |
+| windows-service | multi-target |
+| class-library | multi-target |
+| console-app | multi-target |
+| winforms-app | multi-target |
+| wpf-app | multi-target |
 | uncertain | uncertain |
 
 Override to `skip` when the project is already SDK-style AND its `targetFramework` does not match `net4*` (i.e., it already targets modern .NET exclusively with no Framework TFM).
 
-- **in-place**: The project will be multitargeted to add a modern TFM alongside the existing Framework TFM. Applies to libraries, console apps, Windows Services, web libraries, WinForms, and WPF apps.
+- **multi-target**: The project will be converted to SDK-style (if needed), then multi-targeted to add a modern TFM alongside the existing Framework TFM (e.g., `<TargetFrameworks>net472;net10.0</TargetFrameworks>`). Both targets compile and ship. Framework-specific code uses `#if` conditional compilation per the `conditional-compilation` policy. This is the default migration strategy. Applies to libraries, console apps, Windows Services, web libraries, WinForms, and WPF apps.
 - **side-by-side**: A new ASP.NET Core project will be created alongside the legacy host and web artifacts will be ported in slices. Applies to web application host projects.
 - **skip**: The project already targets modern .NET and requires no migration action.
 - **uncertain**: Classification is ambiguous; full assessment at plan time will prompt for confirmation.
@@ -182,7 +182,7 @@ When the input is a single project file, append one project block after the head
   - {bullet 2}
   - {bullet 3}
 - nextAction: {one of the values below}
-- upgradeStrategy: in-place | side-by-side | skip | uncertain
+- upgradeStrategy: multi-target | side-by-side | skip | uncertain
 ```
 
 ### Solution body

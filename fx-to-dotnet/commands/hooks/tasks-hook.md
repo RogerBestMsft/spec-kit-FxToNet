@@ -121,11 +121,18 @@ Granularity rules (per Layer 6):
 | Web migration | slice (bootstrap, controllers, auth, …) | `speckit.fx-to-dotnet.web-migrate` |
 | Build verification | solution | `speckit.fx-to-dotnet.fix` |
 
-Migration-task emission order is explicit and dependency-safe. Emit `### Migration Tasks` rows in this sequence:
+Migration-task emission order is explicit and dependency-safe. Emit `### Migration Tasks` rows **grouped by migration phase** (SDK conversion, then package updates, then multitarget migration), with projects ordered by dependency layer within each phase. This gives a clear view of each phase's scope while preserving the dependency-safe execution order within phases.
 
-1. SDK conversion in dependency-layer order (Layer 1 first).
-2. Package updates in dependency-layer order, then by chunk index within each project.
-3. Multitarget libraries in dependency-layer order.
+Emit rows in this phase sequence:
+1. **SDK Conversion** — all projects needing SDK conversion, ordered by dependency layer (Layer 1 first).
+2. **Package Updates** — all projects with package chunks, ordered by dependency layer (Layer 1 first), then by chunk index within each project.
+3. **Multitarget Migration** — all non-web projects, ordered by dependency layer (Layer 1 first).
+4. **Web Migration** — web migration slices after all library work is complete.
+5. **Build Verification** — solution build verification last.
+
+Within each phase, use `#### Layer N` sub-headings to group projects by dependency layer.
+
+After all layers:
 4. Web migration slices after the relevant prerequisite and library work is complete.
 5. Build verification last.
 
@@ -136,16 +143,28 @@ Package-update emission rules:
 - Each row's human-readable description embeds the project name, chunk index, and the chunk's package count + risk level (e.g., `Apply package chunk 1 to LibraryA (3 minor updates)`).
 - Dispatch trailer carries both `project` and `chunk` args: `speckit.fx-to-dotnet.update-packages(project=<rel csproj path>, chunk=<n>)`.
 
-Examples (illustrative):
+Examples (illustrative — phases as `###`, layers as `####` sub-headings):
 
 ```
+### SDK Conversion
+#### Layer 1
 - [ ] [MIG-001] [P0] Convert ProjectA.csproj to SDK-style — dispatch: speckit.fx-to-dotnet.convert(ProjectA.csproj)
-- [ ] [MIG-002] [P0] Apply package chunk 1 to LibraryA (3 minor updates) — dispatch: speckit.fx-to-dotnet.update-packages(project=src/LibraryA/LibraryA.csproj, chunk=1)
-- [ ] [MIG-003] [P0] Apply package chunk 2 to LibraryA (1 major update) — dispatch: speckit.fx-to-dotnet.update-packages(project=src/LibraryA/LibraryA.csproj, chunk=2)
+#### Layer 2
+- [ ] [MIG-002] [P0] Convert LibraryB.csproj to SDK-style — dispatch: speckit.fx-to-dotnet.convert(LibraryB.csproj)
+### Package Updates
+#### Layer 1
+- [ ] [MIG-003] [P0] Apply package chunk 1 to ProjectA (3 minor updates) — dispatch: speckit.fx-to-dotnet.update-packages(project=src/ProjectA/ProjectA.csproj, chunk=1)
+#### Layer 2
 - [ ] [MIG-004] [P0] Apply package chunk 1 to LibraryB (2 minor updates) — dispatch: speckit.fx-to-dotnet.update-packages(project=src/LibraryB/LibraryB.csproj, chunk=1)
-- [ ] [MIG-005] [P0] Multitarget LibraryA to net10.0 — dispatch: speckit.fx-to-dotnet.multitarget-migrate(LibraryA.csproj)
-- [ ] [MIG-006] [P0] Web migrate WebApp slice=bootstrap — dispatch: speckit.fx-to-dotnet.web-migrate(WebApp.csproj, slice=bootstrap)
-- [ ] [MIG-007] [P0] Solution build verification — dispatch: speckit.fx-to-dotnet.fix(solution)
+### Multitarget Migration
+#### Layer 1
+- [ ] [MIG-005] [P0] Multitarget ProjectA to net10.0 — dispatch: speckit.fx-to-dotnet.multitarget-migrate(ProjectA.csproj)
+#### Layer 2
+- [ ] [MIG-006] [P0] Multitarget LibraryB to net10.0 — dispatch: speckit.fx-to-dotnet.multitarget-migrate(LibraryB.csproj)
+### Web Migration
+- [ ] [MIG-007] [P0] Web migrate WebApp slice=bootstrap — dispatch: speckit.fx-to-dotnet.web-migrate(WebApp.csproj, slice=bootstrap)
+### Verification
+- [ ] [MIG-008] [P0] Solution build verification — dispatch: speckit.fx-to-dotnet.fix(solution)
 ```
 
 `MIG-NNN` is zero-padded 3 digits and globally sequential within the migration phase.

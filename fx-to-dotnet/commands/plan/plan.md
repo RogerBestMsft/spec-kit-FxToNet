@@ -28,6 +28,7 @@ Before any work begins, you MUST load every policy listed below. These are the c
 
 - ⛔ MANDATORY: Call `get_instructions(kind='policy', query='dependency-layers')` to load the dependency-layer ordering algorithm used by Phase 1 and Phase 3.
 - ⛔ MANDATORY: Call `get_instructions(kind='policy', query='windows-service-migration')` to load the Windows Service → BackgroundService migration guidance applied in Phase 3.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='conditional-compilation')` to load the conditional compilation policy for multi-targeted projects. Applied in Phase 3 when planning framework-specific code strategies.
 
 Each policy loaded here MUST appear as a row in the `## Policies Applied` table emitted at the end of the migration plan output (see structure below). Policies with no matching code in the solution still emit a row with `Applied To = none — no matches in solution` and `Outcome = n/a` — the row's presence is the proof of loading.
 
@@ -94,7 +95,7 @@ For every unsupported library and out-of-scope item identified in the assessment
 2. Recommend exactly one resolution per package:
    - **Replace** — a compatible alternative package exists that covers the needed functionality. Name the replacement and note any API differences.
    - **Remove & rewrite** — the package usage is limited enough that the functionality can be reimplemented inline or with built-in .NET APIs. Describe what needs rewriting.
-   - **Wrap & isolate** — the package is deeply integrated. Recommend isolating it behind an interface/abstraction so it can be swapped later, and keep it via a compatibility shim or `#if` conditional compilation during multitargeting.
+   - **Wrap & isolate** — the package is deeply integrated. Recommend isolating it behind an interface/abstraction so it can be swapped later, and keep it via a compatibility shim or `#if` conditional compilation during multitargeting (see `conditional-compilation` policy for patterns and symbol naming).
    - **Drop** — the functionality provided by the package is no longer needed. Justify why.
    - **Block** — no viable path forward without user input. Clearly state what decision is needed from the user.
 3. Estimate the impact: how many files/call sites are affected
@@ -201,7 +202,8 @@ Packages with `content/` folder or `install.ps1` requiring manual review:
 | Package | Current | Min Compatible | Legacy Content | Install Script |
 
 ## Phase 3: Multitarget Migration
-Projects to multitarget, organized by dependency layer (process layers bottom-up; projects within a layer can be processed in parallel):
+Projects to multitarget, organized by dependency layer (process layers bottom-up; projects within a layer can be processed in parallel).
+Each project will produce a dual-targeted project file (e.g., `<TargetFrameworks>net472;net10.0</TargetFrameworks>`) where both targets compile successfully. Framework-specific code paths use `#if NETFRAMEWORK` / `#if NET10_0_OR_GREATER` conditional compilation per the `conditional-compilation` policy. Adapter packages (e.g., System.Web adapters) are preferred where available; `#if` directives are used when adapters do not cover the API surface.
 
 ### Layer 1
 - {project path}
@@ -234,6 +236,7 @@ Projects containing ServiceBase or TopShelf that will undergo service code migra
 |---|---|---|---|
 | `dependency-layers` | `policies/dependency-layers/POLICY.md` | {layers ordered for Phase 1/Phase 3, or `none — no matches in solution`} | {summary, or `n/a`} |
 | `windows-service-migration` | `policies/windows-service-migration/POLICY.md` | {Windows Service projects scheduled for BackgroundService migration, or `none — no matches in solution`} | {summary, or `n/a`} |
+| `conditional-compilation` | `policies/conditional-compilation/POLICY.md` | {projects requiring `#if` conditional compilation for framework-specific code during multitargeting, or `none — no matches in solution`} | {summary, or `n/a`} |
 ```
 
 ## Output Format
