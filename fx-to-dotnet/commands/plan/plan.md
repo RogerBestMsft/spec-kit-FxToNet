@@ -29,6 +29,7 @@ Before any work begins, you MUST load every policy listed below. These are the c
 - ⛔ MANDATORY: Call `get_instructions(kind='policy', query='dependency-layers')` to load the dependency-layer ordering algorithm used by Phase 1 and Phase 3.
 - ⛔ MANDATORY: Call `get_instructions(kind='policy', query='windows-service-migration')` to load the Windows Service → BackgroundService migration guidance applied in Phase 3.
 - ⛔ MANDATORY: Call `get_instructions(kind='policy', query='conditional-compilation')` to load the conditional compilation policy for multi-targeted projects. Applied in Phase 3 when planning framework-specific code strategies.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='cross-project-version-alignment')` to load the cross-project transitive version alignment policy. Applied in Phase 2 when determining target versions for the chunked update plan.
 
 Each policy loaded here MUST appear as a row in the `## Policies Applied` table emitted at the end of the migration plan output (see structure below). Policies with no matching code in the solution still emit a row with `Applied To = none — no matches in solution` and `Outcome = n/a` — the row's presence is the proof of loading.
 
@@ -113,7 +114,9 @@ This step covers only packages that have a compatible version available. Package
 
 Using the compatibility cards from the assessment, build a **per-project** ordered update plan. Each project gets its own numbered chunk sequence — chunks are NEVER solution-wide. This makes the chunked update plan executable on a per-project basis (one `[MIG-*]` task per (project, chunk) pair).
 
-1. List every package whose current version already supports the target (marked `Supports Target: yes`) — these require NO changes and must appear in the "Packages Already Compatible" table in the plan output so reviewers can confirm nothing was missed
+**⛔ Transitive alignment override**: Before building the per-project queue, read the `## Transitive Alignment Conflicts` section from `{featureDir}/migration/package-updates.md`. For any package that has an alignment conflict entry, the `toVersion` in the chunked update plan MUST be the `Recommended Version` from the alignment conflicts table — NOT the `Minimum Compatible Version` from the Compatibility Cards. This ensures the project is compiled against the same API surface that NuGet will resolve at runtime. A package that was marked "Current Supports Target: yes" in the Compatibility Cards but appears in the alignment conflicts table (because an upstream consumer pulls a higher version transitively) MUST be included in the update plan at the `Recommended Version` — it is no longer "already compatible" since it will run against a different API at runtime.
+
+1. List every package whose current version already supports the target (marked `Supports Target: yes`) **AND** does not appear in the `## Transitive Alignment Conflicts` table — these require NO changes and must appear in the "Packages Already Compatible" table in the plan output so reviewers can confirm nothing was missed
 2. Exclude packages already resolved as unsupported in step 4
 3. Build the per-project queue:
    a. Iterate projects in **dependency-layer order** from `analysis.md` (Layer 1 / leaf projects first, then Layer 2, etc.). Use the `Projects` column on each compatibility card to determine which packages belong to which project.
@@ -237,6 +240,7 @@ Projects containing ServiceBase or TopShelf that will undergo service code migra
 | `dependency-layers` | `policies/dependency-layers/POLICY.md` | {layers ordered for Phase 1/Phase 3, or `none — no matches in solution`} | {summary, or `n/a`} |
 | `windows-service-migration` | `policies/windows-service-migration/POLICY.md` | {Windows Service projects scheduled for BackgroundService migration, or `none — no matches in solution`} | {summary, or `n/a`} |
 | `conditional-compilation` | `policies/conditional-compilation/POLICY.md` | {projects requiring `#if` conditional compilation for framework-specific code during multitargeting, or `none — no matches in solution`} | {summary, or `n/a`} |
+| `cross-project-version-alignment` | `policies/cross-project-version-alignment/POLICY.md` | {packages with transitive alignment conflicts adjusted in chunked update plan, or `none — single project / no conflicts detected`} | {summary, or `n/a`} |
 ```
 
 ## Output Format

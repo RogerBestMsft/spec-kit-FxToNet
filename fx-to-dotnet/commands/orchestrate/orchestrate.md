@@ -115,11 +115,12 @@ When resuming a migration, read this file (if it exists) to restore the user's c
 - Run assessment and planning before any migration work
 - Use the Migration Planner's project classifications to drive all subsequent phases — do not re-classify projects
 - Process projects by dependency layer (Layer 1 first, then Layer 2, etc.). Projects within the same layer are independent and can be processed in any order. Complete all projects in a layer before advancing to the next.
-- Within each layer, execute migration sub-phases in order: SDK conversion → package compatibility → multitarget migration. Complete each sub-phase for all projects in the layer before starting the next sub-phase. This ensures each layer is fully multi-targeted before the next layer begins, so dependent projects can reference correct target-specific APIs.
+- Within each layer, execute migration sub-phases in order: SDK conversion → package compatibility → version alignment validation → multitarget migration. Complete each sub-phase for all projects in the layer before starting the next sub-phase. This ensures each layer is fully multi-targeted before the next layer begins, so dependent projects can reference correct target-specific APIs.
 - Do not run SDK-style conversion for projects the plan classifies as web hosts or already SDK-style
 - For each project the plan marks as needs-sdk-conversion, use the `invoke-command` tool to run `speckit.fx-to-dotnet.convert`
 - After SDK-style conversion completes for a layer, use the `invoke-command` tool to run `speckit.fx-to-dotnet.update-packages` for projects in that same layer
-- After package compatibility completes for a layer, use the `invoke-command` tool to run `speckit.fx-to-dotnet.multitarget-migrate` for projects in that same layer
+- After package compatibility completes for a layer, validate transitive version alignment across already-processed layers before proceeding to multitarget
+- After version alignment validation passes for a layer, use the `invoke-command` tool to run `speckit.fx-to-dotnet.multitarget-migrate` for projects in that same layer
 - After all layers complete the combined migration, use the `invoke-command` tool to run `speckit.fx-to-dotnet.web-migrate` using the plan's web host candidate
 - Linux and cross-platform support is a separate concern — the goal of this migration is to get from .NET Framework to modern .NET on Windows. Do not remove `-windows` TFM suffixes, add platform-conditional code, or introduce Linux hosting packages (e.g., `Microsoft.Extensions.Hosting.Systemd`) during this migration. Cross-platform adaptation is a post-migration activity.
 - Stop and ask the user when a required input is missing, a classification is uncertain, or a decision cannot be derived safely
@@ -158,7 +159,7 @@ Create `{featureDir}/migration/orchestration.md` using the `edit` tool with:
 - lastCompletedPhase: "none"
 - layerMigrationStatus: "not-started"
 - lastCompletedLayer: 0
-- layerProgress: [] (each entry: `{ layer, sdkConvert, packageCompat, multitarget }` with values `not-started|in-progress|complete|failed`)
+- layerProgress: [] (each entry: `{ layer, sdkConvert, packageCompat, versionAlignment, multitarget }` with values `not-started|in-progress|complete|failed`)
 - aspnetMigrationStatus: "not-started"
 
 Do not duplicate data that lives in `{featureDir}/migration/analysis.md` (assessment report, project classifications), `{featureDir}/migration/plan.md` (migration plan), or in other `{featureDir}/migration/` files (package compatibility data). The orchestrator re-reads those files when resuming.
@@ -200,9 +201,9 @@ Present a summary of the migration plan to the user — project classifications,
 
 Use the plan's project classifications to drive all subsequent phases — do not re-classify projects.
 
-## 4. Per-Layer Migration (SDK Convert → Package Compat → Multitarget)
+## 4. Per-Layer Migration (SDK Convert → Package Compat → Version Alignment → Multitarget)
 
-This phase combines SDK normalization, package compatibility, and multitarget migration into a single per-layer pass. For each dependency layer, all three sub-phases complete before advancing to the next layer. This ensures that when Layer N+1 projects reference Layer N projects, Layer N is already fully multi-targeted with both framework targets compiling successfully.
+This phase combines SDK normalization, package compatibility, version alignment validation, and multitarget migration into a single per-layer pass. For each dependency layer, all four sub-phases complete before advancing to the next layer. This ensures that when Layer N+1 projects reference Layer N projects, Layer N is already fully multi-targeted with both framework targets compiling successfully.
 
 Using the plan's dependency layers, process layers in order starting from Layer 1 (leaf projects):
 
@@ -237,6 +238,29 @@ If any project fails or stops with unresolved blockers, ask the user whether to 
 
 Update `layerProgress[N].packageCompat: "complete"` in `{featureDir}/migration/orchestration.md` via the `edit` tool.
 
+### 4b′. Transitive Version Alignment Validation (within current layer)
+
+After package updates complete for the current layer, validate that no unresolved transitive version conflicts remain between this layer and already-completed lower layers. This gate catches conflicts that the planner's alignment-adjusted `toVersion` should have prevented — it is a safety net, not the primary fix.
+
+**Skip condition**: If the solution has only one dependency layer, or the current layer is Layer 1 (leaf projects with no downstream consumers yet processed), skip this validation (mark as `complete` immediately).
+
+1. For each project P in the current layer:
+   - Collect P's current `<PackageReference>` versions (post-update) from the workspace
+   - Identify all projects in **previously completed layers** (layers 1…N-1) that P references (directly or transitively via the dependency graph in `analysis.md`)
+   - For each referenced lower-layer project, collect its current `<PackageReference>` versions (post-update)
+2. For each package ID that appears in BOTH P's references and a referenced lower-layer project's references:
+   - If the versions differ, check whether NuGet's "highest version wins" means the lower-layer project will resolve to P's (higher) version at runtime
+   - If the lower-layer project's pinned version is lower than what P's transitive closure will resolve to, flag a **residual alignment conflict**
+3. If residual conflicts are detected:
+   - Present the conflicts to the user with a recommendation: bump the lower-layer project's version to match (requires re-running `update-packages` for that project with the aligned version)
+   - Ask the user whether to:
+     - **Fix now** — invoke `speckit.fx-to-dotnet.update-packages` for the affected lower-layer project(s) with the aligned version, then re-run this validation
+     - **Accept risk** — acknowledge the mismatch and proceed (the project may have runtime issues)
+     - **Stop** — halt for manual investigation
+4. If no conflicts are detected (or the user chose "Accept risk"), proceed to multitarget migration
+
+Update `layerProgress[N].versionAlignment: "complete"` (or `"failed"` if user stopped) in `{featureDir}/migration/orchestration.md` via the `edit` tool.
+
 ### 4c. Multitarget Migration (within current layer)
 
 For each project in the layer listed in the plan's Phase 3:
@@ -253,11 +277,11 @@ Update `layerProgress[N].multitarget: "complete"` in `{featureDir}/migration/orc
 
 ### Layer Completion
 
-After all three sub-phases complete for the current layer:
+After all four sub-phases complete for the current layer:
 - Record progress in `{featureDir}/migration/orchestration.md`: update `lastCompletedLayer: N`
 - If there are more layers remaining, run the **Layer Checkpoint Prompt** (see `<continuation-preferences>`) unless continuation is enabled
 
-Do not advance to the next layer until all three sub-phases (SDK convert, package compat, multitarget) are complete for the current layer.
+Do not advance to the next layer until all four sub-phases (SDK convert, package compat, version alignment, multitarget) are complete for the current layer.
 
 After ALL layers are complete:
 

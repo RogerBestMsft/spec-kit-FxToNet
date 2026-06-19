@@ -466,5 +466,5 @@ Some commands can be used independently outside the full migration suite:
 - **No project filtering** — All projects in the solution are included in assessment and planning; there is no mechanism to exclude deprecated or out-of-scope projects
 - **No cross-project failure recovery** — If a project fails during conversion, there is no defined strategy for whether to block the solution, skip the failed project, or continue with dependent layers
 - **No multi-solution / monorepo support** — The extension expects a single `.sln` file; repositories with multiple solutions require separate invocations
-- **Package updates are solution-global** — Package compatibility updates are applied across the entire solution with no per-project override for conflicting requirements
+- **Package updates are solution-global** — Package compatibility updates are applied across the entire solution with no per-project override for conflicting requirements. Cross-project transitive version alignment (via the `cross-project-version-alignment` policy) detects and recommends aligned versions during assessment, but residual conflicts may still require manual resolution if the planner's adjusted versions are overridden.
 - **No per-layer build validation** — Layer completion is treated as a checkpoint but does not mandate a verification build before advancing to the next layer

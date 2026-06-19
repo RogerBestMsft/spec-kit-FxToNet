@@ -58,6 +58,7 @@ Before any work begins, you MUST load every policy listed below. These are the c
 - ⛔ MANDATORY: Call `get_instructions(kind='policy', query='owin-identity')` to load the OWIN/Identity migration guidance.
 - ⛔ MANDATORY: Call `get_instructions(kind='policy', query='windows-service-migration')` to load the Windows Service → BackgroundService migration guidance.
 - ⛔ MANDATORY: Call `get_instructions(kind='policy', query='conditional-compilation')` to load the conditional compilation policy for multi-targeted projects. Used to flag APIs likely requiring `#if` directives during multitarget migration.
+- ⛔ MANDATORY: Call `get_instructions(kind='policy', query='cross-project-version-alignment')` to load the cross-project transitive NuGet version alignment policy. Used to detect packages whose assessed version will be overridden by transitive pulls from upstream consumer projects.
 
 Each policy loaded here MUST appear as a row in the `## Policies Applied` table of `{featureDir}/migration/analysis.md` (see template below). Policies with no matching code in the solution still emit a row with `Applied To = none — no matches in solution` and `Outcome = n/a` — the row's presence is the proof of loading.
 
@@ -194,6 +195,25 @@ For each package, produce a compatibility card:
 - hasLegacyContentFolder, hasInstallScript
 - feedSourceUsed
 
+#### 7d. Cross-Project Transitive Version Alignment
+
+After completing per-package compatibility analysis, detect packages whose assessed version will be overridden at runtime by transitive pulls from upstream consumer projects. This step prevents compile-time vs. runtime API mismatches caused by NuGet's "highest version wins" resolution across `<ProjectReference>` chains.
+
+**Skip condition**: If the solution has only one project or all projects are in the same dependency layer with no inter-project references, skip this step (no cross-project conflicts possible).
+
+1. ⛔ MANDATORY: Call `get_instructions(kind='policy', query='cross-project-version-alignment')` (if not already loaded in the Required Policies preamble) and follow its algorithm.
+2. Using the dependency graph from Step 5b (computed layers) and the per-project package inventory from Step 7b:
+   - For each dependency layer N (starting from Layer 1 / leaf projects):
+     - Identify all projects in higher layers (N+1, N+2, …) that transitively reference projects in layer N
+     - Collect the package references (with their target versions from step 7c — use `Minimum Compatible Version` if an upgrade was recommended, otherwise `Current Version`) for both the lower-layer project and its upstream consumers
+3. For each lower-layer project, invoke the `Get-TransitiveDependencyClosure` script (from the `cross-project-version-alignment` policy) with the upstream consumer projects' package sets to determine their full transitive NuGet dependency closures
+4. Compare each package in the lower-layer project's references against the upstream closures:
+   - If the upstream-resolved version is **higher** than the lower-layer project's version → emit an alignment conflict
+   - Classify severity: `high` (major version delta), `medium` (minor delta), `low` (patch only)
+   - Record the recommended version = upstream-resolved version
+5. For Central Package Management solutions: only flag conflicts where the centrally-managed version is lower than the transitive resolution from a meta-package not listed in `Directory.Packages.props`
+6. Record all alignment conflicts for inclusion in `package-updates.md` under `## Transitive Alignment Conflicts`
+
 ### 8. Unsupported Libraries
 
 During package compatibility analysis (Step 7c), some packages may have no version that supports the target framework — they are discontinued, .NET Framework-only, or have no modern .NET assets.
@@ -226,7 +246,7 @@ Include these in the output as a dedicated section so the migration plan does no
 After all assessment work is complete, write the results to the appropriate state files:
 
 1. Write the full assessment report to `{featureDir}/migration/analysis.md` using the `edit` tool — follow the **analysis.md template** below exactly. This is a **shared artifact**: it lives under the active Spec Kit feature folder so that core Spec Kit (`/speckit.analyze`, `/speckit.verify`) and other extensions can discover it by convention.
-2. Write the package compatibility findings (NuGet Feeds, Compatibility Cards, Unsupported Libraries, Out-of-Scope Items) to `{featureDir}/migration/package-updates.md` using the `edit` tool — this also lives under `{featureDir}/migration/` alongside the other migration artifacts.
+2. Write the package compatibility findings (NuGet Feeds, Compatibility Cards, Unsupported Libraries, Out-of-Scope Items, Transitive Alignment Conflicts) to `{featureDir}/migration/package-updates.md` using the `edit` tool — this also lives under `{featureDir}/migration/` alongside the other migration artifacts.
 
 These files enable the orchestrator and downstream commands to resume from a completed assessment without re-running it.
 
@@ -279,13 +299,14 @@ Unresolved/Cycles: ← omit section if none
 | `owin-identity` | `policies/owin-identity/POLICY.md` | {projects with OWIN/Identity usage, or `none — no matches in solution`} | {summary, or `n/a`} |
 | `windows-service-migration` | `policies/windows-service-migration/POLICY.md` | {projects with `ServiceBase`/TopShelf, or `none — no matches in solution`} | {summary, or `n/a`} |
 | `conditional-compilation` | `policies/conditional-compilation/POLICY.md` | {projects with framework-specific APIs likely requiring `#if` guards during multitargeting, or `none — no matches in solution`} | {summary, or `n/a`} |
+| `cross-project-version-alignment` | `policies/cross-project-version-alignment/POLICY.md` | {projects analyzed for transitive version conflicts, or `none — single project / no inter-project references`} | {summary, or `n/a`} |
 ```
 
 ## package-updates.md Template
 
 Write `{featureDir}/migration/package-updates.md` using this exact structure. The file has two ownership zones:
 
-- **Findings zone** (this command, `speckit.fx-to-dotnet.assess`): the header plus the four `##` findings sections below. `assess` owns and rewrites this zone on every run.
+- **Findings zone** (this command, `speckit.fx-to-dotnet.assess`): the header plus the five `##` findings sections below. `assess` owns and rewrites this zone on every run.
 - **Execution-state zone** (`speckit.fx-to-dotnet.update-packages`): the trailing `## Execution State` section. `assess` MUST emit a placeholder for this section (so consumers see a stable schema) but MUST NOT touch its body once `update-packages` has populated it on a later run.
 
 To preserve any existing execution state, before writing: `read` the current `{featureDir}/migration/package-updates.md` (if present), capture everything from the `## Execution State` heading through end-of-file, and re-emit that captured block verbatim after rewriting the findings zone. If the file does not exist or has no `## Execution State` section, emit the placeholder shown below.
@@ -293,7 +314,7 @@ To preserve any existing execution state, before writing: `read` the current `{f
 ```markdown
 # Package Update Plan
 
-> **Extension-managed (findings)** — sections from `# Package Update Plan` through the end of `## Out-of-Scope Items` are generated by `speckit.fx-to-dotnet.assess`. To refresh, re-run `speckit.fx-to-dotnet.assess`. The trailing `## Execution State` section is owned by `speckit.fx-to-dotnet.update-packages` and is preserved across reruns.
+> **Extension-managed (findings)** — sections from `# Package Update Plan` through the end of `## Transitive Alignment Conflicts` are generated by `speckit.fx-to-dotnet.assess`. To refresh, re-run `speckit.fx-to-dotnet.assess`. The trailing `## Execution State` section is owned by `speckit.fx-to-dotnet.update-packages` and is preserved across reruns.
 
 Generated: {ISO-8601 timestamp}
 Source: speckit.fx-to-dotnet.assess
@@ -343,6 +364,21 @@ Technologies and patterns explicitly excluded from this migration per the loaded
 Recognized policy sources (cite the POLICY path verbatim): `policies/ef6-migration-policy/POLICY.md`, `policies/systemweb-adapters/POLICY.md`, `policies/owin-identity/POLICY.md`. (Windows Service migration is **in-scope** — it appears in `analysis.md` project classifications, not here.)
 
 If none, emit a single row: `| — | (none) | — | — | — |`.
+
+## Transitive Alignment Conflicts
+
+Cross-project transitive version conflicts detected by the `cross-project-version-alignment` policy (step 7d). When an upstream consumer project's transitive NuGet dependencies resolve a package to a higher version than a lower-layer project pins, NuGet's "highest version wins" causes a compile-time vs. runtime API mismatch. The Migration Planner MUST use the `Recommended Version` (not the per-package `Minimum Compatible Version`) as the `toVersion` for affected packages in the chunked update plan.
+
+| # | Package ID | Project (lower layer) | Layer | Pinned Version | Resolved Version (upstream) | Upstream Project | Severity | Recommended Version |
+|---|------------|----------------------|-------|----------------|-----------------------------|------------------|----------|---------------------|
+| 1 | {id} | {project path} | {N} | {version from 7c} | {version resolved by upstream's transitive closure} | {upstream project path} | high/medium/low | {upstream-resolved version} |
+
+Severity classification:
+- `high` — major version difference (breaking API changes likely)
+- `medium` — minor version difference (new APIs, possible behavioral changes)
+- `low` — patch version difference (bug fixes only, unlikely to cause issues)
+
+If no conflicts are detected (single project, no inter-project references, or all versions align), emit a single row: `| — | (none) | — | — | — | — | — | — | — |`.
 
 ## Execution State
 
