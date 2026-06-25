@@ -13,35 +13,44 @@ This preset overrides the core `speckit.implement` body to coordinate with the `
 
 Inspect `.specify/extensions.yml`. If `fx-to-dotnet` is enabled, set `EXTENSION_ACTIVE = true`.
 
-## 2. Execute prerequisite tasks ahead of migration
+## 2. Determine migration state and branch
 
-Iterate through `tasks.md` in document order.
+Read `tasks.md` and classify the current state into exactly ONE of these three branches. Execute ONLY the matching branch — do NOT fall through to another branch.
 
-If extension-managed migration content exists and there are unchecked non-`[MIG-*]` tasks before the first unresolved `[MIG-*]` row, execute only those prerequisite tasks on this pass using the normal core behavior for ordinary tasks.
+### Branch A — Unresolved migration tasks exist
 
-These prerequisite tasks are the only non-hook work allowed before migration dispatch begins.
+**Condition**: `tasks.md` contains at least one line matching `^- \[ \] \[MIG-\d{3}\]` (an unchecked `[MIG-*]` row).
 
-## 3. Stop at unresolved migration boundary
+**Action**: Execute ONLY non-`[MIG-*]` prerequisite tasks that appear before the first unresolved `[MIG-*]` row, using normal core behavior for ordinary tasks.
 
-For every task whose ID matches `^MIG-\d{3}$`:
+**Hard stop**: After executing prerequisites (or if none exist), you MUST EXIT immediately. Do NOT continue to any subsequent step. Do NOT process any `[US*]` task. Do NOT read or act on any task after the first unresolved `[MIG-*]` row. Tell the user:
 
-- Do NOT execute it
-- Do NOT parse its `dispatch:` trailer
-- Do NOT invoke any command from a non-`speckit.fx-to-dotnet.*` namespace on its behalf
-- Treat already-marked `[X]` and `[~]` rows as completed.
-- If an unresolved `[ ]` row is encountered and there were prerequisite tasks earlier in the file on this pass, STOP after the prerequisite segment and tell the user to re-run `/speckit.implement` so the hook can process migration now that prerequisites are complete.
-- If an unresolved `[ ]` row is encountered and there were no prerequisite tasks earlier in the file, treat it as a hook failure and ABORT with a remediation message:
+```
+Prerequisites complete. Re-run `/speckit.implement` so the `before_implement` hook can process migration tasks.
+```
 
-  ```
-  ERROR: Unresolved [MIG-*] tasks detected. The `before_implement` hook should have processed these.
-  Re-run `/speckit.implement` to invoke the hook, or `speckit.fx-to-dotnet.implement-hook` directly.
-  ```
+If no prerequisite tasks were executed on this pass either, ABORT with:
 
-## 4. Execute user-story tasks
+```
+ERROR: Unresolved [MIG-*] tasks detected. The `before_implement` hook should have processed these.
+Re-run `/speckit.implement` to invoke the hook, or `speckit.fx-to-dotnet.implement-hook` directly.
+```
 
-Process `[US*]` tasks exactly as core does, but only after the migration boundary has been cleared. The `> ✓ Migration Complete` checkpoint inserted by the `before_implement` hook serves as the boundary marker; you may treat it as informational.
+**You MUST NOT process any `[US*]` task on ANY pass where unresolved `[MIG-*]` tasks exist.** This is the critical ordering guarantee — migration (Phase 1) must complete before user-story phases can begin.
 
-## 5. Dispatch namespace restriction
+### Branch B — Migration complete
+
+**Condition**: `tasks.md` contains the checkpoint line `> ✓ Migration Complete` (inserted by the `before_implement` hook after all `[MIG-*]` tasks are resolved).
+
+**Action**: Process `[US*]` tasks exactly as core does. All `[MIG-*]` rows are already `[X]` or `[~]` — skip them.
+
+### Branch C — No migration content
+
+**Condition**: `tasks.md` contains no `[MIG-*]` rows and no `## Phase 1: .NET Framework Migration` heading (non-Framework workspace, or extension not active).
+
+**Action**: Process all tasks using normal core behavior.
+
+## 3. Dispatch namespace restriction
 
 When `EXTENSION_ACTIVE` is true, you MUST NOT dispatch any `speckit.fx-to-dotnet.*` command on behalf of a `[MIG-*]` task. The hook is the sole authorized invoker of those commands for migration items. (User-story `[US*]` tasks may legitimately call non-migration commands as usual.)
 
@@ -49,5 +58,6 @@ When `EXTENSION_ACTIVE` is true, you MUST NOT dispatch any `speckit.fx-to-dotnet
 
 <contracts>
 - Goal 5 of the tight integration plan: only `speckit.fx-to-dotnet.*` commands run for migration items, and only via the hook. This override is the deterministic enforcement at the core-command layer.
+- Ordering guarantee: Branch A ensures `[US*]` tasks NEVER execute while unresolved `[MIG-*]` tasks exist. Migration (Phase 1) always completes before user-story phases begin.
 - Hook-managed: precondition gate, prerequisite deferral, dispatch validation, per-task review, build-failure pause, audit log.
 </contracts>

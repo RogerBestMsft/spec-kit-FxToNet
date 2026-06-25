@@ -53,6 +53,6 @@ def test_implement_template_documents_prerequisite_boundary(extension_dir: Path)
         encoding="utf-8"
     )
     lower = text.lower()
-    assert "execute prerequisite tasks ahead of migration" in lower
-    assert "stop at unresolved migration boundary" in lower
-    assert "re-run `/speckit.implement` so the hook can process migration" in lower
+    assert "unresolved migration tasks exist" in lower
+    assert "must exit immediately" in lower
+    assert "re-run `/speckit.implement`" in lower

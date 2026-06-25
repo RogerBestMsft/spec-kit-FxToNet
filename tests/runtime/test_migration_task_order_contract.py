@@ -44,11 +44,37 @@ def test_preset_implement_documents_segmented_execution_flow(extension_dir: Path
     )
     lower = text.lower()
 
-    prereq_idx = lower.index("## 2. execute prerequisite tasks ahead of migration")
-    boundary_idx = lower.index("## 3. stop at unresolved migration boundary")
-    us_idx = lower.index("## 4. execute user-story tasks")
+    branch_a_idx = lower.index("### branch a")
+    branch_b_idx = lower.index("### branch b")
+    branch_c_idx = lower.index("### branch c")
 
-    assert prereq_idx < boundary_idx < us_idx, (
-        "preset implement flow should run prerequisites first, then stop at MIG boundary, then allow US tasks later"
+    assert branch_a_idx < branch_b_idx < branch_c_idx, (
+        "preset implement flow should define Branch A (unresolved MIG) before Branch B (complete) before Branch C (no migration)"
     )
-    assert "re-run `/speckit.implement` so the hook can process migration" in lower
+    assert "re-run `/speckit.implement`" in lower
+
+
+def test_preset_implement_enforces_hard_stop_on_unresolved_migration(
+    extension_dir: Path,
+) -> None:
+    text = (extension_dir / "templates" / "commands" / "implement.md").read_text(
+        encoding="utf-8"
+    )
+    lower = text.lower()
+
+    # Branch A must contain hard-stop language preventing [US*] execution
+    assert "must not process any `[us*]` task on any pass where unresolved `[mig-*]` tasks exist" in lower, (
+        "implement template must contain explicit prohibition against processing [US*] while [MIG-*] unresolved"
+    )
+    assert "must exit immediately" in lower, (
+        "implement template must require EXIT after prerequisite execution when MIG tasks unresolved"
+    )
+
+    # Branch B must require the Migration Complete checkpoint as a mandatory gate
+    assert "> ✓ migration complete" in lower, (
+        "implement template must reference the Migration Complete checkpoint"
+    )
+    # The checkpoint must NOT be described as merely informational
+    assert "you may treat it as informational" not in lower, (
+        "implement template must NOT treat the migration checkpoint as merely informational"
+    )
