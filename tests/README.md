@@ -50,8 +50,8 @@ For Pester (Windows-only PS-specific assertions):
 Install-Module -Name Pester -MinimumVersion 5.0.0 -Scope CurrentUser -Force -SkipPublisherCheck
 ```
 
-For the `dotnet build` script tests, install the .NET 8 SDK (any 8.x). The
-nightly CI job pins .NET 10 preview via a temporary `global.json`.
+For the `dotnet build` script tests, install the .NET 10 SDK (any 10.x). CI
+installs `10.0.x` to match the `net10.0` build fixtures.
 
 ## Running
 
@@ -75,7 +75,7 @@ Invoke-Pester tests/scripts/Scripts.Tests.ps1 -Output Detailed
 
 - LLM/agent reasoning is **not** executed in CI — only deterministic file-IO and
   MCP interactions are exercised by the runtime tier.
-- PR jobs use `net8.0` fixtures; nightly job tests against .NET 10 preview SDK.
+- CI jobs build `net10.0` fixtures against the .NET 10 SDK.
 - Pester scope is **PS-only** assertions (parameter validation, error streams,
   `$LASTEXITCODE`); pytest is the source of truth for cross-platform script
   behavior.

@@ -6,6 +6,11 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
     inputs:
+      ref:
+        description: 'Branch, tag, or SHA to release from. Defaults to the triggering ref.'
+        required: false
+        type: string
+        default: ''
       version:
         description: 'Version to release (e.g. 1.0.0). Leave blank to use the current version from fx-to-dotnet/extension.yml.'
         required: false
@@ -28,15 +33,20 @@ jobs:
   # Reuse all CI gates (static checks + smoke pack + test suite when present).
   ci:
     uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ inputs.ref }}
 
   version-equality:
     name: Verify tag matches manifest versions
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       version: ${{ steps.compute.outputs.version }}
       tag:     ${{ steps.compute.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Compute version & tag
         id: compute
@@ -87,8 +97,11 @@ jobs:
     name: Package release artifacts
     runs-on: ubuntu-latest
     needs: [ci, version-equality]
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Package extension and preset
         env:
@@ -102,7 +115,7 @@ jobs:
           cat SHA256SUMS.txt
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-artifacts
           path: releases/
@@ -112,16 +125,18 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     needs: [package, version-equality]
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
       - name: Checkout (for tag creation)
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.ref }}
 
       - name: Download release artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: release-artifacts
           path: releases
@@ -134,18 +149,19 @@ jobs:
           set -euo pipefail
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          target_sha="$(git rev-parse HEAD)"
           if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
             echo "Tag ${TAG} already exists locally; skipping creation."
           elif git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
             echo "Tag ${TAG} already exists on origin; skipping creation."
           else
-            echo "Creating annotated tag ${TAG} at ${GITHUB_SHA}"
-            git tag -a "${TAG}" -m "Release ${TAG}" "${GITHUB_SHA}"
+            echo "Creating annotated tag ${TAG} at ${target_sha}"
+            git tag -a "${TAG}" -m "Release ${TAG}" "${target_sha}"
             git push origin "refs/tags/${TAG}"
           fi
 
       - name: Create release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ needs.version-equality.outputs.tag }}
           name: Release ${{ needs.version-equality.outputs.tag }}
