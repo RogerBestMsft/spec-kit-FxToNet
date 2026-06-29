@@ -149,7 +149,7 @@ graph TD
     style CInv fill:#9c27b0,color:#fff
 ```
 
-Layer-by-layer phases (3 and 5) process projects in dependency order: Layer 1 (leaves) first, then Layer 2, etc. Projects within a layer are independent and may run in parallel. Each layer ends in a checkpoint prompt unless `alwaysContinue: true` is recorded in `preferences.md`.
+Layer-by-layer phases (3, 4, and 5) run together as a single per-layer pass: for each dependency layer the orchestrator completes SDK conversion, package compatibility, version alignment, and multitarget migration before advancing. Layers are processed in dependency order: Layer 1 (leaves) first, then Layer 2, etc. Projects within a layer are independent and may run in parallel. Each layer ends in a checkpoint prompt unless `alwaysContinue: true` is recorded in `preferences.md`.
 
 ## State Files (per feature)
 

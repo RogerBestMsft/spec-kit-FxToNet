@@ -70,7 +70,7 @@ provides:
       description: "Initialize migration state: resolve solution path, target framework, feature directory, and create the migration artifact directory"
     - name: "speckit.fx-to-dotnet.orchestrate"
       file: "commands/orchestrate/orchestrate.md"
-      description: "Orchestrate end-to-end .NET Framework to modern .NET migration across 7 phases"
+      description: "Orchestrate end-to-end .NET Framework to modern .NET migration across seven phases (SDK conversion, package compatibility, and multitarget run together per dependency layer)"
     - name: "speckit.fx-to-dotnet.assess"
       file: "commands/assess/assess.md"
       description: "Gather solution info, identify frameworks, dependencies, blockers; classify projects; audit package compatibility"

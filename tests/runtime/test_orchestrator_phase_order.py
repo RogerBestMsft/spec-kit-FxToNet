@@ -1,4 +1,4 @@
-"""T029: orchestrate.md declares the documented 7-phase order."""
+"""T029: orchestrate.md declares the documented per-layer migration phase order."""
 
 from __future__ import annotations
 
@@ -7,16 +7,16 @@ from pathlib import Path
 from ._driver import find_command, parse_command
 
 
-# The canonical 7-phase order documented in orchestrate.md.
+# The canonical phase order documented in orchestrate.md. SDK conversion, package
+# compatibility, version alignment, and multitarget migration are combined into a
+# single per-layer migration phase.
 EXPECTED_ORDER = [
     (1, "Initialize"),
     (2, "Run Assessment"),
     (3, "Create Migration Plan"),
-    (4, "Normalize to SDK-Style"),
-    (5, "Run Package Compatibility Migration"),
-    (6, "Run Multitarget Migration"),
-    (7, "Run ASP.NET Framework to ASP.NET Core Web Migration"),
-    (8, "Completion"),
+    (4, "Per-Layer Migration"),
+    (5, "Run ASP.NET Framework to ASP.NET Core Web Migration"),
+    (6, "Completion"),
 ]
 
 
@@ -45,9 +45,7 @@ def test_orchestrate_marks_lastcompletedphase_for_each_milestone(extension_dir: 
     body = spec.body
     expected_keys = [
         "assessment",
-        "sdk-normalization",
-        "package-compat",
-        "multitarget",
+        "layer-migration",
         "aspnet-migration",
     ]
     missing = [k for k in expected_keys if f'lastCompletedPhase: "{k}"' not in body]

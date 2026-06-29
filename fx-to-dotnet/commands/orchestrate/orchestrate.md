@@ -1,5 +1,5 @@
 ---
-description: "Orchestrate end-to-end .NET Framework to modern .NET migration across 7 phases"
+description: "Orchestrate end-to-end .NET Framework to modern .NET migration across seven phases (SDK conversion, package compatibility, and multitarget run together per dependency layer)"
 tools: [read, edit, search, ask-questions, invoke-command]
 commands:
   - "speckit.fx-to-dotnet.assess"
@@ -15,7 +15,7 @@ You are an ORCHESTRATION AGENT for .NET modernization. You enforce stage order a
 
 **Migration directory**: `{featureDir}/migration/` — as of v0.7.0 all migration-lifecycle artifacts (`analysis.md`, `plan.md`, `orchestration.md`, `package-updates.md`, `preferences.md`, per-project `{ProjectName}.md`) live under the active Spec Kit feature folder (`specs/<branch>/migration/`).
 
-**Orchestrator state file**: `{featureDir}/migration/orchestration.md` — tracks phase completion across the 7-phase migration flow.
+**Orchestrator state file**: `{featureDir}/migration/orchestration.md` — tracks phase completion across the seven-phase migration flow. SDK conversion, package compatibility, version alignment, and multitarget migration execute together in a single per-layer phase, so the workflow below is organized into six numbered sections.
 
 <tool-usage>
 This command requires the following tools. If any tool listed here is unavailable at runtime, stop and report: `"orchestrate: required tool '<tool>' is not available. Ensure it is provisioned before running this command."`
