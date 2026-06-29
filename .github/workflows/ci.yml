@@ -5,7 +5,19 @@ on:
   push:
     branches: [main]
   workflow_call:
+    inputs:
+      ref:
+        description: 'Branch, tag, or SHA to validate. Defaults to the triggering ref.'
+        required: false
+        type: string
+        default: ''
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag, or SHA to validate. Defaults to the triggering ref.'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -18,6 +30,7 @@ jobs:
   validate:
     name: Validate (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -26,17 +39,21 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: tests/requirements.txt
 
-      - name: Set up .NET 8 SDK
-        uses: actions/setup-dotnet@v4
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Install Python test dependencies
         if: hashFiles('tests/requirements.txt') != ''
@@ -121,7 +138,7 @@ jobs:
 
       - name: Upload junit test reports
         if: always() && hashFiles('junit-*.xml') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: junit-${{ matrix.os }}
           path: junit-*.xml
