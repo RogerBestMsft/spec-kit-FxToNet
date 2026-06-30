@@ -52,3 +52,15 @@ pytest tests/runtime -n auto                # if you touched commands/hooks/orch
 - New helper script → add a behavior test under `tests/scripts/` (and Pester coverage in
   `Scripts.Tests.ps1` for `.ps1`).
 - Keep the semver regex and schema expectations aligned with `tests/schemas/`.
+
+## Reviewing a PR (incl. Copilot review)
+
+Green CI alone is not sufficient — it only runs the *existing* suite. When reviewing,
+flag any change that adds untested behavior:
+
+- A new or renamed helper script with **no** matching `tests/scripts/` test (and no Pester
+  case in `Scripts.Tests.ps1` for the `.ps1` twin).
+- A new command or hook with **no** `tests/runtime/` coverage.
+- A new structural invariant or convention with **no** `tests/structural/` guard.
+
+Request the missing test, or an explicit rationale in the PR for why none is needed.
