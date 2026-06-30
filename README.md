@@ -9,6 +9,9 @@ The extension integrates tightly with the Spec Kit lifecycle (`/speckit.specify`
 - License: MIT
 - Author: Microsoft
 
+> [!NOTE]
+> A `v0.9.0` **prerelease** is available for early testing. See [Preview Release (Prerelease)](#preview-release-prerelease) at the bottom of this document for details.
+
 ## Repository Layout
 
 ```mermaid
@@ -38,8 +41,9 @@ graph LR
 ## Quick Start
 
 ```bash
-# 1. Install the extension into your Spec Kit project
+# 1. Install the extension into your Spec Kit project (stable v0.8.0)
 specify extension add fx-to-dotnet
+#    To try v0.9.0 instead, see "Preview Release (Prerelease)" at the bottom.
 
 # 2. (Optional) Install the companion preset for deterministic core overrides
 specify preset add fx-to-dotnet-sdd
@@ -273,6 +277,65 @@ Several commands work independently of the full migration suite:
 - [docs/release-pipeline-plan.md](docs/release-pipeline-plan.md) — release pipeline
 - [docs/publish-plan.md](docs/publish-plan.md) — publishing plan
 - [docs/automated-test-plan.md](docs/automated-test-plan.md) — automated test plan
+
+## Preview Release (Prerelease)
+
+> **`v0.9.0` is available as a [prerelease](https://github.com/RogerBestMsft/spec-kit-FxToNet/releases/tag/v0.9.0).** It is cut from the [`migrate-spec`](https://github.com/RogerBestMsft/spec-kit-FxToNet/tree/migrate-spec) branch and is **not** the latest stable release (`v0.8.0`). Use it to try the upcoming features; expect breaking changes before it is promoted to a stable release.
+
+The `v0.9.0` preview advances both the extension and the companion preset to `0.9.0` and focuses on MCP-driven analysis and tighter Spec Kit integration:
+
+- **MCP preflight gate** — a new `speckit.fx-to-dotnet.mcp-preflight` command plus connectivity-check scripts verify the `Microsoft.GitHubCopilot.Modernization.Mcp` server is reachable before a migration starts.
+- **Transitive dependency closure** — paired `get-transitive-dependency-closure` scripts compute the full dependency graph to drive layer-by-layer SDK conversion and cross-project version alignment.
+- **New policies** — `conditional-compilation` and `cross-project-version-alignment`; `mcp-setup` is restructured into a standard policy folder (`policies/mcp-setup/POLICY.md`).
+- **Tighter lifecycle integration** — preset overrides now include `specify` and `plan` templates, enabling a specify-driven flow where migration context is captured up front.
+- **Multitarget improvements** — refined `speckit.fx-to-dotnet.multitarget-migrate` handling and cross-project version reconciliation.
+
+### Try the prerelease
+
+There are three ways to run `v0.9.0`. **Option A** is recommended for most users.
+
+#### Option A — Install the published release asset (recommended)
+
+The `v0.9.0` release attaches a packaged `fx-to-dotnet.zip` plus `SHA256SUMS.txt`:
+
+```bash
+# 1. Download the packaged extension + checksum from the v0.9.0 prerelease
+curl -LO https://github.com/RogerBestMsft/spec-kit-FxToNet/releases/download/v0.9.0/fx-to-dotnet.zip
+curl -LO https://github.com/RogerBestMsft/spec-kit-FxToNet/releases/download/v0.9.0/SHA256SUMS.txt
+
+# 2. Verify the download
+sha256sum -c SHA256SUMS.txt
+
+# 3. Extract — the zip contains a single top-level fx-to-dotnet/ folder
+unzip fx-to-dotnet.zip
+
+# 4. Install the extracted folder (the bundle ships both the extension and the preset)
+specify extension add --dev ./fx-to-dotnet
+specify preset add --dev ./fx-to-dotnet
+```
+
+#### Option B — Windows PowerShell
+
+Same as Option A, using `Invoke-WebRequest` and `Expand-Archive` for the download and extract steps:
+
+```powershell
+Invoke-WebRequest https://github.com/RogerBestMsft/spec-kit-FxToNet/releases/download/v0.9.0/fx-to-dotnet.zip -OutFile fx-to-dotnet.zip
+Expand-Archive fx-to-dotnet.zip -DestinationPath .
+specify extension add --dev .\fx-to-dotnet
+specify preset add --dev .\fx-to-dotnet
+```
+
+#### Option C — Track the branch directly
+
+Clone the `migrate-spec` branch and install from the checkout (useful for following ongoing changes):
+
+```bash
+git clone --branch migrate-spec https://github.com/RogerBestMsft/spec-kit-FxToNet.git
+specify extension add --dev ./spec-kit-FxToNet/fx-to-dotnet
+specify preset add --dev ./spec-kit-FxToNet/fx-to-dotnet
+```
+
+Once `v0.9.0` is promoted to a stable release, the version bullets near the top of this document will be updated and this section will be removed. See the [CHANGELOG](CHANGELOG.md) and the [releases page](https://github.com/RogerBestMsft/spec-kit-FxToNet/releases) for the full history.
 
 ## License
 
