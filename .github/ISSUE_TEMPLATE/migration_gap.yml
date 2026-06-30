@@ -1,0 +1,60 @@
+name: Migration coverage gap
+description: Report a .NET Framework -> modern .NET migration scenario the extension does not handle (request a new command or policy).
+title: "[migration-gap]: "
+labels: ["type: feature", "area: policy", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this when `fx-to-dotnet` does not cover a specific migration scenario — a missing
+        package mapping, an unhandled framework API, or a pattern that needs a new policy or
+        command.
+  - type: textarea
+    id: scenario
+    attributes:
+      label: Migration scenario
+      description: What .NET Framework feature, API, package, or app pattern is not handled?
+      placeholder: e.g. WCF service host, System.Web HttpModule, ASMX, EF6 edmx, AppDomain usage
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Source (Framework) example
+      description: A minimal code/config snippet representative of the source pattern.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: target
+    attributes:
+      label: Expected modern .NET outcome
+      description: What should the migrated code/config look like, or what guidance should the agent give?
+    validations:
+      required: true
+  - type: input
+    id: target-framework
+    attributes:
+      label: Target framework
+      placeholder: e.g. net10.0
+    validations:
+      required: false
+  - type: dropdown
+    id: proposed
+    attributes:
+      label: What would close this gap?
+      options:
+        - New policy (policies/**)
+        - Update to an existing policy
+        - New or updated command
+        - Package mapping (nuget-package-compat)
+        - Not sure
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I searched existing issues and policies and this gap is not already covered.
+          required: true
