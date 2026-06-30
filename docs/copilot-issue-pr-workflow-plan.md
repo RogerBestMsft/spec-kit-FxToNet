@@ -24,7 +24,7 @@
 | Coding-agent environment | _none_ | `copilot-setup-steps.yml` to preinstall Python/.NET/deps |
 | Issue intake | Raw blank issues | Issue **forms** (bug / feature / migration gap) + config |
 | PR intake | Blank PR | `pull_request_template.md` with CI checklist |
-| Triage/routing | _none_ | `labels.yml` + label-sync, `labeler.yml`, `CODEOWNERS` |
+| Triage/routing | _none_ | `labels.yml` + gh-label sync, `labeler.yml`, `CODEOWNERS` |
 | Security/governance | _none_ | `SECURITY.md` + CONTRIBUTING triage section |
 
 ## 3. Where Copilot plugs in
@@ -41,7 +41,7 @@ flowchart LR
         C3[Copilot PR code review]
     end
     subgraph Automation
-        L[labeler + label-sync]
+        L[labeler + gh-label sync]
         CO[CODEOWNERS]
         CI[CI gates\nversion / cross-ref / pytest / Pester]
         S[copilot-setup-steps.yml]
@@ -171,7 +171,7 @@ flowchart LR
 - `.github/labeler.yml` + `.github/workflows/labeler.yml` (actions/labeler, SHA-pinned) —
   PR path globs → `area:` labels.
 - `.github/labels.yml` + `.github/workflows/labels-sync.yml`
-  (`EndBug/label-sync`, SHA-pinned) — canonical taxonomy.
+  (GitHub CLI `gh label`, SHA-pinned actions) — canonical taxonomy.
 - `.github/CODEOWNERS` — all mapped paths → `@RogerBestMsft`.
 
 ### Phase 4 — Governance & security
@@ -195,7 +195,7 @@ flowchart LR
 ## 10. Decisions
 
 - **CODEOWNERS owner:** `@RogerBestMsft` (all paths).
-- **Label sync:** single SHA-pinned `EndBug/label-sync` driven by `.github/labels.yml`.
+- **Label sync:** GitHub CLI `gh label` driven by `.github/labels.yml` (no third-party actions).
 - **Dependabot:** excluded — GitHub Actions are already SHA-pinned.
 - **Test-adequacy depth:** Option B — **presence gate + diff-coverage gate** (mutation
   testing deferred).

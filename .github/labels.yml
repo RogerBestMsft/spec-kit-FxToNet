@@ -1,5 +1,5 @@
 # Canonical label taxonomy, synced to the repo by .github/workflows/labels-sync.yml
-# (EndBug/label-sync). Edit here, not in the GitHub UI.
+# (gh label, via the GitHub CLI). Edit here, not in the GitHub UI.
 
 # --- type ---
 - name: "type: bug"

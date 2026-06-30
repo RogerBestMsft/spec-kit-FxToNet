@@ -23,8 +23,47 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
-      - name: Sync labels
-        uses: EndBug/label-sync@9e7b9e132c14c20e0a3d2269b12f0ab39623e38b # main
+      - name: Set up Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6
         with:
-          config-file: .github/labels.yml
-          delete-other-labels: false
+          python-version: '3.11'
+
+      - name: Install PyYAML
+        run: python -m pip install pyyaml
+
+      - name: Sync labels from labels.yml
+        # Upsert every label in .github/labels.yml via the GitHub CLI (gh label create
+        # --force). Labels not listed here are left untouched (delete-other-labels: false).
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          import subprocess
+          import sys
+
+          import yaml
+
+          with open(".github/labels.yml", encoding="utf-8") as fh:
+              labels = yaml.safe_load(fh)
+
+          failures = []
+          for label in labels:
+              name = label["name"]
+              color = str(label.get("color", "")).lstrip("#")
+              description = label.get("description", "")
+              print(f"Syncing label: {name}")
+              result = subprocess.run(
+                  [
+                      "gh", "label", "create", name,
+                      "--color", color,
+                      "--description", description,
+                      "--force",
+                  ]
+              )
+              if result.returncode != 0:
+                  failures.append(name)
+
+          if failures:
+              print(f"ERROR: failed to sync labels: {', '.join(failures)}")
+              sys.exit(1)
+          print(f"Synced {len(labels)} labels.")

@@ -161,17 +161,34 @@ jobs:
           fi
 
       - name: Create release
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
-        with:
-          tag_name: ${{ needs.version-equality.outputs.tag }}
-          name: Release ${{ needs.version-equality.outputs.tag }}
-          files: |
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version-equality.outputs.tag }}
+          PRERELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease == true }}
+        run: |
+          set -euo pipefail
+
+          # Fail loudly if an expected asset is missing (replaces fail_on_unmatched_files).
+          for asset in releases/fx-to-dotnet.zip releases/SHA256SUMS.txt; do
+            if [ ! -f "$asset" ]; then
+              echo "ERROR: expected release asset '$asset' not found"
+              exit 1
+            fi
+          done
+
+          args=(
+            "$TAG"
             releases/fx-to-dotnet.zip
             releases/SHA256SUMS.txt
-          generate_release_notes: true
-          draft: false
-          prerelease: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease == true }}
-          fail_on_unmatched_files: true
+            --title "Release $TAG"
+            --generate-notes
+            --verify-tag
+          )
+          if [ "$PRERELEASE" = "true" ]; then
+            args+=( --prerelease )
+          fi
+
+          gh release create "${args[@]}"
 
   # Note: publishing to the spec-kit community catalog is handled by the
   # standalone `community-catalog-pr.yml` workflow, triggered manually via

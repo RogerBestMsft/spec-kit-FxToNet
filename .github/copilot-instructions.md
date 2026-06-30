@@ -95,6 +95,11 @@ These invariants will fail CI if broken. Honor them in every change.
 8. **CHANGELOG marker.** `CHANGELOG.md` starts with `# Changelog` and keeps the
    `<!-- RELEASES -->` marker — the release workflow inserts entries there.
    (`test_changelog.py`)
+9. **First-party, SHA-pinned actions.** Every `uses:` in `.github/workflows/**` must be a
+   local workflow (`./...`) or an action owned by GitHub or Microsoft (`actions/`,
+   `github/`, `microsoft/`, `azure/`) **and** pinned to a full 40-char commit SHA — no
+   third-party actions, no floating `@vN` tags. Replace third-party actions with a
+   first-party action or the GitHub CLI (`gh`). (`test_workflow_actions.py`)
 
 ## How to make common changes
 
