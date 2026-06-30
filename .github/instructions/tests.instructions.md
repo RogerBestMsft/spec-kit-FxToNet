@@ -39,6 +39,9 @@ The suite is the executable spec for the repo's conventions. Requires Python 3.1
 - `test_workflow_actions.py` — every `uses:` in `.github/workflows/**` is a local
   workflow or a GitHub/Microsoft-owned action (`actions`/`github`/`microsoft`/`azure`)
   pinned to a full 40-char commit SHA; no third-party actions or floating tags.
+- `test_workflow_structure.py` — first-party, dependency-free shape check: every workflow
+  parses, declares `on:` triggers and a `jobs:` map, each job has `runs-on` or a reusable
+  `uses`, and each step is exactly one of `uses`/`run`.
 
 ## Running locally (mirrors `.github/workflows/ci.yml`)
 
