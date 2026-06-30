@@ -65,14 +65,14 @@ jobs:
 
       - name: Checkout this repo (for catalog generator)
         if: steps.token.outputs.skip == 'false'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ steps.resolve.outputs.tag }}
           path: fx2dotnet
 
       - name: Checkout github/spec-kit
         if: steps.token.outputs.skip == 'false'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: github/spec-kit
           token: ${{ secrets.SPECKIT_CATALOG_TOKEN }}
@@ -80,7 +80,7 @@ jobs:
 
       - name: Set up Python
         if: steps.token.outputs.skip == 'false'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -126,7 +126,7 @@ jobs:
 
       - name: Open pull request against github/spec-kit
         if: steps.token.outputs.skip == 'false'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           path: spec-kit
           token: ${{ secrets.SPECKIT_CATALOG_TOKEN }}
