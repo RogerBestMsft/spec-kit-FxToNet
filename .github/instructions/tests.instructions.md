@@ -36,6 +36,9 @@ The suite is the executable spec for the repo's conventions. Requires Python 3.1
   server present; runs the `mcp-config-validate` scripts.
 - `test_changelog.py` — `# Changelog` header + `<!-- RELEASES -->` marker present.
 - `test_policy_links.py` — policy folder references in commands resolve.
+- `test_workflow_actions.py` — every `uses:` in `.github/workflows/**` is a local
+  workflow or a GitHub/Microsoft-owned action (`actions`/`github`/`microsoft`/`azure`)
+  pinned to a full 40-char commit SHA; no third-party actions or floating tags.
 
 ## Running locally (mirrors `.github/workflows/ci.yml`)
 
