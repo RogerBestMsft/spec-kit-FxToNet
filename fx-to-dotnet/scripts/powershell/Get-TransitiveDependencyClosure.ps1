@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Resolves the full transitive NuGet dependency closure for a set of packages.
 .DESCRIPTION

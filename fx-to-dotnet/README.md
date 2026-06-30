@@ -4,7 +4,7 @@ A Spec Kit extension that orchestrates migrating .NET Framework applications to 
 
 - **Version**: `0.9.0`
 - **License**: MIT
-- **Repository**: https://github.com/AzureAD/fx-to-dotnet-extensions
+- **Repository**: https://github.com/RogerBestMsft/spec-kit-FxToNet
 - **Default target framework**: `net10.0`
 - **Default migration strategy**: `multi-target` — both Framework and modern .NET targets coexist
 
@@ -20,6 +20,7 @@ graph TB
     end
 
     subgraph Hooks[fx-to-dotnet hooks]
+        H1[specify-hook]
         H2[plan-hook]
         H3[tasks-hook]
         H4[implement-hook<br/>THE GATE]
@@ -106,7 +107,7 @@ graph TB
 
 ## Lifecycle Integration (v0.5.0+)
 
-From v0.4.0 the extension integrates tightly with the standard Spec Kit lifecycle (`specify → plan → tasks → implement`) via four lifecycle hooks. Migration content is owned end-to-end by the extension; user-story implementation is gated behind completion of all migration tasks, and migration dispatch itself is gated behind any prerequisite tasks emitted ahead of the first `[MIG-*]` row.
+From v0.4.0 the extension integrates tightly with the standard Spec Kit lifecycle (`specify → plan → tasks → implement`) via five lifecycle hooks. Migration content is owned end-to-end by the extension; user-story implementation is gated behind completion of all migration tasks, and migration dispatch itself is gated behind any prerequisite tasks emitted ahead of the first `[MIG-*]` row.
 
 When the companion **fx-to-dotnet-sdd preset** is installed, the core `speckit.specify` agent includes a `## Migration Context` section in `spec.md` with lightweight Framework project detection and upgrade strategy classification. This is a passive, read-only detection — full classification happens at plan time.
 
@@ -114,6 +115,7 @@ When the companion **fx-to-dotnet-sdd preset** is installed, the core `speckit.s
 
 | Event | Hook command | Optional? | Role |
 |---|---|---|---|
+| `after_specify` | `speckit.fx-to-dotnet.specify-hook` | **no** | Enforce a deterministic `## Migration Context` section in `spec.md` for Framework solutions. |
 | `after_plan` | `speckit.fx-to-dotnet.plan-hook` | **no** | Run `assess` + `plan`; produce `{featureDir}/migration/analysis.md` and `{featureDir}/migration/plan.md` (both shared); annotate `plan.md` with `## .NET Migration Plan`. |
 | `after_tasks` | `speckit.fx-to-dotnet.tasks-hook` | **no** | Dedupe migration tasks the core agent emitted; replace the placeholder with `## Phase 1: .NET Framework Migration` when present, or insert that phase ahead of user stories and renumber existing phases; emit any prerequisite tasks that must run before migration dispatch; then emit granular `[MIG-*]` rows with `dispatch:` trailers. |
 | `before_implement` | `speckit.fx-to-dotnet.implement-hook` | **no** | **The gate.** Verify preconditions; defer migration dispatch while prerequisite tasks remain ahead of the first `[MIG-*]` row; then do per-task review of every `[MIG-*]`; validate dispatch namespace; only then allow `speckit.implement` to run user-story tasks. |

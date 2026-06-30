@@ -71,3 +71,31 @@ def test_referenced_commands_in_frontmatter_resolve(
                     errors.append(f"{rel}: handoff agent -> {agent}")
 
     assert not errors, "Undeclared command refs in frontmatter:\n  " + "\n  ".join(errors)
+
+
+def test_frontmatter_scripts_match_manifest(
+    extension_dir: Path, extension_yml: dict
+) -> None:
+    """G5: when a command's frontmatter declares `scripts`, the set must equal the
+    `scripts:` declared for that command in extension.yml (source of truth)."""
+    # Map each command file (relative to extension_dir) to its manifest scripts.
+    manifest_by_file: dict[str, set[str]] = {}
+    for cmd in extension_yml["provides"]["commands"]:
+        manifest_by_file[cmd["file"].replace("\\", "/")] = {
+            s.replace("\\", "/") for s in (cmd.get("scripts") or [])
+        }
+
+    errors: list[str] = []
+    for md in _command_md_files(extension_dir):
+        fm = _frontmatter(md.read_text(encoding="utf-8")) or {}
+        if "scripts" not in fm:
+            continue  # frontmatter scripts are optional
+        rel = str(md.relative_to(extension_dir)).replace("\\", "/")
+        fm_scripts = {s.replace("\\", "/") for s in (fm.get("scripts") or [])}
+        manifest_scripts = manifest_by_file.get(rel, set())
+        if fm_scripts != manifest_scripts:
+            errors.append(
+                f"{rel}: frontmatter scripts {sorted(fm_scripts)} != "
+                f"manifest scripts {sorted(manifest_scripts)}"
+            )
+    assert not errors, "Frontmatter/manifest script drift:\n  " + "\n  ".join(errors)

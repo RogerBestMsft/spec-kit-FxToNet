@@ -39,3 +39,20 @@ def test_changelog_release_sections_are_semver(repo_root: Path) -> None:
         assert re.match(r"^\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$", label), (
             f"CHANGELOG.md release heading '[{label}]' is not semver."
         )
+
+
+def test_changelog_accounts_for_current_version(repo_root: Path, extension_yml: dict) -> None:
+    """G13: the current manifest version must be tracked in the changelog — either as a
+    released '## [x.y.z]' heading or under an '## [Unreleased]' section (pending release).
+
+    This couples version bumps to changelog upkeep without forcing a released entry
+    before the release workflow inserts one.
+    """
+    version = extension_yml["extension"]["version"]
+    text = (repo_root / "CHANGELOG.md").read_text(encoding="utf-8")
+    has_released = re.search(rf"(?m)^##\s+\[{re.escape(version)}\]", text) is not None
+    has_unreleased = re.search(r"(?m)^##\s+\[Unreleased\]", text) is not None
+    assert has_released or has_unreleased, (
+        f"CHANGELOG.md must contain a '## [{version}]' entry or an '## [Unreleased]' "
+        f"section so the current version ({version}) is tracked."
+    )

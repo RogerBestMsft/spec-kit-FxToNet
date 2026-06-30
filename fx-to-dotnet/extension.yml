@@ -77,8 +77,10 @@ provides:
       scripts:
         - "scripts/bash/find-recommended-package-upgrades.sh"
         - "scripts/bash/get-minimal-package-set.sh"
+        - "scripts/bash/get-transitive-dependency-closure.sh"
         - "scripts/powershell/Find-RecommendedPackageUpgrades.ps1"
         - "scripts/powershell/Get-MinimalPackageSet.ps1"
+        - "scripts/powershell/Get-TransitiveDependencyClosure.ps1"
     - name: "speckit.fx-to-dotnet.plan"
       file: "commands/plan/plan.md"
       description: "Synthesize assessment findings into actionable, layered migration plan with chunked package updates"

@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Validate that the canonical .mcp.json snippet in mcp-setup/POLICY.md is well-formed
