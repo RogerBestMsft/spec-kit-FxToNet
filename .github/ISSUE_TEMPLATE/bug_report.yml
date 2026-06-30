@@ -1,0 +1,102 @@
+name: Bug report
+description: Report a defect in the fx-to-dotnet extension, preset, commands, policies, scripts, or tests.
+title: "[bug]: "
+labels: ["type: bug", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. This repo ships markdown commands/policies, YAML manifests,
+        and paired shell/PowerShell scripts — not application code. The more concrete detail
+        you give (exact command/hook/policy, OS, shell), the faster a human or the Copilot
+        coding agent can fix it.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear, concise description of the bug.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Which part of the extension is affected?
+      options:
+        - command (commands/**)
+        - policy (policies/**)
+        - script (scripts/** or support_scripts/**)
+        - manifest (extension.yml / preset.yml)
+        - tests
+        - CI / release workflow
+        - other / not sure
+    validations:
+      required: true
+  - type: input
+    id: component
+    attributes:
+      label: Specific command / hook / policy / script
+      description: e.g. `speckit.fx-to-dotnet.assess`, `before_implement` hook, `nuget-package-compat` policy, `bump-version.ps1`.
+      placeholder: name of the affected component
+    validations:
+      required: false
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Exact steps, commands, and inputs.
+      placeholder: |
+        1. Run ...
+        2. ...
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the exact error output or failing gate (version-check, cross-reference-audit, pytest, Pester).
+    validations:
+      required: true
+  - type: dropdown
+    id: shell
+    attributes:
+      label: Shell
+      description: Which shell were you using? PowerShell 5.1 vs 7 matters for script behavior.
+      options:
+        - Windows PowerShell 5.1
+        - PowerShell 7+
+        - bash
+        - not applicable
+    validations:
+      required: false
+  - type: input
+    id: os
+    attributes:
+      label: OS / environment
+      placeholder: e.g. Windows 11, Ubuntu 24.04, macOS 14
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+      description: The version declared in fx-to-dotnet/extension.yml that you are using.
+      placeholder: e.g. 1.2.3
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: This is a defect in `fx-to-dotnet` (not an upstream Spec Kit issue).
+          required: true

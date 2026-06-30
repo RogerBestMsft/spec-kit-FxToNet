@@ -1,0 +1,54 @@
+name: Feature request
+description: Propose a new capability or enhancement for the fx-to-dotnet extension or tooling.
+title: "[feature]: "
+labels: ["type: feature", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for general capabilities or enhancements. If you are reporting **missing
+        .NET Framework -> modern .NET migration coverage**, use the "Migration coverage gap"
+        template instead.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What are you trying to do, and what is blocking or painful today?
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Proposed change type
+      options:
+        - New command
+        - New policy
+        - New / updated script
+        - Manifest or preset change
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the command/policy/script you have in mind and how it would behave.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      description: This repo is docs/markdown/YAML/scripts/tests only — no application build or new runtime dependencies.
+      options:
+        - label: This request stays within the extension's scope (no new build system or runtime dependency).
+          required: true
+        - label: I searched existing issues and this is not a duplicate.
+          required: true

@@ -139,6 +139,26 @@ pytest tests/runtime                                # if you touched commands/ho
 
 If you edited any `.ps1`, parse-check it (see scripts instructions) and confirm encoding.
 
+## Working from an issue (coding agent)
+
+When you pick up an issue (e.g. a bug, feature request, or `[migration-gap]`), the
+[copilot-setup-steps workflow](workflows/copilot-setup-steps.yml) has already provisioned
+Python 3.11, the .NET 10 SDK, the `tests/requirements.txt` deps, and Pester. Use that
+environment to satisfy this **Definition of Done before opening a PR**:
+
+1. Make the smallest change that resolves the issue, honoring the golden rules above.
+2. Add or update tests for any new behavior: a new helper script needs a `tests/scripts/`
+   test (plus Pester coverage in `Scripts.Tests.ps1` for the `.ps1`); a new command/hook
+   needs `tests/runtime/` coverage; a new invariant needs a `tests/structural/` test. If a
+   change genuinely needs no test, say why in the PR.
+3. Run the full validate block below; every gate must pass.
+4. If the change is user-facing, add a `CHANGELOG.md` `Unreleased` entry and update the
+   command tables in **both** `README.md` and `fx-to-dotnet/README.md`.
+5. Fill in the PR template checklist (`.github/pull_request_template.md`) and link the
+   issue with `Closes #<n>`.
+6. Do not bump the version unless the issue asks for a release; if you do, use
+   `support_scripts/bump-version.*`, never hand-edit.
+
 ## Scope discipline
 
 Documentation, command/policy markdown, manifests, scripts, and tests only. Do not

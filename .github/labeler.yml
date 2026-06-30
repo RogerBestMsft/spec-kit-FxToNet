@@ -1,0 +1,44 @@
+# PR auto-labeler config for actions/labeler v5.
+# Maps changed file globs to `area:` labels so PRs are routed without manual triage.
+"area: command":
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'fx-to-dotnet/commands/**'
+
+"area: policy":
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'fx-to-dotnet/policies/**'
+
+"area: script":
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'fx-to-dotnet/scripts/**'
+          - 'support_scripts/**'
+
+"area: manifest":
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'fx-to-dotnet/extension.yml'
+
+"area: preset":
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'fx-to-dotnet/preset.yml'
+          - 'fx-to-dotnet/templates/**'
+
+"area: tests":
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'tests/**'
+
+"area: ci":
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/workflows/**'
+
+"type: docs":
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.md'
+          - 'docs/**'

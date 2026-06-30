@@ -76,3 +76,23 @@ gates on Ubuntu and Windows.
 
 Keep changes to documentation, command/policy markdown, manifests, scripts, and tests.
 Don't introduce a build system, application code, or new runtime dependencies.
+
+## Reporting issues & triage
+
+- File issues with one of the templates (bug report, feature request, or migration
+  coverage gap). Blank issues are disabled; questions go to
+  [Discussions](https://github.com/RogerBestMsft/spec-kit-FxToNet/discussions) and
+  security reports go through a [private advisory](SECURITY.md).
+- New issues land with `needs triage`. A maintainer adds the `type:` and `area:` labels;
+  PRs are auto-labeled by path via [.github/labeler.yml](.github/labeler.yml). The label
+  taxonomy lives in [.github/labels.yml](.github/labels.yml).
+- Well-scoped issues may be labeled `copilot` and assigned to the GitHub Copilot coding
+  agent, which opens a PR using the same gates described below.
+
+## PR review expectations
+
+- Every PR runs the CI gates and is reviewed by the code owner
+  ([@RogerBestMsft](.github/CODEOWNERS)); Copilot may also leave an automated review.
+- Complete the [pull request template](.github/pull_request_template.md) checklist and
+  keep PRs focused — one logical change per PR.
+- CI must be green before merge. Re-run the validate block locally if a gate fails.

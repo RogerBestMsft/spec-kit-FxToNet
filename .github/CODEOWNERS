@@ -1,0 +1,22 @@
+# Code owners for spec-kit-FxToNet.
+# These owners are requested for review automatically when matching files change.
+# Order matters: the last matching pattern wins.
+
+# Default owner for everything.
+*                                   @RogerBestMsft
+
+# Manifests & versioning (highest-risk: single-version invariant).
+/fx-to-dotnet/extension.yml         @RogerBestMsft
+/fx-to-dotnet/preset.yml            @RogerBestMsft
+
+# Commands, hooks, and policies.
+/fx-to-dotnet/commands/             @RogerBestMsft
+/fx-to-dotnet/policies/             @RogerBestMsft
+
+# Scripts (bash <-> PowerShell parity).
+/fx-to-dotnet/scripts/              @RogerBestMsft
+/support_scripts/                   @RogerBestMsft
+
+# Tests and CI.
+/tests/                             @RogerBestMsft
+/.github/                           @RogerBestMsft
